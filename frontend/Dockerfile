@@ -19,6 +19,11 @@ LABEL org.opencontainers.image.title="glasshaus-web" \
       org.opencontainers.image.revision="${BUILD_SHA}" \
       org.opencontainers.image.source="https://github.com/parabyte-ca/project-glasshaus" \
       org.opencontainers.image.licenses="AGPL-3.0-only"
+# Pick up Alpine security fixes released after the base image was built
+# (UPGRADE_OS_PACKAGES=false only for networks that block the package mirrors).
+ARG UPGRADE_OS_PACKAGES=true
+USER root
+RUN if [ "$UPGRADE_OS_PACKAGES" = "true" ]; then apk upgrade --no-cache; fi
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /src/dist /usr/share/nginx/html

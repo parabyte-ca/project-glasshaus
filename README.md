@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.2.0 — Phase 1 (data model, auth/RBAC, task and project API). See [CHANGELOG.md](CHANGELOG.md) and the [roadmap](#roadmap).
+> **Status:** v0.2.1 — Phase 1 (data model, auth/RBAC, task and project API). See [CHANGELOG.md](CHANGELOG.md) and the [roadmap](#roadmap).
 
 ## Contents
 
@@ -186,6 +186,7 @@ Version-specific upgrade notes:
 
 | Version | Notes |
 | --- | --- |
+| 0.2.1 | Security patch for container base packages. `./update.sh` as usual. |
 | 0.2.0 | One-time, because the 0.1.0 `update.sh` cannot hand over to its successor: run `git pull --ff-only && ./update.sh --no-git --rollback-rev ORIG_HEAD`. It generates `POSTGRES_APP_PASSWORD` and `GLASSHAUS_ADMIN_PASSWORD`, and `migrate` creates the `glasshaus_app` database role. From 0.2.0 on, `./update.sh` re-runs its own new version after pulling. |
 | 0.1.0 | Initial release. |
 
