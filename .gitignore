@@ -1,0 +1,32 @@
+# Secrets and local state
+.env
+.env.*
+!.env.example
+backups/
+docker-compose.override.yml
+*.dump
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Node
+node_modules/
+frontend/dist/
+coverage/
+playwright-report/
+test-results/
+
+# Editors / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store

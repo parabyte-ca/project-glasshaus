@@ -1,0 +1,47 @@
+# Install: make install (or `uvx pre-commit install`)
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+      - id: forbid-new-submodules
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.10
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1-1
+    hooks:
+      - id: shellcheck
+        args: [-x]
+  - repo: local
+    hooks:
+      - id: frontend-lint
+        name: frontend eslint + prettier
+        language: system
+        entry: bash -c 'cd frontend && npx eslint --max-warnings 0 . && npx prettier --check .'
+        files: ^frontend/
+        pass_filenames: false
+      - id: version-consistency
+        name: version consistency
+        language: system
+        entry: scripts/check-version.sh
+        files: ^(VERSION|CHANGELOG\.md|backend/pyproject\.toml|frontend/package\.json)$
+        pass_filenames: false
