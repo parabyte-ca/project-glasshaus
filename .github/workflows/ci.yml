@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (lint, types, tests)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: glasshaus
+          POSTGRES_PASSWORD: glasshaus
+          POSTGRES_DB: glasshaus
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U glasshaus" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GLASSHAUS_DATABASE_URL: postgresql+asyncpg://glasshaus:glasshaus@localhost:5432/glasshaus
+      GLASSHAUS_REDIS_URL: redis://localhost:6379/0
+      GLASSHAUS_INTEGRATION: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy src tests
+      - run: uv run pytest
+      - name: Migrations are in sync with models
+        run: |
+          uv run glasshaus migrate
+          uv run alembic -c src/glasshaus/migrations/alembic.ini check
+
+  frontend:
+    name: Frontend (lint, types, tests, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint -- --max-warnings 0
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  repo:
+    name: Repo hygiene (shell, versions, secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: shellcheck
+        run: shellcheck -x setup.sh update.sh scripts/*.sh
+      - name: Version consistency
+        run: scripts/check-version.sh
+      - name: Compose file is valid
+        run: cp .env.example .env && sed -i 's/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=x/; s/^REDIS_PASSWORD=$/REDIS_PASSWORD=x/' .env && docker compose config -q
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  security:
+    name: Dependency and image scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: pip-audit
+        working-directory: backend
+        run: |
+          uv export --frozen --no-dev --no-hashes --no-emit-project -q > requirements.txt
+          uvx pip-audit -r requirements.txt --strict
+      - name: npm audit
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  smoke:
+    name: Stack smoke test (setup.sh)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v5
+      - name: setup.sh from a clean clone
+        run: ./setup.sh
+      - name: Re-run is idempotent
+        run: ./setup.sh
+      - name: Endpoints respond
+        run: |
+          curl -fsS http://localhost:8471/readyz
+          curl -fsS http://localhost:8470/api/v1/version
+          curl -fsS http://localhost:8470/ | grep -q "Project Glasshaus"
+          curl -fsS http://localhost:8472/healthz
+      - name: Backup and restore round-trip
+        run: |
+          dump="$(source scripts/lib.sh && backup_now ci)"
+          scripts/restore.sh "$dump" --yes
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail 200

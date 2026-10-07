@@ -1,0 +1,138 @@
+# Project Glasshaus — production-style stack. Configure via .env (run ./setup.sh to create it).
+name: glasshaus
+
+x-backend: &backend
+  image: ${GLASSHAUS_REGISTRY:-ghcr.io/parabyte-ca}/glasshaus:${GLASSHAUS_VERSION:-latest}
+  env_file: .env
+  environment: &backend-env
+    GLASSHAUS_DATABASE_URL: postgresql+asyncpg://glasshaus:${POSTGRES_PASSWORD:?run ./setup.sh}@postgres:5432/glasshaus
+    GLASSHAUS_REDIS_URL: redis://:${REDIS_PASSWORD:?run ./setup.sh}@redis:6379/0
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  networks: [backend]
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: glasshaus
+      POSTGRES_USER: glasshaus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run ./setup.sh}
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U glasshaus -d glasshaus]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, "yes", --requirepass, "${REDIS_PASSWORD:?run ./setup.sh}"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    user: "999:1000"
+    security_opt: [no-new-privileges:true]
+    networks: [backend]
+
+  migrate:
+    <<: *backend
+    # The shared backend image is built once, here; api/worker/mcp reuse it.
+    build:
+      context: ./backend
+      args:
+        VERSION: ${GLASSHAUS_VERSION:-0.0.0}
+        BUILD_SHA: ${GLASSHAUS_BUILD_SHA:-dev}
+    command: [sh, -c, "glasshaus wait && glasshaus migrate && glasshaus seed"]
+    restart: "no"
+    healthcheck: { disable: true }
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  api:
+    <<: *backend
+    ports: ["${GLASSHAUS_BIND_ADDRESS:-0.0.0.0}:${GLASSHAUS_API_PORT:-8471}:8000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    networks: [backend, frontend]
+
+  worker:
+    <<: *backend
+    command: [arq, glasshaus.worker.WorkerSettings]
+    healthcheck:
+      test: [CMD, arq, --check, glasshaus.worker.WorkerSettings]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  mcp:
+    <<: *backend
+    command: [glasshaus-mcp, --transport, http, --port, "8000"]
+    ports: ["${GLASSHAUS_BIND_ADDRESS:-0.0.0.0}:${GLASSHAUS_MCP_PORT:-8472}:8000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    networks: [backend, frontend]
+
+  web:
+    image: ${GLASSHAUS_REGISTRY:-ghcr.io/parabyte-ca}/glasshaus-web:${GLASSHAUS_VERSION:-latest}
+    build:
+      context: ./frontend
+      args:
+        VERSION: ${GLASSHAUS_VERSION:-0.0.0}
+        BUILD_SHA: ${GLASSHAUS_BUILD_SHA:-dev}
+    ports: ["${GLASSHAUS_BIND_ADDRESS:-0.0.0.0}:${GLASSHAUS_WEB_PORT:-8470}:8080"]
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:uid=101,gid=101
+      - /var/cache/nginx:uid=101,gid=101
+      - /etc/nginx/conf.d:uid=101,gid=101
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    networks: [frontend]
+
+  backup:
+    image: postgres:16-alpine
+    entrypoint: [/bin/sh, /scripts/backup-loop.sh]
+    user: "${GLASSHAUS_BACKUP_UID:-1000}:${GLASSHAUS_BACKUP_GID:-1000}"
+    environment:
+      PGHOST: postgres
+      PGUSER: glasshaus
+      PGDATABASE: glasshaus
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_INTERVAL_HOURS: ${GLASSHAUS_BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_RETENTION_DAYS: ${GLASSHAUS_BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./scripts/backup-loop.sh:/scripts/backup-loop.sh:ro
+      - ${GLASSHAUS_BACKUP_DIR:-./backups}:/backups
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+    networks: [backend]
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  backend:
+  frontend:
