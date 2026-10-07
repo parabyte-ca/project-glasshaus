@@ -6,7 +6,7 @@ from httpx import ASGITransport, AsyncClient
 
 os.environ.setdefault("GLASSHAUS_ENV", "test")
 os.environ.setdefault("GLASSHAUS_LOG_JSON", "false")
-os.environ.setdefault("GLASSHAUS_SECRET_KEY", "test-secret-key-0123456789abcdef-0123456789")
+os.environ.setdefault("GLASSHAUS_SECRET_KEY", "x" * 40)  # test-only placeholder
 
 from glasshaus.main import create_app
 
