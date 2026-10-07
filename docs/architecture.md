@@ -26,6 +26,38 @@
 | `redis` | `redis:7-alpine` | — | Cache, pub/sub, job queue |
 | `backup` | `postgres:16-alpine` | backup loop | Scheduled `pg_dump` with retention |
 
+## Request path
+
+```
+REST route / MCP tool / worker job          (thin adapters: parse, call, serialize)
+        │  ServiceContext(session, actor)
+        ▼
+domain service  ── authz.require_project(...)  roles ∩ token scopes; invisible → 404
+        │       ── events.emit(...)            outbox row in the same transaction
+        ▼
+PostgreSQL (RLS: tenant_id = app.tenant_id)  ──commit──▶  relay → Redis stream + pub/sub
+```
+
+- `ServiceContext` carries the `Actor` (tenant, user, org role, auth method, token scopes, client id).
+- One transaction per request; `app.tenant_id` is set transaction-locally before any tenant data is read.
+- The API, worker and MCP server connect as `glasshaus_app` (no `SUPERUSER`/`BYPASSRLS`); the API refuses to
+  start in production if its role would bypass RLS. Only migrations and backups use the owner role.
+- Domain events go to the `domain_events` outbox, are relayed after commit to the Redis stream
+  `glasshaus:events` (consumers) and `glasshaus:events:<tenant>` pub/sub (realtime), and the worker sweeps any
+  that were not relayed.
+
+## Authorization model
+
+| Level | Roles | Effect |
+| --- | --- | --- |
+| Organization | owner, admin, member, guest | owner/admin: everything in the tenant; guests see only projects they are added to |
+| Workspace | admin, member, viewer | implies admin, editor, viewer on every project in the workspace |
+| Project | admin, editor, commenter, viewer | explicit grant; the effective role is the highest of explicit and implied |
+| Token scope | read, tasks:write, projects:write, admin | intersected with the user's permissions |
+
+Permissions are defined once in `glasshaus/core/rbac.py`; REST and MCP enforce the same checks because they
+call the same services.
+
 ## Backend layout
 
 ```
@@ -35,8 +67,13 @@ backend/src/glasshaus/
   observability.py   Prometheus metrics, OpenTelemetry
   db.py              async engine/session
   redis_client.py    shared Redis client
-  models/            SQLAlchemy models (Base, TenantScoped, ...)
-  api/               FastAPI routers (REST adapters)
+  core/              context, errors, rbac, authz, events (outbox), ORM base, shared schemas
+  identity/          users, sessions, API tokens, workspaces (models, schemas, service, security)
+  projects/          projects, members, workflow statuses
+  tasks/             tasks: search, CRUD, bulk, soft delete
+  models/            aggregate import of every model (for Alembic)
+  dbroles.py         least-privilege app role management
+  api/               FastAPI routers (REST adapters), auth dependency, problem details
   mcp_server/        MCP adapters (tools, resources, prompts)
   worker.py          arq worker settings and jobs
   migrations/        Alembic environment and versions
@@ -44,7 +81,6 @@ backend/src/glasshaus/
   cli.py             `glasshaus migrate|downgrade|seed|wait`
 ```
 
-Domain modules (`glasshaus/<module>/{models,service,schemas,events}.py`) are introduced from Phase 1.
 
 ## Observability
 

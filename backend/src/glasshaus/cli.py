@@ -26,7 +26,10 @@ def _alembic_config() -> "Config":
 def cmd_migrate(args: argparse.Namespace) -> None:
     from alembic import command
 
+    from glasshaus.dbroles import ensure_app_role
+
     command.upgrade(_alembic_config(), args.revision)
+    asyncio.run(ensure_app_role())
 
 
 def cmd_downgrade(args: argparse.Namespace) -> None:
@@ -41,15 +44,38 @@ def cmd_seed(args: argparse.Namespace) -> None:
     asyncio.run(run_seed(demo=args.demo, seed=args.seed))
 
 
+def cmd_openapi(args: argparse.Namespace) -> None:
+    import json
+
+    from glasshaus.main import create_app
+
+    spec = json.dumps(create_app().openapi(), indent=2, sort_keys=False) + "\n"
+    if args.output == "-":
+        sys.stdout.write(spec)
+    else:
+        Path(args.output).write_text(spec)
+
+
 def cmd_wait(args: argparse.Namespace) -> None:
-    from glasshaus.db import ping_database
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from glasshaus.config import get_settings
     from glasshaus.redis_client import ping_redis
 
     log = get_logger("glasshaus.cli")
     deadline = time.monotonic() + args.timeout
+    settings = get_settings()
+    # The migrate service waits as the owner: the app role may not exist until migrations have run.
+    url = settings.migration_database_url or settings.database_url
 
     async def probe() -> None:
-        await ping_database()
+        engine = create_async_engine(url)
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+        finally:
+            await engine.dispose()
         await ping_redis()
 
     while True:
@@ -81,6 +107,10 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--demo", action="store_true", help="Also generate demo content")
     p.add_argument("--seed", type=int, default=42, help="Random seed for demo data")
     p.set_defaults(func=cmd_seed)
+
+    p = sub.add_parser("openapi", help="Write the OpenAPI document")
+    p.add_argument("output", nargs="?", default="-")
+    p.set_defaults(func=cmd_openapi)
 
     p = sub.add_parser("wait", help="Wait for Postgres and Redis to accept connections")
     p.add_argument("--timeout", type=int, default=60)

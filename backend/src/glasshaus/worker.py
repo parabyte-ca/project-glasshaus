@@ -24,6 +24,13 @@ async def heartbeat(ctx: dict[str, Any]) -> str:
     return now
 
 
+async def relay_outbox(ctx: dict[str, Any]) -> int:
+    """Sweep domain events whose post-commit relay failed."""
+    from glasshaus.core.events import relay_events
+
+    return await relay_events()
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     configure_logging()
     await heartbeat(ctx)
@@ -31,8 +38,11 @@ async def startup(ctx: dict[str, Any]) -> None:
 
 
 class WorkerSettings:
-    functions: ClassVar[list[Any]] = [heartbeat]
-    cron_jobs: ClassVar[list[Any]] = [cron(heartbeat, second={0, 30}, run_at_startup=False)]
+    functions: ClassVar[list[Any]] = [heartbeat, relay_outbox]
+    cron_jobs: ClassVar[list[Any]] = [
+        cron(heartbeat, second={0, 30}, run_at_startup=False),
+        cron(relay_outbox, second=set(range(0, 60, 10)), run_at_startup=True),
+    ]
     on_startup = startup
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     health_check_interval = 30

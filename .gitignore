@@ -30,3 +30,6 @@ test-results/
 .vscode/*
 !.vscode/extensions.json
 .DS_Store
+
+# Local Redis snapshots
+dump.rdb

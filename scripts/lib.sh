@@ -15,7 +15,8 @@ die()  { printf '%serror%s %s\n' "$C_ERR" "$C_END" "$*" >&2; exit 1; }
 
 # Honours docker-compose.override.yml (gitignored) like plain `docker compose` does.
 compose() {
-  local files=(-f "$ROOT_DIR/docker-compose.yml")
+  # GLASSHAUS_COMPOSE_FILE lets update.sh roll back with the previous release's compose file.
+  local files=(-f "${GLASSHAUS_COMPOSE_FILE:-$ROOT_DIR/docker-compose.yml}")
   [[ -f "$ROOT_DIR/docker-compose.override.yml" ]] && files+=(-f "$ROOT_DIR/docker-compose.override.yml")
   docker compose --project-directory "$ROOT_DIR" "${files[@]}" "$@"
 }
@@ -40,6 +41,19 @@ set_env() {
 gen_secret() {
   if command -v openssl >/dev/null 2>&1; then openssl rand -hex "${1:-32}"
   else head -c "${1:-32}" /dev/urandom | od -An -tx1 | tr -d ' \n'; fi
+}
+
+# ensure_secrets -> generate any missing secret in .env (idempotent; used by setup.sh and update.sh)
+ensure_secrets() {
+  local spec name
+  for spec in GLASSHAUS_SECRET_KEY:48 POSTGRES_PASSWORD:24 POSTGRES_APP_PASSWORD:24 REDIS_PASSWORD:24 \
+              GLASSHAUS_ADMIN_PASSWORD:12; do
+    name="${spec%%:*}"
+    if [[ -z "$(get_env "$name")" ]]; then
+      set_env "$name" "$(gen_secret "${spec##*:}")"
+      ok "generated $name"
+    fi
+  done
 }
 
 # wait_healthy TIMEOUT_SECONDS SERVICE... -> 0 once every service reports healthy
