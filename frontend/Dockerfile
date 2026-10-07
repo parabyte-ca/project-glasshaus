@@ -1,7 +1,7 @@
 # Extra CA certificates (*.crt) for building behind a TLS-inspecting proxy; see backend/Dockerfile.
 FROM scratch AS buildca
 
-FROM --platform=$BUILDPLATFORM node:22-alpine AS build
+FROM --platform=$BUILDPLATFORM node:26-alpine AS build
 COPY --from=buildca . /tmp/buildca/
 RUN cat /tmp/buildca/*.crt > /tmp/extra-ca.pem 2>/dev/null || true
 ENV NODE_EXTRA_CA_CERTS=/tmp/extra-ca.pem
