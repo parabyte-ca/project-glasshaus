@@ -39,7 +39,7 @@ jobs:
       GLASSHAUS_REDIS_URL: redis://localhost:6379/0
       GLASSHAUS_INTEGRATION: "1"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
@@ -60,7 +60,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -77,7 +77,7 @@ jobs:
     name: Repo hygiene (shell, versions, secrets)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: shellcheck
@@ -94,7 +94,7 @@ jobs:
     name: Dependency and image scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
       - name: pip-audit
         working-directory: backend
@@ -118,7 +118,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [backend, frontend]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: setup.sh from a clean clone
         run: ./setup.sh
       - name: Re-run is idempotent
