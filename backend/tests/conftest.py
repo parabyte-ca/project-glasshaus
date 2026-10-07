@@ -6,6 +6,7 @@ from httpx import ASGITransport, AsyncClient
 
 os.environ.setdefault("GLASSHAUS_ENV", "test")
 os.environ.setdefault("GLASSHAUS_LOG_JSON", "false")
+os.environ.setdefault("GLASSHAUS_SECRET_KEY", "x" * 40)  # test-only placeholder
 
 from glasshaus.main import create_app
 
@@ -23,7 +24,19 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(skip)
 
 
+@pytest.fixture(scope="session")
+def app():  # type: ignore[no-untyped-def]
+    return create_app()
+
+
 @pytest.fixture
-async def client() -> AsyncIterator[AsyncClient]:
-    async with AsyncClient(transport=ASGITransport(app=create_app()), base_url="http://test") as c:
+async def client(app) -> AsyncIterator[AsyncClient]:  # type: ignore[no-untyped-def]
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
+
+
+@pytest.fixture(scope="session")
+def migrated() -> None:
+    from glasshaus.cli import main as cli
+
+    cli(["migrate"])

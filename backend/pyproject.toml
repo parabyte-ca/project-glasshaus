@@ -1,6 +1,6 @@
 [project]
 name = "glasshaus"
-version = "0.1.0"
+version = "0.2.0"
 description = "Project Glasshaus — self-hosted project management platform (API, worker, MCP server)"
 authors = [
     { name = "Parabyte" }
@@ -8,8 +8,10 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.0",
+    "argon2-cffi>=25.1.0",
     "arq>=0.28.0",
     "asyncpg>=0.32.0",
+    "email-validator>=2.3.0",
     "faker>=40.41.0",
     "fastapi>=0.142.4",
     "mcp>=2.3,<3",
@@ -20,6 +22,7 @@ dependencies = [
     "orjson>=3.13.0",
     "prometheus-client>=0.26.0",
     "pydantic-settings>=2.15.0",
+    "pyjwt>=2.15.1",
     "redis>=5",
     "sqlalchemy[asyncio]>=2.1.4",
     "structlog>=26.1.0",
@@ -54,10 +57,10 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "S", "A", "C4", "SIM", "RUF", "ASYNC", "BLE", "PT"]
-ignore = ["S101"]
+ignore = ["S101", "N818"]  # N818: domain error names (NotFound, Conflict) read better without "Error"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S", "PT011"]
+"tests/**" = ["S", "PT011", "PT018", "E501"]
 "src/glasshaus/migrations/versions/**" = ["E501", "RUF012"]
 
 [tool.mypy]

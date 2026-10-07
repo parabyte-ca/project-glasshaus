@@ -35,9 +35,13 @@ jobs:
       run:
         working-directory: backend
     env:
-      GLASSHAUS_DATABASE_URL: postgresql+asyncpg://glasshaus:glasshaus@localhost:5432/glasshaus
+      # Like production: the app connects as a least-privilege role (RLS enforced) that `migrate` creates.
+      GLASSHAUS_DATABASE_URL: postgresql+asyncpg://glasshaus_app:app-ci-password@localhost:5432/glasshaus
+      GLASSHAUS_MIGRATION_DATABASE_URL: postgresql+asyncpg://glasshaus:glasshaus@localhost:5432/glasshaus
       GLASSHAUS_REDIS_URL: redis://localhost:6379/0
       GLASSHAUS_INTEGRATION: "1"
+      GLASSHAUS_ENV: test
+      GLASSHAUS_SECRET_KEY: ci-only-secret-key-0123456789abcdef0123
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
@@ -51,7 +55,8 @@ jobs:
       - name: Migrations are in sync with models
         run: |
           uv run glasshaus migrate
-          uv run alembic -c src/glasshaus/migrations/alembic.ini check
+          GLASSHAUS_DATABASE_URL="$GLASSHAUS_MIGRATION_DATABASE_URL" \
+            uv run alembic -c src/glasshaus/migrations/alembic.ini check
 
   frontend:
     name: Frontend (lint, types, tests, build)
@@ -67,6 +72,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: Typed API client matches docs/openapi.json
+        run: npm run gen:api && git diff --exit-code -- src/api/schema.d.ts
       - run: npm run lint -- --max-warnings 0
       - run: npm run format:check
       - run: npm run typecheck
@@ -85,7 +92,8 @@ jobs:
       - name: Version consistency
         run: scripts/check-version.sh
       - name: Compose file is valid
-        run: cp .env.example .env && sed -i 's/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=x/; s/^REDIS_PASSWORD=$/REDIS_PASSWORD=x/' .env && docker compose config -q
+        # Fill every empty secret so new required variables can't silently break this check again.
+        run: cp .env.example .env && sed -i -E 's/^([A-Z_]*(PASSWORD|SECRET_KEY))=$/\1=x/' .env && docker compose config -q
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -105,7 +113,7 @@ jobs:
         working-directory: frontend
         run: npm audit --omit=dev --audit-level=high
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scanners: vuln,secret,misconfig
@@ -126,6 +134,10 @@ jobs:
       - name: Endpoints respond
         run: |
           curl -fsS http://localhost:8471/readyz
+          pw="$(grep ^GLASSHAUS_ADMIN_PASSWORD= .env | cut -d= -f2)"
+          curl -fsS -c /tmp/jar -H 'content-type: application/json' \
+            -d "{\"email\":\"admin@example.com\",\"password\":\"$pw\"}" http://localhost:8470/api/v1/auth/login
+          curl -fsS -b /tmp/jar http://localhost:8470/api/v1/users/me
           curl -fsS http://localhost:8470/api/v1/version
           curl -fsS http://localhost:8470/ | grep -q "Project Glasshaus"
           curl -fsS http://localhost:8472/healthz

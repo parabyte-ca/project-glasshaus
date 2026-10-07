@@ -5,9 +5,12 @@ COMPOSE := docker compose
 DEV_COMPOSE := $(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml
 BACKEND := cd backend &&
 FRONTEND := cd frontend &&
-DEV_DB_URL ?= postgresql+asyncpg://glasshaus:$$(grep ^POSTGRES_PASSWORD= .env | cut -d= -f2)@127.0.0.1:15432/glasshaus
+DEV_DB_URL ?= postgresql+asyncpg://glasshaus_app:$$(grep ^POSTGRES_APP_PASSWORD= .env | cut -d= -f2)@127.0.0.1:15432/glasshaus
+DEV_OWNER_DB_URL ?= postgresql+asyncpg://glasshaus:$$(grep ^POSTGRES_PASSWORD= .env | cut -d= -f2)@127.0.0.1:15432/glasshaus
 DEV_REDIS_URL ?= redis://:$$(grep ^REDIS_PASSWORD= .env | cut -d= -f2)@127.0.0.1:16379/0
-DEV_ENV = GLASSHAUS_ENV=development GLASSHAUS_LOG_JSON=false GLASSHAUS_DATABASE_URL=$(DEV_DB_URL) GLASSHAUS_REDIS_URL=$(DEV_REDIS_URL)
+DEV_ENV = GLASSHAUS_ENV=development GLASSHAUS_LOG_JSON=false GLASSHAUS_DATABASE_URL=$(DEV_DB_URL) \
+	GLASSHAUS_MIGRATION_DATABASE_URL=$(DEV_OWNER_DB_URL) GLASSHAUS_REDIS_URL=$(DEV_REDIS_URL) \
+	GLASSHAUS_ADMIN_PASSWORD=$$(grep ^GLASSHAUS_ADMIN_PASSWORD= .env | cut -d= -f2)
 
 .PHONY: help
 help: ## Show this help
@@ -37,7 +40,7 @@ demo: ## Load demo data into the running stack
 	$(COMPOSE) run --rm --no-deps migrate glasshaus seed --demo
 
 ##@ Development
-.PHONY: install dev-deps dev-api dev-worker dev-mcp dev-web migrate migration seed
+.PHONY: install dev-deps dev-api dev-worker dev-mcp dev-web migrate migration openapi seed
 install: ## Install backend + frontend deps and git hooks
 	$(BACKEND) uv sync
 	$(FRONTEND) npm ci
@@ -56,7 +59,10 @@ dev-web: ## Run the Vite dev server on :5173 (proxies /api to :8471)
 migrate: ## Apply migrations to the dev database
 	$(BACKEND) $(DEV_ENV) uv run glasshaus migrate
 migration: ## Autogenerate a migration: make migration MSG="add tasks"
-	$(BACKEND) $(DEV_ENV) uv run alembic -c src/glasshaus/migrations/alembic.ini revision --autogenerate -m "$(MSG)"
+	$(BACKEND) $(DEV_ENV) GLASSHAUS_DATABASE_URL=$(DEV_OWNER_DB_URL) uv run alembic -c src/glasshaus/migrations/alembic.ini revision --autogenerate -m "$(MSG)"
+openapi: ## Regenerate docs/openapi.json and the frontend's typed client
+	$(BACKEND) GLASSHAUS_ENV=test uv run glasshaus openapi ../docs/openapi.json
+	$(FRONTEND) npm run gen:api
 seed: ## Seed the dev database with demo data
 	$(BACKEND) $(DEV_ENV) uv run glasshaus seed --demo
 
@@ -76,7 +82,7 @@ typecheck: ## Static type checks
 test-backend: ## Backend unit tests
 	$(BACKEND) uv run pytest
 test-integration: ## Backend tests incl. Postgres/Redis (needs `make dev-deps`)
-	$(BACKEND) $(DEV_ENV) GLASSHAUS_INTEGRATION=1 uv run pytest
+	$(BACKEND) $(DEV_ENV) GLASSHAUS_ENV=test GLASSHAUS_INTEGRATION=1 uv run pytest
 test-web: ## Frontend unit tests
 	$(FRONTEND) npm test
 test: test-backend test-web ## All unit tests

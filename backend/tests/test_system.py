@@ -50,3 +50,19 @@ def test_version_matches_repo_file() -> None:
     version_file = Path(__file__).resolve().parents[2] / "VERSION"
     if version_file.exists():
         assert version_file.read_text().strip() == __version__
+
+
+def test_openapi_document_is_committed(app) -> None:  # type: ignore[no-untyped-def]
+    """docs/openapi.json is the published contract; regenerate with `make openapi`."""
+    import json
+    from pathlib import Path
+
+    committed = Path(__file__).resolve().parents[2] / "docs" / "openapi.json"
+    if not committed.exists():
+        pytest.skip("not running from a full checkout")
+    assert json.loads(committed.read_text()) == app.openapi(), "OpenAPI drift: run `make openapi`"
+
+
+def test_operation_ids_unique(app) -> None:  # type: ignore[no-untyped-def]
+    ops = [op["operationId"] for path in app.openapi()["paths"].values() for op in path.values()]
+    assert len(ops) == len(set(ops))

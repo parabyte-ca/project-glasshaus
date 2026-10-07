@@ -4,7 +4,7 @@ import json
 from functools import lru_cache
 from typing import Annotated, Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 CsvList = Annotated[list[str], NoDecode]
@@ -22,10 +22,18 @@ class Settings(BaseSettings):
     cors_origins: CsvList = Field(default_factory=list)
 
     database_url: str = "postgresql+asyncpg://glasshaus:glasshaus@localhost:5432/glasshaus"
+    # Owner/superuser connection used only by `glasshaus migrate` (defaults to database_url). When its
+    # user differs from database_url's, migrate creates/updates that app role (no superuser, no BYPASSRLS).
+    migration_database_url: str | None = None
     database_pool_size: int = 10
     redis_url: str = "redis://localhost:6379/0"
 
     default_tenant_slug: str = "default"
+    default_tenant_name: str = "My organization"
+    # First owner, created on first start if the organization has no users.
+    admin_email: str = "admin@example.com"
+    admin_password: SecretStr | None = None
+    admin_name: str = "Administrator"
     multi_tenant: bool = False
 
     metrics_enabled: bool = True
@@ -42,6 +50,13 @@ class Settings(BaseSettings):
                 return json.loads(value)
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
+    @model_validator(mode="after")
+    def _strong_secret_in_production(self) -> "Settings":
+        key = self.secret_key.get_secret_value()
+        if self.env == "production" and (len(key) < 32 or key == "change-me"):
+            raise ValueError("GLASSHAUS_SECRET_KEY must be at least 32 random characters in production")
+        return self
 
     @property
     def is_production(self) -> bool:

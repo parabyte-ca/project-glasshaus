@@ -5,7 +5,8 @@ x-backend: &backend
   image: ${GLASSHAUS_REGISTRY:-ghcr.io/parabyte-ca}/glasshaus:${GLASSHAUS_VERSION:-latest}
   env_file: .env
   environment: &backend-env
-    GLASSHAUS_DATABASE_URL: postgresql+asyncpg://glasshaus:${POSTGRES_PASSWORD:?run ./setup.sh}@postgres:5432/glasshaus
+    # Least-privilege role (row-level security enforced); created by the migrate service.
+    GLASSHAUS_DATABASE_URL: postgresql+asyncpg://glasshaus_app:${POSTGRES_APP_PASSWORD:?run ./setup.sh}@postgres:5432/glasshaus
     GLASSHAUS_REDIS_URL: redis://:${REDIS_PASSWORD:?run ./setup.sh}@redis:6379/0
   restart: unless-stopped
   read_only: true
@@ -56,6 +57,9 @@ services:
         VERSION: ${GLASSHAUS_VERSION:-0.0.0}
         BUILD_SHA: ${GLASSHAUS_BUILD_SHA:-dev}
     command: [sh, -c, "glasshaus wait && glasshaus migrate && glasshaus seed"]
+    environment:
+      <<: *backend-env
+      GLASSHAUS_MIGRATION_DATABASE_URL: postgresql+asyncpg://glasshaus:${POSTGRES_PASSWORD}@postgres:5432/glasshaus
     restart: "no"
     healthcheck: { disable: true }
     depends_on:

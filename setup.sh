@@ -31,10 +31,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   chmod 600 "$ENV_FILE"
   ok "created .env from .env.example"
 fi
-for key in GLASSHAUS_SECRET_KEY:48 POSTGRES_PASSWORD:24 REDIS_PASSWORD:24; do
-  name="${key%%:*}"
-  if [[ -z "$(get_env "$name")" ]]; then set_env "$name" "$(gen_secret "${key##*:}")"; ok "generated $name"; fi
-done
+ensure_secrets
 set_env GLASSHAUS_VERSION "$(tr -d '[:space:]' < VERSION)"
 set_env GLASSHAUS_BUILD_SHA "$(git rev-parse --short HEAD 2>/dev/null || echo dev)"
 set_env GLASSHAUS_BACKUP_UID "$(id -u)"
@@ -72,4 +69,5 @@ cat <<MSG
   Web UI : ${public:-http://localhost:$(get_env GLASSHAUS_WEB_PORT)}
   API    : http://localhost:$(get_env GLASSHAUS_API_PORT)/api/docs
   MCP    : http://localhost:$(get_env GLASSHAUS_MCP_PORT)/mcp
+  Sign in: $(get_env GLASSHAUS_ADMIN_EMAIL) (password: GLASSHAUS_ADMIN_PASSWORD in .env — change it after first login)
 MSG

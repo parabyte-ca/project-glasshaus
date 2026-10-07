@@ -1,8 +1,28 @@
 # Feature → API → MCP coverage matrix
 
-Every capability must be reachable through REST, webhooks/events and MCP. This table is updated in each
-phase and verified by tests from Phase 6.
+Every capability is implemented once in the service layer and exposed through REST, domain events
+(the source for webhooks) and MCP. MCP tools land in Phase 6; the "MCP tool" column names the tool that
+will wrap each service function, and the Phase 6 conformance suite verifies this table.
 
-| Capability | Service | REST | Event / webhook | MCP tool / resource | Phase |
+| Capability | Service function | REST | Domain event(s) | MCP tool | Since |
 | --- | --- | --- | --- | --- | --- |
-| Server version / health | `system` | `GET /api/v1/version`, `/healthz`, `/readyz` | — | `server_info` | 0 |
+| Server version / health | — | `GET /api/v1/version`, `/healthz`, `/readyz` | — | `server_info` ✅ | 0.1 |
+| Sign in / refresh / sign out | `identity.login`, `refresh`, `logout` | `POST /api/v1/auth/{login,refresh,logout}` | — | n/a (OAuth 2.1, Phase 6) | 0.2 |
+| Change password | `identity.change_password` | `POST /api/v1/auth/password` | `user.password_changed` | n/a (interactive only) | 0.2 |
+| Current user | `identity.get_me` | `GET /api/v1/users/me` | — | `whoami` | 0.2 |
+| List / create / update users | `identity.list_users`, `create_user`, `update_user` | `GET/POST /api/v1/users`, `PATCH /api/v1/users/{id}` | `user.created`, `user.updated` | `list_users` | 0.2 |
+| API tokens | `identity.create_api_token`, `list_api_tokens`, `revoke_api_token` | `GET/POST /api/v1/tokens`, `DELETE /api/v1/tokens/{id}` | `api_token.created`, `api_token.revoked` | n/a (credentials) | 0.2 |
+| Workspaces | `identity.list_workspaces`, `get_workspace`, `create_workspace`, `update_workspace` | `GET/POST /api/v1/workspaces`, `GET/PATCH /api/v1/workspaces/{id}` | `workspace.created`, `workspace.updated` | `list_workspaces` | 0.2 |
+| Workspace members | `identity.list_workspace_members`, `set_workspace_member`, `remove_workspace_member` | `GET/PUT /api/v1/workspaces/{id}/members`, `DELETE …/members/{user_id}` | `workspace.member_set`, `workspace.member_removed` | `set_workspace_member` | 0.2 |
+| Projects | `projects.list_projects`, `get_project`, `get_project_by_key`, `create_project`, `update_project` | `GET/POST /api/v1/projects`, `GET/PATCH /api/v1/projects/{id}`, `GET /api/v1/projects/by-key/{key}` | `project.created`, `project.updated` | `search_projects`, `get_project`, `create_project`, `update_project` | 0.2 |
+| Delete project (dry-run first) | `projects.delete_project` | `DELETE /api/v1/projects/{id}?dry_run=` | `project.deleted` | `delete_project` (confirm) | 0.2 |
+| Project members | `projects.list_project_members`, `set_project_member`, `remove_project_member` | `GET/PUT /api/v1/projects/{id}/members`, `DELETE …/members/{user_id}` | `project.member_set`, `project.member_removed` | `set_project_member` | 0.2 |
+| Workflow statuses | `projects.list_statuses`, `create_status`, `update_status`, `delete_status` | `GET/POST /api/v1/projects/{id}/statuses`, `PATCH/DELETE …/statuses/{status_id}` | `status.created`, `status.updated`, `status.deleted` | `manage_statuses` | 0.2 |
+| Search / list tasks | `tasks.list_tasks` | `GET /api/v1/tasks` | — | `search_tasks` | 0.2 |
+| Get task (id or `KEY-123`) | `tasks.get_task`, `resolve_ref` | `GET /api/v1/tasks/{ref}` | — | `get_task` | 0.2 |
+| Create task | `tasks.create_task` | `POST /api/v1/tasks` | `task.created` | `create_task` | 0.2 |
+| Update task / change status | `tasks.update_task` | `PATCH /api/v1/tasks/{ref}` (`If-Match`) | `task.updated` | `update_task`, `change_status` | 0.2 |
+| Bulk update | `tasks.bulk_update` | `POST /api/v1/tasks/bulk-update` | `task.updated` (each) | `bulk_update_tasks` | 0.2 |
+| Delete tasks (dry-run first) | `tasks.delete_tasks` | `POST /api/v1/tasks/bulk-delete?dry_run=`, `DELETE /api/v1/tasks/{ref}` | `task.deleted` | `delete_tasks` (confirm) | 0.2 |
+| Restore task | `tasks.restore_task` | `POST /api/v1/tasks/{ref}/restore` | `task.restored` | `restore_task` | 0.2 |
+| My permissions on a task | `tasks.can` | `GET /api/v1/tasks/{ref}/permissions` | — | `get_task` (included) | 0.2 |
