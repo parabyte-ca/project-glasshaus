@@ -92,7 +92,8 @@ jobs:
       - name: Version consistency
         run: scripts/check-version.sh
       - name: Compose file is valid
-        run: cp .env.example .env && sed -i 's/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=x/; s/^REDIS_PASSWORD=$/REDIS_PASSWORD=x/' .env && docker compose config -q
+        # Fill every empty secret so new required variables can't silently break this check again.
+        run: cp .env.example .env && sed -i -E 's/^([A-Z_]*(PASSWORD|SECRET_KEY))=$/\1=x/' .env && docker compose config -q
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
