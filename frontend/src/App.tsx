@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router';
 
 import { AuthProvider } from './auth/AuthContext';
+import { AccountPage } from './pages/AccountPage';
 import { Layout } from './components/Layout';
 import { HomePage } from './pages/HomePage';
 import { ProjectPage } from './pages/ProjectPage';
@@ -13,6 +14,7 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route index element={<HomePage />} />
+            <Route path="account" element={<AccountPage />} />
             <Route path="projects/:projectKey" element={<ProjectPage />} />
             <Route path="projects/:projectKey/settings" element={<ProjectSettingsPage />} />
           </Route>

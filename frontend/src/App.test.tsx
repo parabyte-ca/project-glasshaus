@@ -249,6 +249,70 @@ describe('notifications', () => {
   });
 });
 
+describe('account', () => {
+  it('validates, changes the password and returns to sign-in', async () => {
+    let authed = true;
+    const { calls } = mockApi([
+      ...baseRoutes,
+      {
+        method: 'GET',
+        path: '/api/v1/users/me',
+        handler: () => (authed ? user : { detail: 'signed out' }),
+        get status() {
+          return authed ? 200 : 401;
+        },
+      },
+      { method: 'POST', path: '/api/v1/auth/refresh', status: 401, body: { detail: 'no session' } },
+      {
+        method: 'POST',
+        path: '/api/v1/auth/password',
+        status: 204,
+        handler: () => {
+          authed = false;
+        },
+      },
+    ]);
+    renderAt('/');
+    await userEvent.click(await screen.findByRole('link', { name: 'Account settings for Ada Lovelace' }));
+    await userEvent.type(await screen.findByLabelText('Current password'), 'old-password-123');
+    await userEvent.type(screen.getByLabelText('New password'), 'new-password-456');
+    await userEvent.type(screen.getByLabelText('Confirm new password'), 'new-password-999');
+    await userEvent.click(screen.getByRole('button', { name: 'Change password' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('do not match');
+    expect(calls.some((c) => c.url.endsWith('/api/v1/auth/password'))).toBe(false);
+
+    await userEvent.clear(screen.getByLabelText('Confirm new password'));
+    await userEvent.type(screen.getByLabelText('Confirm new password'), 'new-password-456');
+    await userEvent.click(screen.getByRole('button', { name: 'Change password' }));
+    expect(await screen.findByText('Password changed. Sign in with your new password.')).toBeInTheDocument();
+    const post = calls.find((c) => c.url.endsWith('/api/v1/auth/password'))!;
+    expect(post.headers.get('X-CSRF-Token')).toBe('csrf-123');
+    expect(await post.json()).toEqual({
+      current_password: 'old-password-123',
+      new_password: 'new-password-456',
+    });
+  });
+
+  it('shows the server error when the current password is wrong', async () => {
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      {
+        method: 'POST',
+        path: '/api/v1/auth/password',
+        status: 422,
+        body: { detail: 'current password is incorrect', code: 'invalid_input' },
+      },
+    ]);
+    renderAt('/account');
+    await userEvent.type(await screen.findByLabelText('Current password'), 'wrong-password-1');
+    await userEvent.type(screen.getByLabelText('New password'), 'new-password-456');
+    await userEvent.type(screen.getByLabelText('Confirm new password'), 'new-password-456');
+    await userEvent.click(screen.getByRole('button', { name: 'Change password' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('current password is incorrect');
+  });
+});
+
 describe('theme', () => {
   it('toggles dark mode', async () => {
     mockApi([...baseRoutes, signedIn]);

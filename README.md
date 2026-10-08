@@ -83,7 +83,8 @@ runs migrations and starts the stack, then waits for every service to report hea
 | Metrics | http://localhost:8471/metrics |
 
 Sign in as `GLASSHAUS_ADMIN_EMAIL` (default `admin@example.com`) with the `GLASSHAUS_ADMIN_PASSWORD` that
-`setup.sh` generated in `.env`, then change it.
+`setup.sh` generated in `.env` (`grep ^GLASSHAUS_ADMIN_PASSWORD= .env`), then change it under **Account**
+(click your name in the header).
 
 ## Configuration
 
