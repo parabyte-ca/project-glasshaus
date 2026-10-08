@@ -76,8 +76,9 @@ for (const theme of ['light', 'dark'] as const) {
       await page.goto('/');
       await expect(page.getByRole('button', { name: /^Search/ })).toBeVisible();
       await page.keyboard.press('ControlOrMeta+k');
-      await page.getByRole('dialog', { name: 'Command palette' }).getByRole('combobox').fill('Check');
-      await expect(page.getByRole('option').first()).toBeVisible();
+      const palette = page.getByRole('dialog', { name: 'Command palette' });
+      await palette.getByRole('combobox').fill('Check');
+      await expect(palette.getByRole('option').first()).toBeVisible();
       await expectAccessible(page, `palette (${theme})`);
       await page.keyboard.press('Escape');
       await page.keyboard.press('?');
@@ -99,6 +100,7 @@ test.describe('signed out', () => {
 
 test('keyboard only: skip link, focus order and dialogs return focus', async ({ page }) => {
   await page.goto(`/projects/${projectKey}`);
+  await expect(page.getByLabel('New task title')).toBeVisible();
   await page.keyboard.press('Tab');
   const skip = page.getByRole('link', { name: 'Skip to content' });
   await expect(skip).toBeFocused();

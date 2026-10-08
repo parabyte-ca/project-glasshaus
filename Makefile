@@ -71,7 +71,7 @@ seed: ## Seed the dev database with demo data
 	$(BACKEND) $(DEV_ENV) uv run glasshaus seed --demo
 
 ##@ Quality
-.PHONY: lint fmt typecheck test test-backend test-integration test-web check scan precommit
+.PHONY: lint fmt typecheck test test-backend test-integration test-web test-e2e check scan precommit
 lint: ## Lint everything
 	$(BACKEND) uv run ruff check . && uv run ruff format --check .
 	$(FRONTEND) npm run lint && npm run format:check
@@ -89,6 +89,8 @@ test-integration: ## Backend tests incl. Postgres/Redis (needs `make dev-deps`)
 	$(BACKEND) $(DEV_ENV) GLASSHAUS_ENV=test GLASSHAUS_INTEGRATION=1 uv run pytest
 test-web: ## Frontend unit tests
 	$(FRONTEND) npm test
+test-e2e: ## End-to-end + accessibility tests against the running stack (./setup.sh first)
+	cd e2e && npm ci && E2E_ADMIN_PASSWORD="$$(grep ^GLASSHAUS_ADMIN_PASSWORD= ../.env | cut -d= -f2)" npx playwright test
 test: test-backend test-web ## All unit tests
 check: lint typecheck test ## Everything CI runs before building
 scan: ## Dependency vulnerability scan
