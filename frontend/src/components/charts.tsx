@@ -1,16 +1,27 @@
-import { useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+
+import { niceScale, TICKS } from '../lib/chartScale';
 
 /* Small inline-SVG charts. Colours come from the --series-* / --seq-* / --status-* tokens in
    index.css (validated for light and dark). Every chart has a hover/keyboard readout and a table. */
 
-const W = 640;
+const DEFAULT_W = 640;
 const PAD = { top: 12, right: 72, bottom: 24, left: 40 };
 
-function niceMax(value: number): number {
-  if (value <= 4) return 4;
-  const magnitude = 10 ** Math.floor(Math.log10(value));
-  const step = [1, 2, 2.5, 5, 10].find((s) => value <= s * magnitude) ?? 10;
-  return step * magnitude;
+/** Track the rendered width so SVG text keeps its real size at any container width. */
+function useWidth(): [React.RefObject<HTMLDivElement | null>, number] {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(DEFAULT_W);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry && entry.contentRect.width > 0) setWidth(Math.round(entry.contentRect.width));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, width];
 }
 
 export interface Series {
@@ -70,10 +81,12 @@ function Legend({ series }: { series: Series[] }) {
 
 function Tooltip({
   x,
+  width: W,
   title,
   rows,
 }: {
   x: number;
+  width: number;
   title: string;
   rows: { name: string; value: string; color: string }[];
 }) {
@@ -117,7 +130,8 @@ export function LineChart({
   formatLabel?: (label: string) => string;
 }) {
   const [active, setActive] = useState<number | null>(null);
-  const max = niceMax(Math.max(1, ...series.flatMap((s) => s.values)));
+  const [ref, W] = useWidth();
+  const { max, step } = niceScale(Math.max(...series.flatMap((s) => s.values), 0));
   const plotW = W - PAD.left - PAD.right;
   const plotH = height - PAD.top - PAD.bottom;
   const x = (i: number) => PAD.left + (labels.length > 1 ? (i / (labels.length - 1)) * plotW : plotW / 2);
@@ -134,11 +148,11 @@ export function LineChart({
     else return;
     e.preventDefault();
   };
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => t * max);
+  const ticks = Array.from({ length: TICKS + 1 }, (_, i) => i * step);
   return (
     <figure>
       <Legend series={series} />
-      <div className="relative">
+      <div className="relative" ref={ref}>
         <svg
           viewBox={`0 0 ${W} ${height}`}
           className="w-full focus-visible:outline-2 focus-visible:outline-sky-600"
@@ -243,6 +257,7 @@ export function LineChart({
         {active !== null && labels[active] && (
           <Tooltip
             x={x(active)}
+            width={W}
             title={formatLabel(labels[active])}
             rows={series.map((s) => ({ name: s.name, value: String(s.values[active] ?? 0), color: s.color }))}
           />
@@ -270,7 +285,8 @@ export function BarChart({
   formatLabel?: (label: string) => string;
 }) {
   const [active, setActive] = useState<number | null>(null);
-  const max = niceMax(Math.max(1, ...values));
+  const [ref, W] = useWidth();
+  const { max } = niceScale(Math.max(...values, 0));
   const plotW = W - PAD.left - 16;
   const plotH = height - PAD.top - PAD.bottom;
   const slot = plotW / Math.max(values.length, 1);
@@ -286,7 +302,7 @@ export function BarChart({
   const series = [{ name, color: 'var(--series-1)', values }];
   return (
     <figure>
-      <div className="relative">
+      <div className="relative" ref={ref}>
         <svg viewBox={`0 0 ${W} ${height}`} className="w-full" role="img" aria-label={title}>
           {[0, 0.5, 1].map((t) => (
             <g key={t}>
@@ -341,6 +357,7 @@ export function BarChart({
         {active !== null && labels[active] && (
           <Tooltip
             x={PAD.left + active * slot + slot / 2}
+            width={W}
             title={formatLabel(labels[active])}
             rows={[{ name, value: String(values[active] ?? 0), color: 'var(--series-1)' }]}
           />
