@@ -1,5 +1,6 @@
 """Idempotent baseline data and a deterministic demo-data generator (built on the service layer)."""
 
+import itertools
 import random
 import uuid
 from datetime import date, timedelta
@@ -21,6 +22,8 @@ from glasshaus.logs import get_logger
 from glasshaus.models import Tenant
 from glasshaus.projects import service as projects
 from glasshaus.projects.schemas import ProjectCreate
+from glasshaus.scheduling import service as scheduling
+from glasshaus.scheduling.schemas import BaselineCreate, DependencyCreate
 from glasshaus.tasks import service as tasks
 from glasshaus.tasks.models import Priority
 from glasshaus.tasks.schemas import TaskCreate, TaskUpdate
@@ -154,6 +157,17 @@ async def generate_demo_data(tenant: Tenant, owner: User, seed: int) -> None:
                     parents.append(task.id)
                 status = rng.choice(project.statuses)
                 await tasks.update_task(ctx, task.id, TaskUpdate(status_id=status.id))
+            # A finish-to-start chain through a few top-level tasks (ordered by start, so acyclic).
+            top = [await tasks.get_task(ctx, pid) for pid in parents[:12]]
+            chain = sorted([t for t in top if t.start_date], key=lambda t: t.start_date or today)[:6]
+            for pred, succ in itertools.pairwise(chain):
+                await scheduling.create_dependency(
+                    ctx,
+                    DependencyCreate(
+                        predecessor=str(pred.id), successor=str(succ.id), lag_days=rng.choice([0, 0, 1])
+                    ),
+                )
+            await scheduling.create_baseline(ctx, project.id, BaselineCreate(name="Initial plan"))
     log.info("seed.demo.created")
 
 

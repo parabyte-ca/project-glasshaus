@@ -159,6 +159,10 @@ class TaskQuery(Schema):
     sort_field: uuid.UUID | None = Field(None, description="Sort by this custom field instead of `sort`.")
     due_before: date | None = None
     due_after: date | None = None
+    scheduled_from: date | None = Field(
+        None, description="Tasks whose start..due range overlaps this window."
+    )
+    scheduled_to: date | None = None
     updated_since: datetime | None = None
     include_deleted: bool = False
     sort: TaskSort = TaskSort.POSITION

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from glasshaus.core.orm import Base, TenantScoped, TimestampMixin, UUIDPk
@@ -32,6 +32,10 @@ class Project(UUIDPk, TenantScoped, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(String(10000), nullable=False, default="", server_default="")
     task_seq: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # Push dependent tasks later automatically when dates or dependencies change.
+    auto_schedule: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 

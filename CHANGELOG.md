@@ -6,6 +6,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-08
+
+Phase 3 — dependencies, timeline/Gantt, critical path, calendar.
+
+### Added
+- Task dependencies: finish-to-start, start-to-start, finish-to-finish and start-to-finish, with lag or lead in
+  days; cycles and duplicates are rejected.
+- Critical path calculation (early/late dates, slack, critical tasks, project finish).
+- Auto-rescheduling (opt-in per project): changing dates or adding dependencies pushes dependent tasks later,
+  keeping their durations; otherwise a preview-then-apply reschedule fixes violations on demand.
+- Baselines: snapshot planned dates and compare per task and for the project finish.
+- Slip warnings: overdue tasks, violated dependencies, tasks and the project finish behind the latest baseline.
+- Calendar-window task filter (`scheduled_from` / `scheduled_to`).
+- Web UI: timeline (Gantt) with dependency arrows, critical-path highlighting, baseline ghost bars, today line,
+  day/week zoom, drag to move or resize and arrow keys for keyboard users; month calendar; start date and a
+  dependency editor in the task drawer; auto-schedule toggle, baseline save, dependency check and warnings.
+- Demo data includes a dependency chain and an "Initial plan" baseline per project.
+
+### Changed
+- Migration template generates modern typing syntax.
+- The web app loads layouts, the task drawer, settings and account pages on demand (initial bundle 298 kB,
+  down from 504 kB); busy calendar days expand with "+N more".
+
 ## [0.3.0] - 2026-10-08
 
 Phase 2 — views, custom fields, comments, activity feed.
@@ -93,7 +116,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.1.0...v0.2.0

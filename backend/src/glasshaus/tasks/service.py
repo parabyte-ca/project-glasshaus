@@ -230,6 +230,14 @@ def _filtered(ctx: ServiceContext, query: TaskQuery) -> Select[Task]:
         conds.append(Task.due_date >= query.due_after)
     for spec in query.cf or []:
         conds.append(_custom_field_condition(spec))
+    if query.scheduled_from or query.scheduled_to:
+        start = func.coalesce(Task.start_date, Task.due_date)
+        finish = func.coalesce(Task.due_date, Task.start_date)
+        conds.append(start.is_not(None))
+        if query.scheduled_to:
+            conds.append(start <= query.scheduled_to)
+        if query.scheduled_from:
+            conds.append(finish >= query.scheduled_from)
     if query.updated_since:
         conds.append(Task.updated_at >= query.updated_since)
     if query.q:
@@ -372,6 +380,10 @@ async def update_task(ctx: ServiceContext, task_id: uuid.UUID, data: TaskUpdate)
     await ctx.session.refresh(task)
     result = (await _to_read(ctx, [task]))[0]
     diff = {k: {"from": before[k], "to": getattr(task, k)} for k in before if before[k] != getattr(task, k)}
+    if diff.keys() & {"start_date", "due_date"}:
+        from glasshaus.scheduling.service import propagate_from
+
+        await propagate_from(ctx, project, {task.id})
     if diff:
         events.emit(
             ctx,

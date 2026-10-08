@@ -4,6 +4,8 @@ import { fields, statuses, task, user } from '../test/mockApi';
 import type { CustomField, Status, Task, User } from '../api/client';
 import { formatValue, groupTasks, patchForGroup, positionBetween } from './grouping';
 import { keysFor } from './realtime';
+import { addDays, monthGrid, parseDay, formatDay } from './dates';
+import { shiftPatch, tasksOn } from './schedule';
 
 const ctx = { statuses: statuses as Status[], users: [user] as User[], fields: fields as CustomField[] };
 const t = (n: number, extra: Partial<Task> = {}) => ({ ...task(n), ...extra }) as Task;
@@ -61,5 +63,35 @@ describe('live update keys', () => {
       ['comments', 't1'],
     ]);
     expect(keysFor({ type: 'notification.created' })).toEqual([['notifications']]);
+  });
+});
+
+describe('dates and scheduling helpers', () => {
+  it('does date arithmetic in UTC days', () => {
+    expect(addDays('2026-02-27', 3)).toBe('2026-03-02');
+    expect(formatDay(parseDay('2026-12-31') + 1)).toBe('2027-01-01');
+  });
+
+  it('builds Monday-first month grids', () => {
+    const grid = monthGrid('2026-03-01');
+    expect(grid[0]![0]).toBe('2026-02-23');
+    expect(grid.flat()).toContain('2026-03-31');
+    expect(grid.every((w) => w.length === 7)).toBe(true);
+  });
+
+  it('moves and resizes tasks by days', () => {
+    const t = { ...task(1), start_date: '2026-03-02', due_date: '2026-03-04' } as Task;
+    expect(shiftPatch(t, 2, 'move')).toEqual({ start_date: '2026-03-04', due_date: '2026-03-06' });
+    expect(shiftPatch(t, 1, 'resize')).toEqual({ due_date: '2026-03-05' });
+    expect(shiftPatch(t, -5, 'resize')).toEqual({ due_date: '2026-03-02' }); // never before the start
+    const dueOnly = { ...task(2), start_date: null, due_date: '2026-03-04' } as Task;
+    expect(shiftPatch(dueOnly, -1, 'move')).toEqual({ start_date: null, due_date: '2026-03-03' });
+  });
+
+  it('finds tasks spanning a day', () => {
+    const span = { ...task(1), start_date: '2026-03-02', due_date: '2026-03-04' } as Task;
+    const undated = { ...task(2), start_date: null, due_date: null } as Task;
+    expect(tasksOn([span, undated], '2026-03-03').map((t) => t.id)).toEqual(['t1']);
+    expect(tasksOn([span], '2026-03-05')).toEqual([]);
   });
 });

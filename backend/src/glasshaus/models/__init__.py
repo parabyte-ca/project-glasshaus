@@ -7,6 +7,7 @@ from glasshaus.fields.models import CustomField
 from glasshaus.identity.models import ApiToken, AuthSession, User, Workspace, WorkspaceMember
 from glasshaus.models.tenant import Tenant
 from glasshaus.projects.models import Project, ProjectMember, ProjectStatus
+from glasshaus.scheduling.models import Baseline, BaselineTask, TaskDependency
 from glasshaus.tasks.models import Task
 from glasshaus.views.models import SavedView
 
@@ -15,6 +16,8 @@ __all__ = [
     "ApiToken",
     "AuthSession",
     "Base",
+    "Baseline",
+    "BaselineTask",
     "Comment",
     "CustomField",
     "DomainEventRecord",
@@ -24,6 +27,7 @@ __all__ = [
     "ProjectStatus",
     "SavedView",
     "Task",
+    "TaskDependency",
     "Tenant",
     "TenantScoped",
     "TimestampMixin",

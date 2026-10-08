@@ -1,22 +1,28 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState, type FormEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 
 import { api, unwrap, type Task, type ViewConfig, type ViewKind } from '../api/client';
-import { TaskDrawer } from '../components/TaskDrawer';
 import { Button, ErrorText, GhostButton, Input, Select } from '../components/ui';
 import { PRIORITIES } from '../lib/grouping';
 import { defaultConfig, OPEN } from '../lib/views';
 import { useProject } from '../lib/useProject';
-import { BoardView } from '../views/BoardView';
 import { ListView } from '../views/ListView';
-import { TableView } from '../views/TableView';
 import type { TaskPatch } from '../views/types';
+
+// Layouts and the task drawer load on demand to keep the first page small.
+const TaskDrawer = lazy(() => import('../components/TaskDrawer').then((m) => ({ default: m.TaskDrawer })));
+const BoardView = lazy(() => import('../views/BoardView').then((m) => ({ default: m.BoardView })));
+const CalendarView = lazy(() => import('../views/CalendarView').then((m) => ({ default: m.CalendarView })));
+const TableView = lazy(() => import('../views/TableView').then((m) => ({ default: m.TableView })));
+const TimelineView = lazy(() => import('../views/TimelineView').then((m) => ({ default: m.TimelineView })));
 
 const KINDS: { kind: ViewKind; label: string }[] = [
   { kind: 'list', label: 'List' },
   { kind: 'board', label: 'Board' },
   { kind: 'table', label: 'Table' },
+  { kind: 'timeline', label: 'Timeline' },
+  { kind: 'calendar', label: 'Calendar' },
 ];
 export function ProjectPage() {
   const { projectKey = '' } = useParams();
@@ -298,23 +304,28 @@ export function ProjectPage() {
         </Button>
       </form>
       <ErrorText error={create.error ?? update.error ?? saveView.error ?? tasksQuery.error} />
-
-      {kind === 'board' ? (
-        <BoardView {...props} />
-      ) : kind === 'table' ? (
-        <TableView {...props} />
-      ) : (
-        <ListView {...props} />
-      )}
+      <Suspense fallback={<p role="status">Loading view…</p>}>
+        {
+          {
+            board: <BoardView {...props} />,
+            table: <TableView {...props} />,
+            timeline: <TimelineView {...props} />,
+            calendar: <CalendarView {...props} />,
+            list: <ListView {...props} />,
+          }[kind]
+        }
+      </Suspense>
 
       {params.get('task') && (
-        <TaskDrawer
-          taskRef={params.get('task')!}
-          project={p}
-          fields={fields}
-          users={users}
-          onClose={closeTask}
-        />
+        <Suspense fallback={null}>
+          <TaskDrawer
+            taskRef={params.get('task')!}
+            project={p}
+            fields={fields}
+            users={users}
+            onClose={closeTask}
+          />
+        </Suspense>
       )}
     </div>
   );

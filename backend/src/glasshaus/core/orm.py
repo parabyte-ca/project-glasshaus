@@ -63,4 +63,7 @@ RLS_TABLES = (
     "comments",
     "notifications",
     "saved_views",
+    "task_dependencies",
+    "baselines",
+    "baseline_tasks",
 )

@@ -57,6 +57,20 @@ PostgreSQL (RLS: tenant_id = app.tenant_id)  ──commit──▶  relay → Re
   Browsers refetch through the normal API, so no data bypasses authorization. Cookie-authenticated sockets must
   come from the app's own origin.
 
+## Scheduling
+
+`glasshaus/scheduling/cpm.py` is pure, I/O-free maths shared by every scheduling feature:
+
+- A task occupies `[start, due]` (inclusive calendar days); a task with one date is a one-day milestone.
+- Dependency constraints (lag in days, negative = lead): FS `succ.start ≥ pred.due + 1 + lag`,
+  SS `succ.start ≥ pred.start + lag`, FF `succ.due ≥ pred.due + lag`, SF `succ.due ≥ pred.start − 1 + lag`.
+- **Critical path:** forward pass (planned starts act as "start no earlier than"), backward pass from the
+  project finish; slack = late start − early start; slack ≤ 0 is critical.
+- **Propagation:** successors only ever move later and keep their duration; cycles are rejected when a
+  dependency is created.
+- Rescheduling is opt-in per project (`auto_schedule`); otherwise violations surface as warnings and
+  `POST /reschedule` previews (then applies) the fix.
+
 ## Authorization model
 
 | Level | Roles | Effect |
@@ -85,6 +99,7 @@ backend/src/glasshaus/
   fields/            custom field definitions and typed value validation
   collab/            comments, @mentions, notifications (+ event handlers), activity feed
   views/             saved views (filters, grouping, sorting, columns)
+  scheduling/        dependencies, critical path (cpm.py), auto-rescheduling, baselines, slip warnings
   realtime.py        WebSocket fan-out filtering
   models/            aggregate import of every model (for Alembic)
   dbroles.py         least-privilege app role management

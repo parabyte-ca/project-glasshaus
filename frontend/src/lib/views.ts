@@ -11,8 +11,9 @@ export const DEFAULT_CONFIG: ViewConfig = {
   columns: ['key', 'title', 'status', 'priority', 'assignee', 'due_date'],
 };
 
-/** Default configuration per layout: boards show every status column, including completed work. */
+/** Default configuration per layout. */
 export function defaultConfig(kind: string): ViewConfig {
-  if (kind !== 'board') return DEFAULT_CONFIG;
+  // Boards, timelines and calendars show completed work in context; lists and tables default to open work.
+  if (!['board', 'timeline', 'calendar'].includes(kind)) return DEFAULT_CONFIG;
   return { ...DEFAULT_CONFIG, filters: { ...DEFAULT_CONFIG.filters, status_categories: null } };
 }
