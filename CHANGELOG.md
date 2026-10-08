@@ -6,6 +6,40 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-08
+
+Phase 7 — governance, single sign-on, provisioning, integrations, hardening and performance.
+
+### Added
+- **Admin console** for owners and admins: people (add, role, deactivate/reactivate, password reset,
+  sign out everywhere), single sign-on, provisioning, integrations, audit log, data & retention.
+- **Single sign-on** with OpenID Connect (PKCE, nonce, signed ID tokens) and SAML 2.0 (signed responses or
+  assertions, replay protection), just-in-time accounts, allowed domains and optional SSO enforcement
+  (owners keep password sign-in). Sign-in page shows the organization's providers.
+- **SCIM 2.0** provisioning at `/scim/v2` (Users, Groups as workspaces, filtering, PATCH) with revocable
+  tokens.
+- **Integrations:** Slack, Microsoft Teams and HMAC-signed webhooks with event selection, project scope,
+  retries with backoff and a delivery log; GitHub and GitLab linking (`fixes KEY-12` completes on merge);
+  email-to-task over IMAP; personal iCalendar feeds for Google, Outlook/Microsoft 365 and Apple calendars.
+- **Full audit log** of every domain change, sign-in (success and failure), SSO, provisioning, export and
+  MCP call, with filters and paging; **retention** settings with a nightly purge; **organization export**
+  (zip of JSON Lines, secrets excluded).
+- MCP tools `manage_users`, `get_org_settings`, `update_org_settings` and `manage_integrations`
+  (destructive actions preview first).
+- `scripts/bench.py` latency benchmark; docs for SSO/SCIM, integrations and the ASVS L2 baseline.
+
+### Changed
+- Third-party secrets are encrypted at rest with a key derived from `GLASSHAUS_SECRET_KEY`.
+- The event consumer handles new events before retrying failed ones, so a retry backlog never delays
+  live work.
+
+### Security
+- Security headers (`nosniff`, `DENY`, strict API CSP, `no-store`, HSTS on HTTPS), a 10 MB request cap and
+  a per-principal REST/SCIM rate limit (`GLASSHAUS_API_RATE_LIMIT_PER_MINUTE`).
+- Login throttling per account regardless of client address; common, repetitive and name-based passwords
+  are refused.
+- Deactivating a person ends their sessions immediately.
+
 ## [0.7.0] - 2026-10-08
 
 Phase 6 — MCP server, OAuth 2.1 and AI assistant integrations.

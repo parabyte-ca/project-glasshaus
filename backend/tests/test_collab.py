@@ -79,6 +79,12 @@ async def test_stream_consumer_delivers(client: AsyncClient) -> None:
     world = await make_world()
     member = await make_user(world.tenant)
     await add_member(client, world, member, "editor")
+    from glasshaus.core.consumers import GROUP, _ensure_group
+    from glasshaus.core.events import STREAM
+    from glasshaus.redis_client import get_redis
+
+    await _ensure_group()
+    await get_redis().xgroup_setid(STREAM, GROUP, "$")  # skip earlier tests' events; deliver only new ones
     stop = asyncio.Event()
     worker = asyncio.create_task(consume(stop, f"test-{uuid.uuid4().hex[:6]}", block_ms=200))
     try:

@@ -56,7 +56,12 @@ export function Layout() {
           className="border-b border-slate-200 p-4 md:w-60 md:border-r md:border-b-0 dark:border-slate-800"
         >
           <ul className="mb-4 flex flex-col gap-1">
-            {SECTIONS.map(([to, label]) => (
+            {[
+              ...SECTIONS,
+              ...(user.org_role === 'owner' || user.org_role === 'admin'
+                ? ([['/admin', 'Admin']] as const)
+                : []),
+            ].map(([to, label]) => (
               <li key={to}>
                 <NavLink
                   to={to}

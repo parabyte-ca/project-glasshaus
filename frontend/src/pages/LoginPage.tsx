@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
 
@@ -18,6 +18,22 @@ export function LoginPage() {
       ),
     onSuccess: (user) => queryClient.setQueryData(['me'], user),
   });
+
+  const providers = useQuery({
+    queryKey: ['sso-providers', 'public', organization],
+    queryFn: () =>
+      unwrap(
+        api.GET('/api/v1/auth/sso/providers', { params: { query: { organization: organization || null } } }),
+      ),
+    retry: false,
+  });
+  const ssoError = params.get('sso_error');
+  const next = (() => {
+    const search = new URLSearchParams(window.location.search);
+    search.delete('sso_error');
+    const query = search.toString();
+    return window.location.pathname + (query ? `?${query}` : '');
+  })();
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -41,6 +57,23 @@ export function LoginPage() {
           >
             Password changed. Sign in with your new password.
           </p>
+        )}
+        {ssoError && (
+          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+            Single sign-on failed: {ssoError}
+          </p>
+        )}
+        {(providers.data ?? []).map((p) => (
+          <a
+            key={p.slug}
+            href={`${p.start_url}?next=${encodeURIComponent(next)}`}
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-center text-sm font-medium hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
+          >
+            Sign in with {p.name}
+          </a>
+        ))}
+        {(providers.data?.length ?? 0) > 0 && (
+          <p className="text-center text-xs text-slate-500 dark:text-slate-400">or use your password</p>
         )}
         <Field label="Email" id="email">
           <Input
