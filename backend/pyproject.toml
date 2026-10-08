@@ -1,6 +1,6 @@
 [project]
 name = "glasshaus"
-version = "0.7.0"
+version = "0.8.0"
 description = "Project Glasshaus — self-hosted project management platform (API, worker, MCP server)"
 authors = [
     { name = "Parabyte" }
@@ -11,10 +11,12 @@ dependencies = [
     "argon2-cffi>=25.1.0",
     "arq>=0.28.0",
     "asyncpg>=0.32.0",
+    "cryptography>=46",
     "email-validator>=2.3.0",
     "faker>=40.41.0",
     "fastapi>=0.142.4",
     "httpx>=0.28.1",
+    "lxml>=6",
     "mcp>=2.3,<3",
     "opentelemetry-api>=1.45.1",
     "opentelemetry-exporter-otlp-proto-http>=1.45.1",
@@ -25,6 +27,7 @@ dependencies = [
     "pydantic-settings>=2.15.0",
     "pyjwt>=2.15.1",
     "redis>=5",
+    "signxml>=4.2",
     "sqlalchemy[asyncio]>=2.1.4",
     "structlog>=26.1.0",
     "uvicorn[standard]>=0.54.0",
@@ -73,11 +76,11 @@ exclude = ["src/glasshaus/migrations/versions/"]
 
 [[tool.mypy.overrides]]
 # Tool adapters return the JSON-ready result of runtime.invoke.
-module = ["glasshaus.mcp_server.tools_core", "glasshaus.mcp_server.tools_plan"]
+module = ["glasshaus.mcp_server.tools_core", "glasshaus.mcp_server.tools_plan", "glasshaus.mcp_server.tools_admin"]
 warn_return_any = false
 
 [[tool.mypy.overrides]]
-module = ["arq.*"]
+module = ["arq.*", "lxml.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

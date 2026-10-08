@@ -79,4 +79,9 @@ RLS_TABLES = (
     "key_results",
     "kr_check_ins",
     "audit_log",
+    "org_settings",
+    "identity_providers",
+    "user_identities",
+    "integrations",
+    "integration_deliveries",
 )

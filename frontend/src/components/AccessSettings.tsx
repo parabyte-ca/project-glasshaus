@@ -127,6 +127,8 @@ export function AccessSettings() {
         )}
       </section>
 
+      <CalendarFeed />
+
       <section aria-labelledby="apps-h" className="flex flex-col gap-3">
         <h2 id="apps-h" className="text-lg font-semibold">
           Connected apps
@@ -159,5 +161,61 @@ export function AccessSettings() {
         </ul>
       </section>
     </>
+  );
+}
+
+function CalendarFeed() {
+  const queryClient = useQueryClient();
+  const [url, setUrl] = useState<string | null>(null);
+  const feed = useQuery({
+    queryKey: ['calendar-feed'],
+    queryFn: () => unwrap(api.GET('/api/v1/calendar-feed')),
+  });
+  const reset = useMutation({
+    mutationFn: () => unwrap(api.POST('/api/v1/calendar-feed')),
+    onSuccess: async (data) => {
+      setUrl(data.url ?? null);
+      await queryClient.invalidateQueries({ queryKey: ['calendar-feed'] });
+    },
+  });
+  const off = useMutation({
+    mutationFn: () => unwrap(api.DELETE('/api/v1/calendar-feed')),
+    onSuccess: async () => {
+      setUrl(null);
+      await queryClient.invalidateQueries({ queryKey: ['calendar-feed'] });
+    },
+  });
+  const active = Boolean(feed.data?.created_at);
+  return (
+    <section aria-labelledby="calendar-h" className="flex flex-col gap-3">
+      <h2 id="calendar-h" className="text-lg font-semibold">
+        Calendar feed
+      </h2>
+      <p className="text-sm text-slate-600 dark:text-slate-400">
+        Subscribe to your open, dated tasks in Google Calendar, Outlook / Microsoft 365 or Apple Calendar. The
+        link is private: anyone with it can see those task titles. Creating a new link turns off the old one.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => reset.mutate()} disabled={reset.isPending}>
+          {active ? 'Create a new link' : 'Create calendar link'}
+        </Button>
+        {active && <GhostButton onClick={() => off.mutate()}>Turn off</GhostButton>}
+      </div>
+      {url && (
+        <div
+          role="status"
+          className="rounded border border-amber-400 bg-amber-50 p-3 text-sm dark:bg-amber-950"
+        >
+          <p className="font-semibold">Your calendar link (copy it now; it is shown once)</p>
+          <code className="block break-all select-all">{url}</code>
+        </div>
+      )}
+      {active && !url && (
+        <p className="text-sm">
+          Active since {shortDate(feed.data?.created_at)} · last fetched {shortDate(feed.data?.last_used_at)}
+        </p>
+      )}
+      <ErrorText error={feed.error ?? reset.error ?? off.error} />
+    </section>
   );
 }

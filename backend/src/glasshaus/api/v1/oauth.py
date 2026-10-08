@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Response, status
 
@@ -59,6 +60,13 @@ async def revoke_app(ctx: Ctx, app_id: uuid.UUID) -> Response:
     summary="Audit log of MCP tool calls and other audited actions (organization admins)",
 )
 async def audit_log(
-    ctx: Ctx, action: str | None = None, actor_id: uuid.UUID | None = None, limit: int = 100
+    ctx: Ctx,
+    action: str | None = None,
+    actor_id: uuid.UUID | None = None,
+    outcome: str | None = None,
+    before: datetime | None = None,
+    limit: int = 100,
 ) -> list[AuditRead]:
-    return await audit.list_entries(ctx, action=action, actor_id=actor_id, limit=limit)
+    return await audit.list_entries(
+        ctx, action=action, actor_id=actor_id, outcome=outcome, before=before, limit=limit
+    )

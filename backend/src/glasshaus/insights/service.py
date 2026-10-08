@@ -6,6 +6,7 @@ import io
 import uuid
 from collections import Counter, defaultdict
 from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import func, or_, select
 
@@ -222,6 +223,7 @@ async def workload(
 
 
 async def _project_rows(ctx: ServiceContext, project_id: uuid.UUID) -> list[tuple[Task, ProjectStatus]]:
+    """Every task of a project (deleted included) with its status: full entities (CSV export)."""
     return [
         (t, s)
         for t, s in (
@@ -234,6 +236,36 @@ async def _project_rows(ctx: ServiceContext, project_id: uuid.UUID) -> list[tupl
     ]
 
 
+# Only what reports need: skipping descriptions and custom fields keeps large projects fast.
+_FACT_COLUMNS = (
+    Task.id,
+    Task.number,
+    Task.title,
+    Task.assignee_id,
+    Task.priority,
+    Task.start_date,
+    Task.due_date,
+    Task.estimate_minutes,
+    Task.created_at,
+    Task.completed_at,
+    Task.deleted_at,
+)
+
+
+async def _project_facts(ctx: ServiceContext, project_id: uuid.UUID) -> list[tuple[Any, ProjectStatus]]:
+    """Lightweight task rows (attribute access like a Task) with statuses, memoized per request."""
+    key = ("insights.facts", project_id)
+    if key not in ctx.cache:
+        result = await ctx.session.execute(
+            select(*_FACT_COLUMNS, ProjectStatus)
+            .join(ProjectStatus, ProjectStatus.id == Task.status_id)
+            .where(Task.project_id == project_id)
+        )
+        ctx.cache[key] = [(row, row.ProjectStatus) for row in result]
+    rows: list[tuple[Any, ProjectStatus]] = ctx.cache[key]
+    return rows
+
+
 async def project_report(
     ctx: ServiceContext, project_id: uuid.UUID, *, date_from: date | None = None, date_to: date | None = None
 ) -> ProjectReport:
@@ -241,7 +273,7 @@ async def project_report(
     end = date_to or _today()
     start = date_from or end - timedelta(days=29)
     _check_range(start, end)
-    rows = await _project_rows(ctx, project_id)
+    rows = await _project_facts(ctx, project_id)
     live = [(t, s) for t, s in rows if t.deleted_at is None]
     statuses = (
         await ctx.session.scalars(
@@ -326,7 +358,7 @@ async def project_health(ctx: ServiceContext, project: Project) -> ProjectHealth
     from glasshaus.scheduling import service as scheduling
     from glasshaus.scheduling.models import Baseline
 
-    rows = [(t, s) for t, s in await _project_rows(ctx, project.id) if t.deleted_at is None]
+    rows = [(t, s) for t, s in await _project_facts(ctx, project.id) if t.deleted_at is None]
     counted = [(t, s) for t, s in rows if s.category != StatusCategory.CANCELLED]
     done = sum(1 for _, s in counted if s.category == StatusCategory.DONE)
     open_rows = [(t, s) for t, s in counted if s.category not in CLOSED]
@@ -528,7 +560,7 @@ async def status_summary(ctx: ServiceContext, project_id: uuid.UUID, *, days: in
     project = await require_project(ctx, project_id, Permission.PROJECT_READ)
     today = _today()
     start = today - timedelta(days=days - 1)
-    rows = [(t, s) for t, s in await _project_rows(ctx, project_id) if t.deleted_at is None]
+    rows = [(t, s) for t, s in await _project_facts(ctx, project_id) if t.deleted_at is None]
 
     def item(t: Task, s: ProjectStatus) -> SummaryTask:
         return SummaryTask(

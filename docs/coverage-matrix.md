@@ -16,7 +16,7 @@ MCP prompts: `weekly_status`, `risk_review`, `sprint_planning`, `standup_digest`
 | Sign in / refresh / sign out | `identity.login`, `refresh`, `logout` | `POST /api/v1/auth/{login,refresh,logout}` | — | n/a (MCP clients use OAuth 2.1 or an API token) | 0.2 |
 | Change password | `identity.change_password` | `POST /api/v1/auth/password` | `user.password_changed` | n/a (interactive only) | 0.2 |
 | Current user | `identity.get_me` | `GET /api/v1/users/me` | — | `whoami` | 0.2 |
-| List / create / update users | `identity.list_users`, `create_user`, `update_user` | `GET/POST /api/v1/users`, `PATCH /api/v1/users/{id}` | `user.created`, `user.updated` | `list_users` | 0.2 |
+| List / create / update users | `identity.list_users`, `create_user`, `update_user` | `GET/POST /api/v1/users`, `PATCH /api/v1/users/{id}` | `user.created`, `user.updated` | `list_users`, `manage_users` | 0.2 |
 | API tokens | `identity.create_api_token`, `list_api_tokens`, `revoke_api_token` | `GET/POST /api/v1/tokens`, `DELETE /api/v1/tokens/{id}` | `api_token.created`, `api_token.revoked` | n/a (credentials) | 0.2 |
 | Workspaces | `identity.list_workspaces`, `get_workspace`, `create_workspace`, `update_workspace` | `GET/POST /api/v1/workspaces`, `GET/PATCH /api/v1/workspaces/{id}` | `workspace.created`, `workspace.updated` | `list_workspaces` | 0.2 |
 | Workspace members | `identity.list_workspace_members`, `set_workspace_member`, `remove_workspace_member` | `GET/PUT /api/v1/workspaces/{id}/members`, `DELETE …/members/{user_id}` | `workspace.member_set`, `workspace.member_removed` | `set_workspace_member` | 0.2 |
@@ -71,3 +71,14 @@ MCP prompts: `weekly_status`, `risk_review`, `sprint_planning`, `standup_digest`
 | OAuth consent (MCP clients) | `oauth.get_consent`, `decide` | `GET/POST /api/v1/oauth/requests/{id}`; MCP server `/authorize`, `/token`, `/register`, `/revoke` | — | n/a (the OAuth flow itself) | 0.7 |
 | Connected apps | `oauth.list_connected_apps`, `revoke_app` | `GET /api/v1/oauth/apps`, `DELETE /api/v1/oauth/apps/{id}` | — | n/a (credentials) | 0.7 |
 | Audit log (every MCP call) | `audit.record`, `list_entries` | `GET /api/v1/audit-log` | — | `get_audit_log` | 0.7 |
+| Deactivate / reactivate people (ends sessions) | `identity.update_user` (`is_active`), `governance.revoke_user_sessions` | `PATCH /api/v1/users/{id}` | `user.updated` | `manage_users` (confirm) | 0.8 |
+| Admin password reset, sign out everywhere | `governance.reset_password`, `sign_out_everywhere` | `POST /api/v1/admin/users/{id}/password`, `POST …/sessions/revoke` | `user.password_reset`, `user.signed_out` | n/a (credentials) | 0.8 |
+| Retention settings and purge | `governance.get_settings`, `update_settings`, `apply_retention` (worker, nightly) | `GET/PATCH /api/v1/admin/settings` | `org.settings_updated` | `get_org_settings`, `update_org_settings` (confirm) | 0.8 |
+| Organization data export | `governance.export_organization` | `GET /api/v1/admin/export` (zip) | `org.exported` | n/a (file download, browser session only) | 0.8 |
+| Full audit trail | `audit.handlers.record_event` (every domain event), `audit.record_raw` (sign-ins, SSO, provisioning) | `GET /api/v1/audit-log?action=&actor_id=&outcome=&before=` | consumes all events | `get_audit_log` | 0.8 |
+| Single sign-on (OIDC, SAML) | `sso.service.*`, `sso.oidc`, `sso.saml` | `GET/POST/PATCH/DELETE /api/v1/admin/sso-providers`, `/api/v1/auth/sso/…` | `sso.provider_*` | n/a (credentials, browser flow) | 0.8 |
+| SCIM 2.0 provisioning | `scim.service.*` | `/scim/v2/Users`, `/scim/v2/Groups`; tokens `GET/POST/DELETE /api/v1/admin/scim-tokens` | `user.*`, `workspace.*`, `scim.token_*` | n/a (machine provisioning) | 0.8 |
+| Integrations: Slack, Teams, signed webhooks | `integrations.service.*`, `integrations.delivery` (event consumer, retries) | `GET/POST/PATCH/DELETE /api/v1/integrations`, `POST …/{id}/test`, `GET …/{id}/deliveries` | `integration.*`; sends subscribed events | `manage_integrations` (create in the app: secrets) | 0.8 |
+| Integrations: GitHub / GitLab | `integrations.service.handle_inbound` | `POST /api/v1/integrations/{id}/inbound` (signed) | `comment.created`, `task.updated` | `manage_integrations` | 0.8 |
+| Email-to-task (IMAP) | `integrations.email.poll_all` (worker, every 2 min) | configured via `/api/v1/integrations` | `task.created` | `manage_integrations` | 0.8 |
+| Calendar feed (Google, Microsoft 365, Apple) | `integrations.service.calendar_ics`, `reset_calendar_feed` | `GET/POST/DELETE /api/v1/calendar-feed`, `GET /api/v1/calendar/{token}.ics` | — | n/a (secret URL) | 0.8 |

@@ -52,6 +52,27 @@ async def oauth_housekeeping(ctx: dict[str, Any]) -> int:
     return await purge_expired()
 
 
+async def governance_retention(ctx: dict[str, Any]) -> dict[str, int]:
+    """Apply each organization's retention settings (daily)."""
+    from glasshaus.governance.service import apply_retention
+
+    return (await apply_retention()).model_dump()
+
+
+async def integrations_retry(ctx: dict[str, Any]) -> int:
+    """Resend integration deliveries whose backoff has elapsed (every minute)."""
+    from glasshaus.integrations.delivery import retry_due
+
+    return await retry_due()
+
+
+async def integrations_email(ctx: dict[str, Any]) -> dict[str, Any]:
+    """Email-to-task: poll mailboxes (every two minutes)."""
+    from glasshaus.integrations.email import poll_all
+
+    return await poll_all()
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     import asyncio
 
@@ -94,6 +115,9 @@ class WorkerSettings:
             automation_due_soon, minute=set(range(0, 60, 10)), second={20}, run_at_startup=True, timeout=300
         ),
         cron(oauth_housekeeping, minute={17}, second={40}, run_at_startup=False),
+        cron(governance_retention, hour={3}, minute={23}, second={0}, run_at_startup=False, timeout=900),
+        cron(integrations_retry, second={35}, run_at_startup=False, timeout=300),
+        cron(integrations_email, minute=set(range(1, 60, 2)), second={50}, run_at_startup=False, timeout=300),
     ]
     on_startup = startup
     on_shutdown = shutdown

@@ -2,15 +2,18 @@ from fastapi import APIRouter
 
 from glasshaus.api.errors import PROBLEM_RESPONSES
 from glasshaus.api.v1 import (
+    admin,
     auth,
     automation,
     collab,
     fields,
     goals,
     insights,
+    integrations,
     oauth,
     projects,
     scheduling,
+    sso,
     tasks,
     timetracking,
     users,
@@ -34,5 +37,8 @@ for module in (
     insights,
     goals,
     oauth,
+    admin,
+    sso,
+    integrations,
 ):
     api_router.include_router(module.router)

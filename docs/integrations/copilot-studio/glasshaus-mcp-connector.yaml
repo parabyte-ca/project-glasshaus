@@ -7,7 +7,7 @@ info:
   description: >-
     Project management: search, create and update tasks and projects, link dependencies, log time,
     run reports and automations, and pull status-summary data.
-  version: 0.7.0
+  version: 0.8.0
 host: glasshaus.example.com
 basePath: /
 schemes:

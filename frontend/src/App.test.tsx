@@ -532,6 +532,137 @@ describe('connected access', () => {
   });
 });
 
+describe('administration', () => {
+  const member = { ...user, id: 'u2', email: 'lin@example.com', name: 'Lin', org_role: 'member' };
+
+  it('deactivates a person after confirming', async () => {
+    let people = [user, member];
+    const { calls } = mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/users'),
+      signedIn,
+      { method: 'GET', path: '/api/v1/users', handler: () => people },
+      {
+        method: 'PATCH',
+        path: '/api/v1/users/u2',
+        handler: () => {
+          people = [user, { ...member, is_active: false }];
+          return people[1];
+        },
+      },
+    ]);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderAt('/admin');
+    await userEvent.click(await screen.findByRole('button', { name: 'Deactivate Lin' }));
+    expect(await screen.findByRole('button', { name: 'Reactivate Lin' })).toBeInTheDocument();
+    const patch = calls.find((c) => c.method === 'PATCH')!;
+    expect(await patch.json()).toEqual({ is_active: false });
+    expect(screen.queryByRole('button', { name: `Deactivate ${user.name}` })).not.toBeInTheDocument();
+  });
+
+  it('connects a signed webhook and shows the secret once', async () => {
+    let integrations: unknown[] = [];
+    const { calls } = mockApi([
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/integrations', handler: () => integrations },
+      { method: 'GET', path: '/api/v1/integrations/event-types', body: ['task.created', 'task.completed'] },
+      {
+        method: 'POST',
+        path: '/api/v1/integrations',
+        status: 201,
+        handler: () => {
+          const created = {
+            id: 'i1',
+            kind: 'webhook',
+            name: 'CI',
+            enabled: true,
+            project_id: null,
+            events: ['task.created'],
+            url_host: 'ci.example.com',
+            secret_set: true,
+            inbound_url: null,
+            email: null,
+            last_success_at: null,
+            last_error: null,
+            last_error_at: null,
+            created_at: '2026-10-08T00:00:00Z',
+          };
+          integrations = [created];
+          return { ...created, signing_secret: 'sig-secret-123' };
+        },
+      },
+    ]);
+    renderAt('/admin?tab=integrations');
+    await userEvent.selectOptions(await screen.findByLabelText('Type'), 'webhook');
+    await userEvent.type(screen.getByLabelText('Name'), 'CI');
+    await userEvent.type(screen.getByLabelText('Webhook URL'), 'https://ci.example.com/hook');
+    await userEvent.click(await screen.findByLabelText('task.completed'));
+    await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    expect(await screen.findByText('sig-secret-123')).toBeInTheDocument();
+    expect(await screen.findByRole('cell', { name: 'CI' })).toBeInTheDocument();
+    const post = calls.find((c) => c.method === 'POST')!;
+    expect(await post.json()).toMatchObject({
+      kind: 'webhook',
+      url: 'https://ci.example.com/hook',
+      events: ['task.created', 'comment.created'],
+    });
+  });
+
+  it('is hidden from members', async () => {
+    mockApi([...baseRoutes, { method: 'GET', path: '/api/v1/users/me', body: member }]);
+    renderAt('/admin');
+    expect(await screen.findByRole('alert')).toHaveTextContent('owners and admins');
+    expect(screen.queryByRole('link', { name: 'Admin' })).not.toBeInTheDocument();
+  });
+});
+
+describe('single sign-on', () => {
+  it('offers identity providers and explains failures', async () => {
+    mockApi([
+      { method: 'GET', path: '/api/v1/users/me', status: 401, body: { detail: 'no session' } },
+      { method: 'POST', path: '/api/v1/auth/refresh', status: 401, body: { detail: 'no session' } },
+      {
+        method: 'GET',
+        path: '/api/v1/auth/sso/providers',
+        body: [
+          {
+            name: 'Company login',
+            slug: 'corp',
+            kind: 'oidc',
+            start_url: '/api/v1/auth/sso/default/corp/start',
+          },
+        ],
+      },
+    ]);
+    renderAt('/projects/WEB?sso_error=your%20email%20domain%20is%20not%20allowed');
+    const link = await screen.findByRole('link', { name: 'Sign in with Company login' });
+    expect(link).toHaveAttribute('href', '/api/v1/auth/sso/default/corp/start?next=%2Fprojects%2FWEB');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Single sign-on failed: your email domain is not allowed',
+    );
+  });
+
+  it('creates a private calendar link', async () => {
+    const { calls } = mockApi([
+      ...baseRoutes,
+      signedIn,
+      {
+        method: 'POST',
+        path: '/api/v1/calendar-feed',
+        body: {
+          url: 'http://localhost/api/v1/calendar/ghc_abc.ics',
+          created_at: '2026-10-08T00:00:00Z',
+          last_used_at: null,
+        },
+      },
+    ]);
+    renderAt('/account');
+    await userEvent.click(await screen.findByRole('button', { name: 'Create calendar link' }));
+    expect(await screen.findByText('http://localhost/api/v1/calendar/ghc_abc.ics')).toBeInTheDocument();
+    expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/v1/calendar-feed'))).toBe(true);
+  });
+});
+
 describe('theme', () => {
   it('toggles dark mode', async () => {
     mockApi([...baseRoutes, signedIn]);

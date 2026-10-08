@@ -7,8 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
-from glasshaus.api import health, ws
+from glasshaus.api import health, scim, ws
 from glasshaus.api.errors import install_error_handlers
+from glasshaus.api.hardening import HardeningMiddleware
 from glasshaus.api.v1.router import api_router
 from glasshaus.config import get_settings
 from glasshaus.db import get_engine
@@ -71,9 +72,11 @@ def create_app() -> FastAPI:
     if settings.otel_enabled:
         install_tracing(app)
     install_error_handlers(app)
+    app.add_middleware(HardeningMiddleware)
     app.include_router(health.router)
     app.include_router(api_router)
     app.include_router(ws.router)
+    app.include_router(scim.router)
     return app
 
 

@@ -33,6 +33,15 @@ class UserCreate(Schema):
     password: str | None = Field(None, min_length=12, max_length=1024)
     org_role: OrgRole = OrgRole.MEMBER
 
+    @field_validator("password")
+    @classmethod
+    def _policy(cls, v: str | None) -> str | None:
+        from glasshaus.identity.passwords import password_problem
+
+        if v is not None and (problem := password_problem(v)):
+            raise ValueError(problem)
+        return v
+
 
 class UserUpdate(Schema):
     name: str | None = Field(None, min_length=1, max_length=200)
@@ -54,6 +63,15 @@ class UserUpdate(Schema):
 class PasswordChange(Schema):
     current_password: str = Field(max_length=1024)
     new_password: str = Field(min_length=12, max_length=1024)
+
+    @field_validator("new_password")
+    @classmethod
+    def _policy(cls, v: str) -> str:
+        from glasshaus.identity.passwords import password_problem
+
+        if problem := password_problem(v):
+            raise ValueError(problem)
+        return v
 
 
 class WorkspaceRead(Schema):

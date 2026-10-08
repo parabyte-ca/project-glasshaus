@@ -129,4 +129,6 @@ export const baseRoutes: Route[] = [
   { method: 'GET', path: '/api/v1/time-entries', body: { items: [], next_cursor: null } },
   { method: 'GET', path: '/api/v1/tokens', body: [] },
   { method: 'GET', path: '/api/v1/oauth/apps', body: [] },
+  { method: 'GET', path: '/api/v1/calendar-feed', body: { url: null, created_at: null, last_used_at: null } },
+  { method: 'GET', path: '/api/v1/auth/sso/providers', body: [] },
 ];

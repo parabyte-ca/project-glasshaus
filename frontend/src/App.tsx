@@ -22,6 +22,7 @@ const PortfoliosPage = lazy(() =>
   import('./pages/PortfoliosPage').then((m) => ({ default: m.PortfoliosPage })),
 );
 const ConsentPage = lazy(() => import('./pages/ConsentPage').then((m) => ({ default: m.ConsentPage })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })));
 const GoalsPage = lazy(() => import('./pages/GoalsPage').then((m) => ({ default: m.GoalsPage })));
 
 function Lazy({ children }: { children: ReactNode }) {
@@ -58,6 +59,14 @@ export default function App() {
                 <Suspense fallback={<p role="status">Loading…</p>}>
                   <ProjectSettingsPage />
                 </Suspense>
+              }
+            />
+            <Route
+              path="admin"
+              element={
+                <Lazy>
+                  <AdminPage />
+                </Lazy>
               }
             />
             <Route

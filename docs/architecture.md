@@ -129,6 +129,22 @@ PostgreSQL (RLS: tenant_id = app.tenant_id)  ──commit──▶  relay → Re
 Permissions are defined once in `glasshaus/core/rbac.py`; REST and MCP enforce the same checks because they
 call the same services.
 
+## Governance, SSO and integrations
+
+- **Audit:** a catch-all event consumer (`audit/handlers.py`) writes every domain event to `audit_log`
+  (idempotent on the event id); sign-ins, SSO, provisioning and MCP calls are written directly. A nightly
+  worker job applies each organization's retention (`org_settings`).
+- **SSO** (`sso/`): identity providers per organization; flow state in Redis (10 minutes, single use);
+  `user_identities` links IdP subjects to accounts. **SCIM** (`scim/`, mounted at `/scim/v2`) authenticates
+  with hashed `ghs_` tokens and runs through the same services and events as the API.
+- **Integrations** (`integrations/`): a catch-all consumer matches events to outbound integrations,
+  records `integration_deliveries` and sends through the SSRF-checked webhook sender; a worker job retries
+  with backoff. GitHub/GitLab payloads are verified and turned into comments/status changes by the
+  service layer acting as an `integration` principal. Email-to-task polls IMAP from the worker. Secrets
+  are encrypted with Fernet (`core/crypto.py`).
+- **Hardening** (`api/hardening.py`): security headers, a 10 MB body cap and a Redis per-principal rate
+  limit on REST and SCIM; account-level login throttling in `identity/service.py`.
+
 ## MCP server and OAuth
 
 - `mcp_server/server.py` builds the server; `tools_core.py`, `tools_plan.py` and `resources.py` are thin

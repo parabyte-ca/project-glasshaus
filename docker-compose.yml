@@ -68,6 +68,10 @@ services:
 
   api:
     <<: *backend
+    environment:
+      <<: *backend-env
+      # API worker processes (uvicorn reads WEB_CONCURRENCY); raise on hosts with spare cores.
+      WEB_CONCURRENCY: ${GLASSHAUS_API_WORKERS:-2}
     ports: ["${GLASSHAUS_BIND_ADDRESS:-0.0.0.0}:${GLASSHAUS_API_PORT:-8471}:8000"]
     depends_on:
       migrate: { condition: service_completed_successfully }

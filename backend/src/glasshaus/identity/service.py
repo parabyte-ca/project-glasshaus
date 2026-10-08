@@ -43,6 +43,8 @@ from glasshaus.models import Tenant
 
 LOGIN_MAX_ATTEMPTS = 10
 LOGIN_WINDOW_SECONDS = 900
+# Per account across all addresses, so rotating (or spoofing) the client IP does not help guessing.
+ACCOUNT_MAX_ATTEMPTS = 30
 
 
 # --------------------------------------------------------------------------- authentication
@@ -65,14 +67,14 @@ async def _tenant_by_slug(session: AsyncSession, slug: str | None) -> Tenant:
     return tenant
 
 
-async def _check_login_rate(key: str) -> None:
+async def _check_login_rate(key: str, limit: int = LOGIN_MAX_ATTEMPTS) -> None:
     from glasshaus.redis_client import get_redis
 
     redis = get_redis()
     count = await redis.incr(key)
     if count == 1:
         await redis.expire(key, LOGIN_WINDOW_SECONDS)
-    if count > LOGIN_MAX_ATTEMPTS:
+    if count > limit:
         raise RateLimited("too many login attempts; try again later")
 
 
@@ -97,14 +99,50 @@ async def _issue_session(session: AsyncSession, user: User, *, user_agent: str, 
 async def login(
     session: AsyncSession, *, email: str, password: str, organization: str | None, user_agent: str, ip: str
 ) -> LoginResult:
+    from glasshaus.audit.service import record_raw
+
     await _check_login_rate(f"glasshaus:login:{ip}:{email.lower()}")
+    await _check_login_rate(f"glasshaus:login-account:{email.lower()}", ACCOUNT_MAX_ATTEMPTS)
     tenant = await _tenant_by_slug(session, organization)
     await apply_tenant(session, tenant.id)
     user = await session.scalar(select(User).where(func.lower(User.email) == email.lower()))
+    detail = {"email": email.lower(), "ip": ip, "user_agent": user_agent[:200]}
     if not security.verify_password(user.password_hash if user else None, password) or user is None:
+        await record_raw(
+            tenant.id,
+            "auth.login",
+            outcome="denied",
+            actor_id=user.id if user else None,
+            method="session",
+            detail={**detail, "reason": "invalid credentials"},
+        )
         raise Unauthenticated("invalid credentials")
     if not user.is_active:
+        await record_raw(
+            tenant.id,
+            "auth.login",
+            outcome="denied",
+            actor_id=user.id,
+            method="session",
+            detail={**detail, "reason": "account disabled"},
+        )
         raise Unauthenticated("account disabled")
+    from glasshaus.sso.service import password_login_allowed
+
+    if not await password_login_allowed(session, user):
+        await record_raw(
+            tenant.id,
+            "auth.login",
+            outcome="denied",
+            actor_id=user.id,
+            method="session",
+            detail={**detail, "reason": "single sign-on required"},
+        )
+        raise Unauthenticated("this organization requires single sign-on")
+    await record_raw(tenant.id, "auth.login", outcome="ok", actor_id=user.id, method="session", detail=detail)
+    from glasshaus.redis_client import get_redis
+
+    await get_redis().delete(f"glasshaus:login-account:{email.lower()}")
     if user.password_hash and security.needs_rehash(user.password_hash):
         user.password_hash = security.hash_password(password)
     user.last_login_at = datetime.now(UTC)
@@ -205,6 +243,10 @@ async def change_password(ctx: ServiceContext, data: PasswordChange) -> None:
     user = await ctx.session.get(User, _require_user(ctx))
     if user is None or not security.verify_password(user.password_hash, data.current_password):
         raise InvalidInput("current password is incorrect")
+    from glasshaus.identity.passwords import password_problem
+
+    if problem := password_problem(data.new_password, email=user.email):
+        raise InvalidInput(problem)
     user.password_hash = security.hash_password(data.new_password)
     await ctx.session.execute(
         update(AuthSession)
@@ -259,6 +301,10 @@ async def update_user(ctx: ServiceContext, user_id: uuid.UUID, data: UserUpdate)
     for field, value in changes.items():
         setattr(user, field, value)
     await ctx.session.flush()
+    if changes.get("is_active") is False:
+        from glasshaus.governance.service import revoke_user_sessions
+
+        await revoke_user_sessions(ctx, user.id)
     result = UserRead.model_validate(user)
     events.emit(
         ctx, "user.updated", "user", user.id, {"changes": changes, "user": result.model_dump(mode="json")}
