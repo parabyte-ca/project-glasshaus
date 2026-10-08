@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from glasshaus.api.errors import PROBLEM_RESPONSES
 from glasshaus.api.v1 import (
     admin,
+    ai,
     auth,
     automation,
     collab,
@@ -38,6 +39,7 @@ for module in (
     goals,
     oauth,
     admin,
+    ai,
     sso,
     integrations,
 ):

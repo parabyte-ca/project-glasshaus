@@ -1633,6 +1633,91 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/ai/status': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Whether the AI assistant is available and enabled */
+    get: operations['ai_status'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/ai/projects/{project_id}/status-report': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Write a status update from the project's status summary (review before sharing) */
+    post: operations['ai_status_report'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/ai/projects/{project_id}/draft-tasks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Propose tasks for a brief; nothing is created until you create them */
+    post: operations['ai_draft_tasks'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/ai/projects/{project_id}/risks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Flag schedule and delivery risks with evidence and a suggested next step */
+    post: operations['ai_risks'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/ai/search': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Search tasks in plain words; returns the filters used and the matching tasks */
+    post: operations['ai_search'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/sso/providers': {
     parameters: {
       query?: never;
@@ -2158,6 +2243,118 @@ export interface components {
       data: {
         [key: string]: unknown;
       };
+    };
+    /** AiDraftRequest */
+    AiDraftRequest: {
+      /**
+       * Brief
+       * @description What needs doing, in plain words.
+       */
+      brief: string;
+      /**
+       * Max Tasks
+       * @default 8
+       */
+      max_tasks?: number;
+    };
+    /**
+     * AiDrafts
+     * @description Proposed tasks. Nothing is created until someone creates them (POST /tasks).
+     */
+    AiDrafts: {
+      /** Project Key */
+      project_key: string;
+      /** Drafts */
+      drafts: components['schemas']['DraftTask'][];
+      usage: components['schemas']['AiUsage'];
+    };
+    /** AiRisks */
+    AiRisks: {
+      /** Project Key */
+      project_key: string;
+      /** Risks */
+      risks: components['schemas']['RiskFlag'][];
+      usage: components['schemas']['AiUsage'];
+    };
+    /** AiSearchRequest */
+    AiSearchRequest: {
+      /**
+       * Query
+       * @example my overdue high-priority tasks in WEB
+       */
+      query: string;
+      /**
+       * Project Id
+       * @description Limit to this project.
+       */
+      project_id?: string | null;
+      /**
+       * Limit
+       * @default 50
+       */
+      limit?: number;
+    };
+    /** AiSearchResult */
+    AiSearchResult: {
+      /** Query */
+      query: string;
+      filters: components['schemas']['SearchFilters'];
+      /**
+       * Task Query
+       * @description The equivalent GET /tasks query parameters.
+       */
+      task_query: {
+        [key: string]: unknown;
+      };
+      /** Items */
+      items: components['schemas']['TaskRead'][];
+      usage: components['schemas']['AiUsage'];
+    };
+    /** AiStatus */
+    AiStatus: {
+      /**
+       * Available
+       * @description A provider is configured on this server.
+       */
+      available: boolean;
+      /**
+       * Enabled
+       * @description Available and turned on for this organization.
+       */
+      enabled: boolean;
+      /** Provider */
+      provider: string;
+      /** Model */
+      model: string;
+      /**
+       * Features
+       * @description Features people can use now (empty when not enabled).
+       */
+      features: ('summaries' | 'drafting' | 'risks' | 'search')[];
+    };
+    /**
+     * AiStatusReport
+     * @description An AI-written status update and the facts it was written from. Review before sharing.
+     */
+    AiStatusReport: {
+      /** Project Key */
+      project_key: string;
+      report: components['schemas']['StatusReportOutput'];
+      facts: components['schemas']['StatusSummary'];
+      usage: components['schemas']['AiUsage'];
+    };
+    /** AiUsage */
+    AiUsage: {
+      /** Provider */
+      provider: string;
+      /** Model */
+      model: string;
+      /** Input Tokens */
+      input_tokens: number;
+      /** Output Tokens */
+      output_tokens: number;
+      /** Duration Ms */
+      duration_ms: number;
     };
     /** ApiTokenCreate */
     ApiTokenCreate: {
@@ -2687,6 +2884,30 @@ export interface components {
       type?: components['schemas']['DependencyType'] | null;
       /** Lag Days */
       lag_days?: number | null;
+    };
+    /** DraftTask */
+    DraftTask: {
+      /**
+       * Title
+       * @description Short, imperative task title.
+       */
+      title: string;
+      /**
+       * Description
+       * @description Markdown: what to do and how to tell it is done.
+       */
+      description: string;
+      priority: components['schemas']['Priority'];
+      /**
+       * Estimate Minutes
+       * @description Rough effort in minutes, or null if unknown.
+       */
+      estimate_minutes: number | null;
+      /**
+       * Tags
+       * @description Zero to three lowercase tags.
+       */
+      tags: string[];
     };
     /** EmailConfig */
     'EmailConfig-Input': {
@@ -3287,6 +3508,16 @@ export interface components {
        * @description Days a deleted task stays restorable before it is purged (0 = forever). Tasks with logged time are kept.
        */
       deleted_task_retention_days: number;
+      /**
+       * Ai Enabled
+       * @description AI assistant on for this organization (also needs a provider configured on the server).
+       */
+      ai_enabled: boolean;
+      /**
+       * Ai Features
+       * @description AI features people may use when the assistant is on.
+       */
+      ai_features: ('summaries' | 'drafting' | 'risks' | 'search')[];
     };
     /** OrgSettingsUpdate */
     OrgSettingsUpdate: {
@@ -3298,6 +3529,10 @@ export interface components {
       notification_retention_days?: number | null;
       /** Deleted Task Retention Days */
       deleted_task_retention_days?: number | null;
+      /** Ai Enabled */
+      ai_enabled?: boolean | null;
+      /** Ai Features */
+      ai_features?: ('summaries' | 'drafting' | 'risks' | 'search')[] | null;
     };
     /** Page[ActivityItem] */
     Page_ActivityItem_: {
@@ -3974,6 +4209,34 @@ export interface components {
       /** Moves */
       moves: components['schemas']['TaskMove'][];
     };
+    /** RiskFlag */
+    RiskFlag: {
+      /**
+       * Task Key
+       * @description Key of the task at risk (e.g. WEB-12), or null if project-wide.
+       */
+      task_key: string | null;
+      /**
+       * Severity
+       * @enum {string}
+       */
+      severity: 'low' | 'medium' | 'high';
+      /**
+       * Title
+       * @description The risk in a few words.
+       */
+      title: string;
+      /**
+       * Reason
+       * @description Evidence from the data.
+       */
+      reason: string;
+      /**
+       * Suggestion
+       * @description One concrete next step.
+       */
+      suggestion: string;
+    };
     /** RuleBase */
     RuleBase: {
       /** Name */
@@ -4395,6 +4658,59 @@ export interface components {
      * @enum {string}
      */
     Scope: 'read' | 'tasks:write' | 'projects:write' | 'admin';
+    /** SearchFilters */
+    SearchFilters: {
+      /**
+       * Project Key
+       * @description One of the listed project keys, or null for all projects.
+       */
+      project_key: string | null;
+      /**
+       * Text
+       * @description Words that must appear in the task title, or null.
+       */
+      text: string | null;
+      /**
+       * Status Categories
+       * @description Empty for any status.
+       */
+      status_categories: components['schemas']['StatusCategory'][];
+      /**
+       * Priorities
+       * @description Empty for any priority.
+       */
+      priorities: components['schemas']['Priority'][];
+      /**
+       * Assignee
+       * @description 'me', 'unassigned', a listed person's name, or null for anyone.
+       */
+      assignee: string | null;
+      /**
+       * Tags
+       * @description Tags the task must have; usually empty.
+       */
+      tags: string[];
+      /**
+       * Due Before
+       * @description Due on or before this date (YYYY-MM-DD), or null.
+       */
+      due_before: string | null;
+      /**
+       * Due After
+       * @description Due on or after this date (YYYY-MM-DD), or null.
+       */
+      due_after: string | null;
+      /**
+       * Overdue
+       * @description Only open tasks past their due date.
+       */
+      overdue: boolean;
+      /**
+       * Explanation
+       * @description One short sentence describing the filter in plain words.
+       */
+      explanation: string;
+    };
     /** SelectOption */
     'SelectOption-Input': {
       /** Id */
@@ -4466,6 +4782,29 @@ export interface components {
       color: string;
       /** Position */
       position: number;
+    };
+    /** StatusReportOutput */
+    StatusReportOutput: {
+      /**
+       * Headline
+       * @description One sentence on overall status.
+       */
+      headline: string;
+      /**
+       * Summary
+       * @description Two or three short paragraphs of Markdown for a status update.
+       */
+      summary: string;
+      /**
+       * Highlights
+       * @description Notable completed work, at most 5 bullets.
+       */
+      highlights: string[];
+      /**
+       * Concerns
+       * @description Problems needing attention, at most 5 bullets.
+       */
+      concerns: string[];
     };
     /**
      * StatusSummary
@@ -14439,6 +14778,350 @@ export interface operations {
           'application/problem+json': unknown;
           'application/json': components['schemas']['Problem'];
         };
+      };
+    };
+  };
+  ai_status: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AiStatus'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  ai_status_report: {
+    parameters: {
+      query?: {
+        days?: number;
+      };
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AiStatusReport'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description AI is not configured, turned off, or the provider failed */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  ai_draft_tasks: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AiDraftRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AiDrafts'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description AI is not configured, turned off, or the provider failed */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  ai_risks: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AiRisks'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description AI is not configured, turned off, or the provider failed */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  ai_search: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AiSearchRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AiSearchResult'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description AI is not configured, turned off, or the provider failed */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

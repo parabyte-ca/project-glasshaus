@@ -46,3 +46,10 @@ class InvalidInput(ServiceError):
 class RateLimited(ServiceError):
     code = "rate_limited"
     status = 429
+
+
+class Unavailable(ServiceError):
+    """A feature that is turned off, or an upstream service (such as an AI provider) that failed."""
+
+    code = "unavailable"
+    status = 503

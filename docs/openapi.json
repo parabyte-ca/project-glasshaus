@@ -11795,6 +11795,409 @@
         }
       }
     },
+    "/api/v1/ai/status": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Whether the AI assistant is available and enabled",
+        "operationId": "ai_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/projects/{project_id}/status-report": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Write a status update from the project's status summary (review before sharing)",
+        "operationId": "ai_status_report",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 7,
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiStatusReport"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "503": {
+            "description": "AI is not configured, turned off, or the provider failed"
+          }
+        }
+      }
+    },
+    "/api/v1/ai/projects/{project_id}/draft-tasks": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Propose tasks for a brief; nothing is created until you create them",
+        "operationId": "ai_draft_tasks",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiDraftRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiDrafts"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "503": {
+            "description": "AI is not configured, turned off, or the provider failed"
+          }
+        }
+      }
+    },
+    "/api/v1/ai/projects/{project_id}/risks": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Flag schedule and delivery risks with evidence and a suggested next step",
+        "operationId": "ai_risks",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiRisks"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "503": {
+            "description": "AI is not configured, turned off, or the provider failed"
+          }
+        }
+      }
+    },
+    "/api/v1/ai/search": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Search tasks in plain words; returns the filters used and the matching tasks",
+        "operationId": "ai_search",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSearchResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AI is not configured, turned off, or the provider failed"
+          }
+        }
+      }
+    },
     "/api/v1/auth/sso/providers": {
       "get": {
         "tags": [
@@ -14491,6 +14894,266 @@
         ],
         "title": "ActivityItem"
       },
+      "AiDraftRequest": {
+        "properties": {
+          "brief": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 3,
+            "title": "Brief",
+            "description": "What needs doing, in plain words."
+          },
+          "max_tasks": {
+            "type": "integer",
+            "maximum": 15.0,
+            "minimum": 1.0,
+            "title": "Max Tasks",
+            "default": 8
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "brief"
+        ],
+        "title": "AiDraftRequest"
+      },
+      "AiDrafts": {
+        "properties": {
+          "project_key": {
+            "type": "string",
+            "title": "Project Key"
+          },
+          "drafts": {
+            "items": {
+              "$ref": "#/components/schemas/DraftTask"
+            },
+            "type": "array",
+            "title": "Drafts"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/AiUsage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_key",
+          "drafts",
+          "usage"
+        ],
+        "title": "AiDrafts",
+        "description": "Proposed tasks. Nothing is created until someone creates them (POST /tasks)."
+      },
+      "AiRisks": {
+        "properties": {
+          "project_key": {
+            "type": "string",
+            "title": "Project Key"
+          },
+          "risks": {
+            "items": {
+              "$ref": "#/components/schemas/RiskFlag"
+            },
+            "type": "array",
+            "title": "Risks"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/AiUsage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_key",
+          "risks",
+          "usage"
+        ],
+        "title": "AiRisks"
+      },
+      "AiSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Query",
+            "examples": [
+              "my overdue high-priority tasks in WEB"
+            ]
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id",
+            "description": "Limit to this project."
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 50
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "AiSearchRequest"
+      },
+      "AiSearchResult": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/SearchFilters"
+          },
+          "task_query": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Task Query",
+            "description": "The equivalent GET /tasks query parameters."
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TaskRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/AiUsage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query",
+          "filters",
+          "task_query",
+          "items",
+          "usage"
+        ],
+        "title": "AiSearchResult"
+      },
+      "AiStatus": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "A provider is configured on this server."
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Available and turned on for this organization."
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "features": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "summaries",
+                "drafting",
+                "risks",
+                "search"
+              ]
+            },
+            "type": "array",
+            "title": "Features",
+            "description": "Features people can use now (empty when not enabled)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "available",
+          "enabled",
+          "provider",
+          "model",
+          "features"
+        ],
+        "title": "AiStatus"
+      },
+      "AiStatusReport": {
+        "properties": {
+          "project_key": {
+            "type": "string",
+            "title": "Project Key"
+          },
+          "report": {
+            "$ref": "#/components/schemas/StatusReportOutput"
+          },
+          "facts": {
+            "$ref": "#/components/schemas/StatusSummary"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/AiUsage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_key",
+          "report",
+          "facts",
+          "usage"
+        ],
+        "title": "AiStatusReport",
+        "description": "An AI-written status update and the facts it was written from. Review before sharing."
+      },
+      "AiUsage": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "title": "Duration Ms"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider",
+          "model",
+          "input_tokens",
+          "output_tokens",
+          "duration_ms"
+        ],
+        "title": "AiUsage"
+      },
       "ApiTokenCreate": {
         "properties": {
           "name": {
@@ -15882,6 +16545,52 @@
         "additionalProperties": false,
         "type": "object",
         "title": "DependencyUpdate"
+      },
+      "DraftTask": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Short, imperative task title."
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Markdown: what to do and how to tell it is done."
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority"
+          },
+          "estimate_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimate Minutes",
+            "description": "Rough effort in minutes, or null if unknown."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "Zero to three lowercase tags."
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "description",
+          "priority",
+          "estimate_minutes",
+          "tags"
+        ],
+        "title": "DraftTask"
       },
       "EmailConfig-Input": {
         "properties": {
@@ -17560,6 +18269,25 @@
             "type": "integer",
             "title": "Deleted Task Retention Days",
             "description": "Days a deleted task stays restorable before it is purged (0 = forever). Tasks with logged time are kept."
+          },
+          "ai_enabled": {
+            "type": "boolean",
+            "title": "Ai Enabled",
+            "description": "AI assistant on for this organization (also needs a provider configured on the server)."
+          },
+          "ai_features": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "summaries",
+                "drafting",
+                "risks",
+                "search"
+              ]
+            },
+            "type": "array",
+            "title": "Ai Features",
+            "description": "AI features people may use when the assistant is on."
           }
         },
         "additionalProperties": false,
@@ -17568,7 +18296,9 @@
           "audit_retention_days",
           "activity_retention_days",
           "notification_retention_days",
-          "deleted_task_retention_days"
+          "deleted_task_retention_days",
+          "ai_enabled",
+          "ai_features"
         ],
         "title": "OrgSettingsRead"
       },
@@ -17625,6 +18355,37 @@
               }
             ],
             "title": "Deleted Task Retention Days"
+          },
+          "ai_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Enabled"
+          },
+          "ai_features": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "summaries",
+                    "drafting",
+                    "risks",
+                    "search"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Features"
           }
         },
         "additionalProperties": false,
@@ -19308,6 +20069,55 @@
         ],
         "title": "RescheduleResult"
       },
+      "RiskFlag": {
+        "properties": {
+          "task_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Key",
+            "description": "Key of the task at risk (e.g. WEB-12), or null if project-wide."
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Severity"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "The risk in a few words."
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "description": "Evidence from the data."
+          },
+          "suggestion": {
+            "type": "string",
+            "title": "Suggestion",
+            "description": "One concrete next step."
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_key",
+          "severity",
+          "title",
+          "reason",
+          "suggestion"
+        ],
+        "title": "RiskFlag"
+      },
       "RuleBase": {
         "properties": {
           "name": {
@@ -20370,6 +21180,120 @@
         "title": "Scope",
         "description": "OAuth-style scopes for API tokens (and, from Phase 6, MCP clients)."
       },
+      "SearchFilters": {
+        "properties": {
+          "project_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Key",
+            "description": "One of the listed project keys, or null for all projects."
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "Words that must appear in the task title, or null."
+          },
+          "status_categories": {
+            "items": {
+              "$ref": "#/components/schemas/StatusCategory"
+            },
+            "type": "array",
+            "title": "Status Categories",
+            "description": "Empty for any status."
+          },
+          "priorities": {
+            "items": {
+              "$ref": "#/components/schemas/Priority"
+            },
+            "type": "array",
+            "title": "Priorities",
+            "description": "Empty for any priority."
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee",
+            "description": "'me', 'unassigned', a listed person's name, or null for anyone."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "Tags the task must have; usually empty."
+          },
+          "due_before": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Before",
+            "description": "Due on or before this date (YYYY-MM-DD), or null."
+          },
+          "due_after": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due After",
+            "description": "Due on or after this date (YYYY-MM-DD), or null."
+          },
+          "overdue": {
+            "type": "boolean",
+            "title": "Overdue",
+            "description": "Only open tasks past their due date."
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation",
+            "description": "One short sentence describing the filter in plain words."
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_key",
+          "text",
+          "status_categories",
+          "priorities",
+          "assignee",
+          "tags",
+          "due_before",
+          "due_after",
+          "overdue",
+          "explanation"
+        ],
+        "title": "SearchFilters"
+      },
       "SelectOption-Input": {
         "properties": {
           "id": {
@@ -20541,6 +21465,44 @@
           "position"
         ],
         "title": "StatusRead"
+      },
+      "StatusReportOutput": {
+        "properties": {
+          "headline": {
+            "type": "string",
+            "title": "Headline",
+            "description": "One sentence on overall status."
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "description": "Two or three short paragraphs of Markdown for a status update."
+          },
+          "highlights": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Highlights",
+            "description": "Notable completed work, at most 5 bullets."
+          },
+          "concerns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Concerns",
+            "description": "Problems needing attention, at most 5 bullets."
+          }
+        },
+        "type": "object",
+        "required": [
+          "headline",
+          "summary",
+          "highlights",
+          "concerns"
+        ],
+        "title": "StatusReportOutput"
       },
       "StatusSummary": {
         "properties": {

@@ -82,3 +82,8 @@ MCP prompts: `weekly_status`, `risk_review`, `sprint_planning`, `standup_digest`
 | Integrations: GitHub / GitLab | `integrations.service.handle_inbound` | `POST /api/v1/integrations/{id}/inbound` (signed) | `comment.created`, `task.updated` | `manage_integrations` | 0.8 |
 | Email-to-task (IMAP) | `integrations.email.poll_all` (worker, every 2 min) | configured via `/api/v1/integrations` | `task.created` | `manage_integrations` | 0.8 |
 | Calendar feed (Google, Microsoft 365, Apple) | `integrations.service.calendar_ics`, `reset_calendar_feed` | `GET/POST/DELETE /api/v1/calendar-feed`, `GET /api/v1/calendar/{token}.ics` | — | n/a (secret URL) | 0.8 |
+| AI assistant status and switch | `ai.get_status`; `governance.update_settings` (`ai_enabled`, `ai_features`) | `GET /api/v1/ai/status`; `PATCH /api/v1/admin/settings` | `org.settings_updated` | `ai_status`; `update_org_settings` (confirm) | 0.9 |
+| AI status update (written from the status summary) | `ai.status_report` | `POST /api/v1/ai/projects/{id}/status-report` | — (audited as `ai.summaries`) | `ai_status_report` | 0.9 |
+| AI task drafting (proposals only) | `ai.draft_tasks` | `POST /api/v1/ai/projects/{id}/draft-tasks` | — (audited as `ai.drafting`) | `ai_draft_tasks` (then `create_task`) | 0.9 |
+| AI risk flags | `ai.flag_risks` | `POST /api/v1/ai/projects/{id}/risks` | — (audited as `ai.risks`) | `ai_flag_risks` | 0.9 |
+| Natural-language task search | `ai.search` (question → `TaskQuery` → `tasks.list_tasks`) | `POST /api/v1/ai/search` | — (audited as `ai.search`) | `ai_search_tasks` | 0.9 |

@@ -56,6 +56,22 @@ class Settings(BaseSettings):
 
     mcp_allowed_hosts: CsvList = Field(default_factory=lambda: ["localhost:*", "127.0.0.1:*", "mcp:*"])
 
+    # Optional AI assistant (off unless a provider is set here AND an org admin turns it on).
+    # anthropic: Claude API (GLASSHAUS_AI_API_KEY or ANTHROPIC_API_KEY). openai: any OpenAI-compatible
+    # /chat/completions endpoint, e.g. Ollama or LM Studio (GLASSHAUS_AI_BASE_URL). fake: canned
+    # output for demos and tests.
+    ai_provider: Literal["none", "anthropic", "openai", "fake"] = "none"
+    ai_model: str = ""
+    ai_api_key: SecretStr | None = None
+    ai_base_url: str = ""
+    ai_timeout_seconds: float = 120.0
+    # Effort for Claude models that support it; empty uses the model's default.
+    ai_effort: Literal["", "low", "medium", "high"] = ""
+    # Claude API only: let Anthropic re-run a declined request on its recommended fallback model.
+    ai_fallbacks: bool = True
+    # AI requests per user per minute; 0 disables the limit.
+    ai_rate_limit_per_minute: int = 10
+
     @field_validator("cors_origins", "mcp_allowed_hosts", mode="before")
     @classmethod
     def _split_csv(cls, value: object) -> object:
