@@ -38,9 +38,11 @@ def handles(*event_types: str) -> Callable[[Handler], Handler]:
 
 
 def load_handlers() -> None:
-    """Import every module that registers handlers."""
+    """Import every module that registers handlers, and every ORM model so foreign keys resolve
+    (the worker never imports the web app, which otherwise pulls the models in)."""
     import glasshaus.automation.handlers
-    import glasshaus.collab.handlers  # noqa: F401
+    import glasshaus.collab.handlers
+    import glasshaus.models  # noqa: F401
 
 
 async def dispatch(event: Event) -> None:

@@ -66,3 +66,17 @@ def test_openapi_document_is_committed(app) -> None:  # type: ignore[no-untyped-
 def test_operation_ids_unique(app) -> None:  # type: ignore[no-untyped-def]
     ops = [op["operationId"] for path in app.openapi()["paths"].values() for op in path.values()]
     assert len(ops) == len(set(ops))
+
+
+def test_worker_process_registers_every_model() -> None:
+    """The worker never imports the web app; loading handlers must still register all tables."""
+    import subprocess
+    import sys
+
+    code = (
+        "from glasshaus.core.consumers import load_handlers; load_handlers();"
+        "from glasshaus.core.orm import RLS_TABLES, Base;"
+        "missing = {'tenants', *RLS_TABLES} - set(Base.metadata.tables); assert not missing, missing"
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
