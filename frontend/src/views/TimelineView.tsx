@@ -232,7 +232,12 @@ export function TimelineView({ tasks, project, onOpen, onUpdate }: ViewProps) {
         </details>
       )}
 
-      <div className="flex overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+      <div
+        role="region"
+        aria-label="Timeline"
+        tabIndex={0}
+        className="flex overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800"
+      >
         <ul
           className="sticky left-0 z-10 shrink-0 border-r border-slate-200 bg-white pt-6 dark:border-slate-800 dark:bg-slate-950"
           style={{ width: LABEL_W }}

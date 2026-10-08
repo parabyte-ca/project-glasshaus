@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 
 import { niceScale, TICKS } from '../lib/chartScale';
+import { ScrollArea } from './ui';
 
 /* Small inline-SVG charts. Colours come from the --series-* / --seq-* / --status-* tokens in
    index.css (validated for light and dark). Every chart has a hover/keyboard readout and a table. */
@@ -34,7 +35,7 @@ function DataTable({ caption, labels, series }: { caption: string; labels: strin
   return (
     <details className="mt-1 text-xs">
       <summary className="cursor-pointer text-slate-600 dark:text-slate-400">Show data table</summary>
-      <div className="mt-1 max-h-60 overflow-auto">
+      <ScrollArea label="Chart data" className="mt-1 max-h-60 overflow-auto">
         <table className="w-full text-left tabular-nums">
           <caption className="sr-only">{caption}</caption>
           <thead>
@@ -60,7 +61,7 @@ function DataTable({ caption, labels, series }: { caption: string; labels: strin
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollArea>
     </details>
   );
 }
@@ -398,7 +399,8 @@ const HEALTH = {
 
 /** Status always pairs colour with an icon and a label. */
 export function HealthBadge({ health }: { health: string | null | undefined }) {
-  if (!health || !(health in HEALTH)) return <span className="text-xs text-slate-500">—</span>;
+  if (!health || !(health in HEALTH))
+    return <span className="text-xs text-slate-500 dark:text-slate-400">—</span>;
   const h = HEALTH[health as keyof typeof HEALTH];
   return (
     <span className="inline-flex items-center gap-1 text-xs font-medium whitespace-nowrap">

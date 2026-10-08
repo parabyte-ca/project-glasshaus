@@ -60,7 +60,7 @@ export function CalendarView({ tasks, onOpen }: ViewProps) {
                   <td
                     key={day}
                     aria-label={day}
-                    className={`h-28 border border-slate-200 p-1 align-top dark:border-slate-800 ${inMonth ? '' : 'bg-slate-50 text-slate-400 dark:bg-slate-900'}`}
+                    className={`h-28 border border-slate-200 p-1 align-top dark:border-slate-800 ${inMonth ? '' : 'bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-slate-400'}`}
                   >
                     <div
                       className={`mb-1 text-xs ${day === today ? 'inline-block rounded-full bg-sky-700 px-1.5 text-white' : ''}`}

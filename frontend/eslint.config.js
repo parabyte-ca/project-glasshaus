@@ -14,6 +14,8 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // Scrolling regions must be keyboard-focusable (axe scrollable-region-focusable, WCAG 2.1.1).
+      'jsx-a11y/no-noninteractive-tabindex': ['error', { roles: ['tabpanel', 'region'], tags: [] }],
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },

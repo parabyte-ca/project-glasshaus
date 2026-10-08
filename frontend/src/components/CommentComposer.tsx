@@ -111,7 +111,7 @@ export function CommentComposer({
               }}
               className={`cursor-pointer px-3 py-1.5 text-sm ${i === active ? 'bg-sky-100 dark:bg-sky-900' : ''}`}
             >
-              {u.name} <span className="text-xs text-slate-500">{u.email}</span>
+              {u.name} <span className="text-xs text-slate-500 dark:text-slate-400">{u.email}</span>
             </li>
           ))}
         </ul>

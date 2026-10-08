@@ -70,7 +70,7 @@ export function DependencyEditor({ task, canEdit }: { task: Task; canEdit: boole
           <li key={d.id} className="flex items-center justify-between gap-2">
             <span>
               Waits for <span className="font-mono text-xs">{d.predecessor_key}</span> {d.predecessor_title}{' '}
-              <span className="text-slate-500">({label(d.type, d.lag_days)})</span>
+              <span className="text-slate-500 dark:text-slate-400">({label(d.type, d.lag_days)})</span>
             </span>
             {canEdit && (
               <GhostButton
@@ -85,11 +85,11 @@ export function DependencyEditor({ task, canEdit }: { task: Task; canEdit: boole
         {deps.data?.successors.map((d) => (
           <li key={d.id}>
             Blocks <span className="font-mono text-xs">{d.successor_key}</span> {d.successor_title}{' '}
-            <span className="text-slate-500">({label(d.type, d.lag_days)})</span>
+            <span className="text-slate-500 dark:text-slate-400">({label(d.type, d.lag_days)})</span>
           </li>
         ))}
         {deps.data && deps.data.predecessors.length + deps.data.successors.length === 0 && (
-          <li className="text-slate-500">No dependencies.</li>
+          <li className="text-slate-500 dark:text-slate-400">No dependencies.</li>
         )}
       </ul>
       {canEdit && (

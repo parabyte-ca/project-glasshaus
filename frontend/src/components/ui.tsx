@@ -52,3 +52,20 @@ export function ErrorText({ error }: { error: unknown }) {
     </p>
   );
 }
+
+/** A horizontally/vertically scrolling area that keyboard users can focus and scroll (WCAG 2.1.1). */
+export function ScrollArea({
+  label,
+  className = 'overflow-x-auto',
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div role="region" aria-label={label} tabIndex={0} className={`${className} ${focus}`}>
+      {children}
+    </div>
+  );
+}

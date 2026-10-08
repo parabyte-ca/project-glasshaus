@@ -106,6 +106,9 @@ export function TableView({ tasks, project, fields, users, config, onOpen, onUpd
   return (
     <div
       ref={scrollRef}
+      role="region"
+      aria-label="Task table"
+      tabIndex={0}
       className="max-h-[70vh] overflow-auto rounded-lg border border-slate-200 dark:border-slate-800"
     >
       <table className="w-full text-left text-sm" aria-rowcount={tasks.length + 1}>

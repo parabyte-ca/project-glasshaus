@@ -2,7 +2,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { api, unwrap } from '../../api/client';
-import { Field, GhostButton, Input, Select } from '../ui';
+import { Field, GhostButton, Input, ScrollArea, Select } from '../ui';
 import { Section } from './common';
 import { dateTime, table, td, th } from './format';
 
@@ -59,7 +59,7 @@ export function AuditLog() {
           </Select>
         </Field>
       </div>
-      <div className="overflow-x-auto">
+      <ScrollArea label="Audit entries">
         <table className={table}>
           <thead>
             <tr>
@@ -86,7 +86,7 @@ export function AuditLog() {
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollArea>
       {log.hasNextPage && (
         <GhostButton
           onClick={() => log.fetchNextPage()}

@@ -13,7 +13,7 @@ export function ListView({ tasks, project, fields, users, config, onOpen }: View
         <section key={group.key} aria-label={group.label}>
           {config.group_by && (
             <h2 className="mb-2 text-sm font-semibold">
-              {group.label} <span className="text-slate-500">{group.tasks.length}</span>
+              {group.label} <span className="text-slate-500 dark:text-slate-400">{group.tasks.length}</span>
             </h2>
           )}
           <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
