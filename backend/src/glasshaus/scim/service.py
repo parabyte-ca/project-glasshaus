@@ -267,11 +267,53 @@ async def create_user(ctx: ServiceContext, body: dict[str, Any]) -> dict[str, An
     return user_resource(user)
 
 
+PROTECTED_ROLES = (OrgRole.OWNER, OrgRole.ADMIN)
+
+
+def _guard(user: User, change: str) -> None:
+    """SCIM manages ordinary accounts only. Owners and admins are changed in Glasshaus itself, so a
+    leaked SCIM token or a compromised IdP cannot take them over (email change) or lock them out."""
+    if user.org_role in PROTECTED_ROLES:
+        raise ScimError(
+            400,
+            f"{user.org_role.value} accounts are managed in Glasshaus, not through SCIM ({change})",
+            "mutability",
+        )
+
+
+async def _set_email(ctx: ServiceContext, user: User, email: str) -> None:
+    if email.lower() == user.email.lower():
+        if email != user.email:
+            user.email = email  # case-only change
+        return
+    _guard(user, "email")
+    if user.external_id is None:
+        raise ScimError(
+            400, "set externalId first: SCIM changes the email only of accounts it provisioned", "mutability"
+        )
+    clash = await ctx.session.scalar(
+        select(User.id).where(func.lower(User.email) == email.lower(), User.id != user.id)
+    )
+    if clash:
+        raise ScimError(409, "a user with this userName already exists", "uniqueness")
+    user.email = email
+    from glasshaus.governance.service import revoke_user_sessions
+
+    await revoke_user_sessions(ctx, user.id)
+
+
+def _set_external_id(user: User, value: str | None) -> None:
+    if value != user.external_id:
+        _guard(user, "externalId")
+        user.external_id = value
+
+
 async def _set_active(ctx: ServiceContext, user: User, active: bool) -> None:
     if user.is_active == active:
         return
-    if not active and user.org_role == OrgRole.OWNER:
-        raise ScimError(400, "owners cannot be deactivated through SCIM", "mutability")
+    _guard(user, "active")
+    if active and user.external_id is None:
+        raise ScimError(400, "this account was deactivated in Glasshaus; reactivate it there", "mutability")
     user.is_active = active
     if not active:
         from glasshaus.governance.service import revoke_user_sessions
@@ -284,16 +326,10 @@ async def replace_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) 
     if user is None:
         raise ScimError(404, "user not found")
     email = _email_of(body)
-    if email.lower() != user.email.lower():
-        clash = await ctx.session.scalar(
-            select(User.id).where(func.lower(User.email) == email.lower(), User.id != user.id)
-        )
-        if clash:
-            raise ScimError(409, "a user with this userName already exists", "uniqueness")
-        user.email = email
-    user.name = _name_of(body, email)
     if "externalId" in body:
-        user.external_id = str(body["externalId"])[:255] if body["externalId"] else None
+        _set_external_id(user, str(body["externalId"])[:255] if body["externalId"] else None)
+    await _set_email(ctx, user, email)
+    user.name = _name_of(body, email)
     await _set_active(ctx, user, bool(body.get("active", True)))
     await ctx.session.flush()
     events.emit(ctx, "user.updated", "user", user.id, {"source": "scim", "active": user.is_active})
@@ -321,10 +357,10 @@ async def patch_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) ->
             elif k == "name" and isinstance(val, dict):
                 user.name = _name_of({"name": val}, user.email)
             elif k == "externalid":
-                user.external_id = str(val)[:255] if val and kind != "remove" else None
+                _set_external_id(user, str(val)[:255] if val and kind != "remove" else None)
             elif k in ("username", 'emails[type eq "work"].value', "emails"):
                 email = _email_of({"userName": val} if not isinstance(val, list) else {"emails": val})
-                user.email = email
+                await _set_email(ctx, user, email)
             # Other attributes (title, phoneNumbers, …) are accepted and ignored.
     await ctx.session.flush()
     events.emit(ctx, "user.updated", "user", user.id, {"source": "scim", "active": user.is_active})

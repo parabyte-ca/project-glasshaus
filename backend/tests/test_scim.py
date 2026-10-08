@@ -145,3 +145,49 @@ async def test_revoked_token_stops_working(client: AsyncClient) -> None:
         await client.delete(f"/api/v1/admin/scim-tokens/{token_id}", headers=world.headers)
     ).status_code == 204
     assert (await client.get("/scim/v2/Users", headers=h)).status_code == 401
+
+
+async def test_scim_cannot_take_over_privileged_or_local_accounts(client: AsyncClient) -> None:
+    """A leaked SCIM token or compromised IdP cannot change owner/admin emails or local accounts."""
+    from glasshaus.core.rbac import OrgRole
+    from tests.factories import make_user
+
+    world = await make_world()
+    h = await scim_token(client, world)
+    admin = await make_user(world.tenant, OrgRole.ADMIN)
+    local = await make_user(world.tenant)
+
+    def op(path: str, value: Any) -> dict[str, Any]:
+        return {"Operations": [{"op": "replace", "path": path, "value": value}]}
+
+    for target in (world.owner, admin):
+        for path, value in (("userName", "attacker@evil.test"), ("active", False), ("externalId", "x")):
+            r = await client.patch(f"/scim/v2/Users/{target.id}", json=op(path, value), headers=h)
+            assert r.status_code == 400 and r.json()["scimType"] == "mutability", (target.org_role, path)
+        # Re-sending unchanged values (as IdPs do on every sync) is fine.
+        same = {
+            "userName": target.email,
+            "emails": [{"value": target.email, "primary": True}],
+            "active": True,
+        }
+        assert (await client.put(f"/scim/v2/Users/{target.id}", json=same, headers=h)).status_code == 200
+
+    # Accounts created in Glasshaus: SCIM may adopt them (externalId) before changing the email.
+    r = await client.patch(f"/scim/v2/Users/{local.id}", json=op("userName", "new@example.com"), headers=h)
+    assert r.status_code == 400 and "externalId" in r.json()["detail"]
+    assert (
+        await client.patch(f"/scim/v2/Users/{local.id}", json=op("externalId", "00u9"), headers=h)
+    ).status_code == 200
+    taken = op("userName", admin.email)
+    assert (await client.patch(f"/scim/v2/Users/{local.id}", json=taken, headers=h)).json()[
+        "scimType"
+    ] == "uniqueness"
+    r = await client.patch(f"/scim/v2/Users/{local.id}", json=op("userName", "new@example.com"), headers=h)
+    assert r.status_code == 200 and r.json()["userName"] == "new@example.com"
+
+    # An account an admin deactivated in Glasshaus is not reactivated by SCIM.
+    other = await make_user(world.tenant)
+    r = await client.patch(f"/api/v1/users/{other.id}", json={"is_active": False}, headers=world.headers)
+    assert r.status_code == 200
+    r = await client.patch(f"/scim/v2/Users/{other.id}", json=op("active", True), headers=h)
+    assert r.status_code == 400 and "reactivate" in r.json()["detail"]
