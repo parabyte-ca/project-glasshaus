@@ -601,6 +601,178 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/projects/{project_id}/dependencies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** All task dependencies in a project */
+    get: operations['list_dependencies'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/tasks/{ref}/dependencies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** A task's predecessors and successors */
+    get: operations['get_task_dependencies'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/dependencies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Link two tasks (FS, SS, FF, SF with lag or lead) */
+    post: operations['create_dependency'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/dependencies/{dependency_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Remove a dependency */
+    delete: operations['delete_dependency'];
+    options?: never;
+    head?: never;
+    /** Change type or lag */
+    patch: operations['update_dependency'];
+    trace?: never;
+  };
+  '/api/v1/projects/{project_id}/schedule': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Critical path: early/late dates, slack and critical tasks */
+    get: operations['get_schedule'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/projects/{project_id}/reschedule': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Move tasks later to satisfy every dependency (dry_run=true, the default, only previews) */
+    post: operations['reschedule_project'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/projects/{project_id}/schedule/warnings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Slip warnings: overdue, violated dependencies, behind baseline */
+    get: operations['get_schedule_warnings'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/projects/{project_id}/baselines': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List baselines */
+    get: operations['list_baselines'];
+    put?: never;
+    /** Snapshot every task's planned dates */
+    post: operations['create_baseline'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/baselines/{baseline_id}/variance': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Compare current dates with a baseline */
+    get: operations['get_baseline_variance'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/baselines/{baseline_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a baseline */
+    delete: operations['delete_baseline'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/tasks/{ref}/comments': {
     parameters: {
       query?: never;
@@ -815,6 +987,47 @@ export interface components {
       /** Revoked At */
       revoked_at: string | null;
     };
+    /** BaselineCreate */
+    BaselineCreate: {
+      /** Name */
+      name: string;
+    };
+    /** BaselineRead */
+    BaselineRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Name */
+      name: string;
+      /** Created By */
+      created_by: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Task Count */
+      task_count: number;
+    };
+    /** BaselineVariance */
+    BaselineVariance: {
+      baseline: components['schemas']['BaselineRead'];
+      /** Tasks */
+      tasks: components['schemas']['TaskVariance'][];
+      /** Baseline Finish */
+      baseline_finish: string | null;
+      /** Current Finish */
+      current_finish: string | null;
+      /** Finish Variance Days */
+      finish_variance_days: number | null;
+    };
     /** BulkResult */
     BulkResult: {
       /** Updated */
@@ -884,6 +1097,86 @@ export interface components {
       affected: {
         [key: string]: number;
       };
+    };
+    /** DependencyCreate */
+    DependencyCreate: {
+      /**
+       * Predecessor
+       * @description Task id or reference (e.g. WEB-3) that must happen first.
+       */
+      predecessor: string;
+      /**
+       * Successor
+       * @description Task id or reference that depends on the predecessor.
+       */
+      successor: string;
+      /** @default fs */
+      type?: components['schemas']['DependencyType'];
+      /**
+       * Lag Days
+       * @description Gap in days; negative for a lead.
+       * @default 0
+       */
+      lag_days?: number;
+    };
+    /** DependencyRead */
+    DependencyRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /**
+       * Predecessor Id
+       * Format: uuid
+       */
+      predecessor_id: string;
+      /** Predecessor Key */
+      predecessor_key: string;
+      /** Predecessor Title */
+      predecessor_title: string;
+      /**
+       * Successor Id
+       * Format: uuid
+       */
+      successor_id: string;
+      /** Successor Key */
+      successor_key: string;
+      /** Successor Title */
+      successor_title: string;
+      type: components['schemas']['DependencyType'];
+      /** Lag Days */
+      lag_days: number;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** DependencyResult */
+    DependencyResult: {
+      dependency: components['schemas']['DependencyRead'];
+      /**
+       * Rescheduled
+       * @description Tasks moved by auto-scheduling (empty when it is off).
+       */
+      rescheduled: components['schemas']['TaskMove'][];
+    };
+    /**
+     * DependencyType
+     * @enum {string}
+     */
+    DependencyType: 'fs' | 'ss' | 'ff' | 'sf';
+    /** DependencyUpdate */
+    DependencyUpdate: {
+      type?: components['schemas']['DependencyType'] | null;
+      /** Lag Days */
+      lag_days?: number | null;
     };
     /** FieldCreate */
     FieldCreate: {
@@ -1116,6 +1409,8 @@ export interface components {
       name: string;
       /** Description */
       description: string;
+      /** Auto Schedule */
+      auto_schedule: boolean;
       /** Archived At */
       archived_at: string | null;
       /**
@@ -1169,6 +1464,8 @@ export interface components {
       name: string;
       /** Description */
       description: string;
+      /** Auto Schedule */
+      auto_schedule: boolean;
       /** Archived At */
       archived_at: string | null;
       /**
@@ -1197,6 +1494,11 @@ export interface components {
       description?: string | null;
       /** Archived */
       archived?: boolean | null;
+      /**
+       * Auto Schedule
+       * @description Move dependent tasks later automatically.
+       */
+      auto_schedule?: boolean | null;
     };
     /** Readiness */
     Readiness: {
@@ -1209,6 +1511,97 @@ export interface components {
       checks: {
         [key: string]: string;
       };
+    };
+    /** RescheduleResult */
+    RescheduleResult: {
+      /** Executed */
+      executed: boolean;
+      /** Moves */
+      moves: components['schemas']['TaskMove'][];
+    };
+    /** ScheduleRead */
+    ScheduleRead: {
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Project Start */
+      project_start: string | null;
+      /** Project Finish */
+      project_finish: string | null;
+      /** Tasks */
+      tasks: components['schemas']['ScheduledTask'][];
+      /**
+       * Critical Path
+       * @description Critical tasks in schedule order.
+       */
+      critical_path: string[];
+      /**
+       * Unscheduled
+       * @description Tasks without dates (excluded from the calculation).
+       */
+      unscheduled: string[];
+      /** Dependencies */
+      dependencies: components['schemas']['DependencyRead'][];
+    };
+    /** ScheduleWarning */
+    ScheduleWarning: {
+      kind: components['schemas']['WarningKind'];
+      /** Task Id */
+      task_id: string | null;
+      /** Key */
+      key: string | null;
+      /** Message */
+      message: string;
+      /** Days */
+      days: number;
+    };
+    /** ScheduledTask */
+    ScheduledTask: {
+      /**
+       * Task Id
+       * Format: uuid
+       */
+      task_id: string;
+      /** Key */
+      key: string;
+      /** Title */
+      title: string;
+      /**
+       * Start Date
+       * Format: date
+       */
+      start_date: string;
+      /**
+       * Due Date
+       * Format: date
+       */
+      due_date: string;
+      /**
+       * Early Start
+       * Format: date
+       */
+      early_start: string;
+      /**
+       * Early Finish
+       * Format: date
+       */
+      early_finish: string;
+      /**
+       * Late Start
+       * Format: date
+       */
+      late_start: string;
+      /**
+       * Late Finish
+       * Format: date
+       */
+      late_finish: string;
+      /** Slack Days */
+      slack_days: number;
+      /** Critical */
+      critical: boolean;
     };
     /**
      * Scope
@@ -1349,10 +1742,40 @@ export interface components {
       /** Position */
       position?: number | null;
     };
+    /** TaskDependencies */
+    TaskDependencies: {
+      /** Predecessors */
+      predecessors: components['schemas']['DependencyRead'][];
+      /** Successors */
+      successors: components['schemas']['DependencyRead'][];
+    };
     /** TaskIds */
     TaskIds: {
       /** Task Ids */
       task_ids: string[];
+    };
+    /** TaskMove */
+    TaskMove: {
+      /**
+       * Task Id
+       * Format: uuid
+       */
+      task_id: string;
+      /** Key */
+      key: string;
+      /** Start Date */
+      start_date: string | null;
+      /** Due Date */
+      due_date: string | null;
+      /** New Start Date */
+      new_start_date: string | null;
+      /** New Due Date */
+      new_due_date: string | null;
+      /**
+       * Days
+       * @description How many days later the task now is.
+       */
+      days: number;
     };
     /** TaskRead */
     TaskRead: {
@@ -1459,6 +1882,33 @@ export interface components {
        * @description Optimistic concurrency: fail with 412 if changed.
        */
       expected_version?: number | null;
+    };
+    /** TaskVariance */
+    TaskVariance: {
+      /**
+       * Task Id
+       * Format: uuid
+       */
+      task_id: string;
+      /** Key */
+      key: string;
+      /** Title */
+      title: string;
+      /** Baseline Start */
+      baseline_start: string | null;
+      /** Baseline Due */
+      baseline_due: string | null;
+      /** Start Date */
+      start_date: string | null;
+      /** Due Date */
+      due_date: string | null;
+      /**
+       * Start Variance Days
+       * @description Positive = later than the baseline.
+       */
+      start_variance_days: number | null;
+      /** Finish Variance Days */
+      finish_variance_days: number | null;
     };
     /** UnreadCount */
     UnreadCount: {
@@ -1674,6 +2124,11 @@ export interface components {
       /** Position */
       position?: number | null;
     };
+    /**
+     * WarningKind
+     * @enum {string}
+     */
+    WarningKind: 'overdue' | 'dependency_violated' | 'behind_baseline' | 'finish_behind_baseline';
     /** WorkspaceCreate */
     WorkspaceCreate: {
       /** Name */
@@ -4416,6 +4871,9 @@ export interface operations {
         sort_field?: string | null;
         due_before?: string | null;
         due_after?: string | null;
+        /** @description Tasks whose start..due range overlaps this window. */
+        scheduled_from?: string | null;
+        scheduled_to?: string | null;
         updated_since?: string | null;
         include_deleted?: boolean;
         sort?: components['schemas']['TaskSort'];
@@ -4945,6 +5403,760 @@ export interface operations {
         content: {
           'application/json': string[];
         };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  list_dependencies: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DependencyRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_task_dependencies: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        ref: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TaskDependencies'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  create_dependency: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DependencyCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DependencyResult'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  delete_dependency: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        dependency_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  update_dependency: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        dependency_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DependencyUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DependencyResult'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_schedule: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ScheduleRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  reschedule_project: {
+    parameters: {
+      query?: {
+        dry_run?: boolean;
+      };
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RescheduleResult'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_schedule_warnings: {
+    parameters: {
+      query?: {
+        today?: string | null;
+      };
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ScheduleWarning'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  list_baselines: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BaselineRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  create_baseline: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['BaselineCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BaselineRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_baseline_variance: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        baseline_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BaselineVariance'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  delete_baseline: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        baseline_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Not authenticated */
       401: {

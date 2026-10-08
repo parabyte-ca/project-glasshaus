@@ -158,6 +158,110 @@ describe('project views', () => {
   });
 });
 
+describe('scheduling views', () => {
+  const today = new Date().toISOString().slice(0, 10);
+  const dated = (n: number, start: string, due: string) => ({ ...task(n), start_date: start, due_date: due });
+  const scheduleRoutes = (items: unknown[]): Route[] => [
+    { method: 'GET', path: '/api/v1/tasks', body: { items, next_cursor: null } },
+    {
+      method: 'GET',
+      path: '/api/v1/projects/p1/schedule',
+      body: {
+        project_id: 'p1',
+        project_start: today,
+        project_finish: today,
+        tasks: [],
+        critical_path: ['t1'],
+        unscheduled: [],
+        dependencies: [
+          {
+            id: 'd1',
+            project_id: 'p1',
+            predecessor_id: 't1',
+            predecessor_key: 'WEB-1',
+            predecessor_title: 'Task 1',
+            successor_id: 't2',
+            successor_key: 'WEB-2',
+            successor_title: 'Task 2',
+            type: 'fs',
+            lag_days: 0,
+            created_at: today,
+          },
+        ],
+      },
+    },
+    { method: 'GET', path: '/api/v1/projects/p1/baselines', body: [] },
+    {
+      method: 'GET',
+      path: '/api/v1/projects/p1/schedule/warnings',
+      body: [{ kind: 'overdue', task_id: 't2', key: 'WEB-2', message: 'WEB-2 is 3 day(s) overdue', days: 3 }],
+    },
+  ];
+
+  it('timeline draws bars, highlights the critical path and moves a bar with the keyboard', async () => {
+    const { calls } = mockApi([
+      ...baseRoutes,
+      signedIn,
+      ...scheduleRoutes([
+        dated(1, '2026-03-02', '2026-03-04'),
+        dated(2, '2026-03-05', '2026-03-06'),
+        { ...task(3), due_date: null },
+      ]),
+      { method: 'PATCH', path: '/api/v1/tasks/t1', body: task(1) },
+      {
+        method: 'POST',
+        path: '/api/v1/projects/p1/reschedule',
+        body: {
+          executed: false,
+          moves: [
+            {
+              task_id: 't2',
+              key: 'WEB-2',
+              start_date: '2026-03-05',
+              due_date: '2026-03-06',
+              new_start_date: '2026-03-07',
+              new_due_date: '2026-03-08',
+              days: 2,
+            },
+          ],
+        },
+      },
+    ]);
+    renderAt('/projects/WEB?kind=timeline');
+    const bar = await screen.findByRole('button', {
+      name: /WEB-1 Task 1, 2026-03-02 to 2026-03-04, critical/,
+    });
+    expect(bar).toHaveClass('fill-rose-500');
+    expect(screen.getByTestId('bar-WEB-2')).toHaveClass('fill-sky-600');
+    expect(screen.getByText('1 task(s) without dates are not shown.')).toBeInTheDocument();
+    expect(screen.getByText('1 schedule warning(s)')).toBeInTheDocument();
+
+    bar.focus();
+    await userEvent.keyboard('{ArrowRight}');
+    await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
+    expect(await calls.find((c) => c.method === 'PATCH')!.json()).toEqual({
+      start_date: '2026-03-03',
+      due_date: '2026-03-05',
+      expected_version: 1,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Check dependencies' }));
+    expect(await screen.findByText('WEB-2: 2026-03-05 → 2026-03-07 (+2d)')).toBeInTheDocument();
+  });
+
+  it('calendar shows tasks on the days they span and expands busy days', async () => {
+    const busy = [1, 2, 3, 4, 5, 6].map((n) => dated(n, today, today));
+    mockApi([...baseRoutes, signedIn, ...scheduleRoutes(busy)]);
+    renderAt('/projects/WEB?kind=calendar');
+    const cell = await screen.findByRole('cell', { name: today });
+    expect(await within(cell).findByRole('button', { name: 'Task 1' })).toBeInTheDocument();
+    expect(within(cell).queryByRole('button', { name: 'Task 6' })).not.toBeInTheDocument();
+    await userEvent.click(within(cell).getByRole('button', { name: '+2 more' }));
+    expect(within(cell).getByRole('button', { name: 'Task 6' })).toBeInTheDocument();
+    expect(within(cell).getByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
 describe('task drawer', () => {
   it('shows comments and posts one with an @mention token', async () => {
     const comments: unknown[] = [
@@ -174,10 +278,17 @@ describe('task drawer', () => {
     const { calls } = mockApi([
       ...baseRoutes,
       signedIn,
-      { method: 'GET', path: '/api/v1/tasks', body: { items: [task(1)], next_cursor: null } },
+      { method: 'GET', path: '/api/v1/tasks', body: { items: [task(1), task(2)], next_cursor: null } },
       { method: 'GET', path: '/api/v1/tasks/WEB-1', body: task(1) },
       { method: 'GET', path: '/api/v1/tasks/t1/comments', handler: () => comments },
       { method: 'GET', path: '/api/v1/activity', body: { items: [], next_cursor: null } },
+      { method: 'GET', path: '/api/v1/tasks/t1/dependencies', body: { predecessors: [], successors: [] } },
+      {
+        method: 'POST',
+        path: '/api/v1/dependencies',
+        status: 201,
+        body: { dependency: {}, rescheduled: [{ task_id: 't1', key: 'WEB-1', days: 2 }] },
+      },
       {
         method: 'POST',
         path: '/api/v1/tasks/t1/comments',
@@ -208,6 +319,15 @@ describe('task drawer', () => {
     );
     const post = calls.find((c) => c.method === 'POST' && c.url.endsWith('/comments'))!;
     expect(await post.json()).toEqual({ body: 'ping @[Ada Lovelace](user:u1) please review' });
+
+    await userEvent.selectOptions(within(dialog).getByLabelText('Waits for task'), 'WEB-2 Task 2');
+    await userEvent.selectOptions(within(dialog).getByLabelText('Dependency type'), 'Start → start');
+    await userEvent.clear(within(dialog).getByLabelText('Lag in days (negative for lead)'));
+    await userEvent.type(within(dialog).getByLabelText('Lag in days (negative for lead)'), '-1');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add' }));
+    expect(await within(dialog).findByText('Auto-scheduled: WEB-1 +2d')).toBeInTheDocument();
+    const dep = calls.find((c) => c.method === 'POST' && c.url.endsWith('/api/v1/dependencies'))!;
+    expect(await dep.json()).toEqual({ predecessor: 't2', successor: 't1', type: 'ss', lag_days: -1 });
 
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

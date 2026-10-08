@@ -18,6 +18,12 @@ export type SavedView = Schemas['ViewRead'];
 export type ViewConfig = Schemas['ViewConfig-Input'];
 export type ViewKind = Schemas['ViewKind'];
 export type Priority = Schemas['Priority'];
+export type Dependency = Schemas['DependencyRead'];
+export type DependencyType = Schemas['DependencyType'];
+export type Schedule = Schemas['ScheduleRead'];
+export type Baseline = Schemas['BaselineRead'];
+export type BaselineVariance = Schemas['BaselineVariance'];
+export type ScheduleWarning = Schemas['ScheduleWarning'];
 
 export class ApiError extends Error {
   constructor(

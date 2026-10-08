@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, unwrap, type CustomField, type ProjectDetail, type User } from '../api/client';
 import { PRIORITIES } from '../lib/grouping';
 import { CommentComposer } from './CommentComposer';
+import { DependencyEditor } from './DependencyEditor';
 import { FieldEditor } from './FieldEditor';
 import { Markdown } from './Markdown';
 import { ErrorText, GhostButton, Input, Select } from './ui';
@@ -171,6 +172,17 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
                 </Select>
               </dd>
               <dt>
+                <label htmlFor="d-start">Start</label>
+              </dt>
+              <dd>
+                <Input
+                  id="d-start"
+                  type="date"
+                  value={t.start_date ?? ''}
+                  onChange={(e) => update.mutate({ start_date: e.target.value || null })}
+                />
+              </dd>
+              <dt>
                 <label htmlFor="d-due">Due</label>
               </dt>
               <dd>
@@ -197,6 +209,11 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
                 </div>
               ))}
             </dl>
+
+            <DependencyEditor
+              task={t}
+              canEdit={project.my_role === 'admin' || project.my_role === 'editor'}
+            />
 
             <section aria-labelledby="desc-h" className="flex flex-col gap-2">
               <div className="flex items-center justify-between">

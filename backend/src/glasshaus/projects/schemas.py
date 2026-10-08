@@ -39,6 +39,7 @@ class ProjectRead(Schema):
     key: str
     name: str
     description: str
+    auto_schedule: bool
     archived_at: datetime | None
     created_at: datetime
     updated_at: datetime
@@ -62,6 +63,7 @@ class ProjectUpdate(Schema):
     name: str | None = Field(None, min_length=1, max_length=200)
     description: str | None = Field(None, max_length=10000)
     archived: bool | None = None
+    auto_schedule: bool | None = Field(None, description="Move dependent tasks later automatically.")
 
 
 class ProjectMemberRead(Schema):
