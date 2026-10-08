@@ -180,6 +180,7 @@ backend/src/glasshaus/
   views/             saved views (filters, grouping, sorting, columns)
   scheduling/        dependencies, critical path (cpm.py), auto-rescheduling, baselines, slip warnings
   realtime.py        WebSocket fan-out filtering
+  ai/                optional assistant: provider interface (Claude, OpenAI-compatible, fake) and features
   models/            aggregate import of every model (for Alembic)
   dbroles.py         least-privilege app role management
   api/               FastAPI routers (REST adapters), auth dependency, problem details

@@ -6,6 +6,32 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-08
+
+Phase 8 — optional in-app AI, polish, accessibility and end-to-end tests.
+
+### Added
+- **AI assistant (optional, off by default):** written status updates, task drafting (proposals you add
+  one by one), risk flags with evidence, and plain-language task search. Provider-agnostic: Claude via the
+  Anthropic SDK (`claude-opus-5-5` by default, structured outputs, server-side refusal fallbacks), any
+  OpenAI-compatible server such as Ollama or LM Studio, or a fake provider for demos and tests. Needs a
+  server provider and an admin switch with per-feature settings; rate limited per person and audited
+  without content. REST `/api/v1/ai/*`, MCP tools `ai_status`, `ai_status_report`, `ai_draft_tasks`,
+  `ai_flag_risks`, `ai_search_tasks`. See `docs/ai.md`.
+- **Command palette** (Ctrl K / ⌘ K): pages, projects, task search by key or title, and *Ask* with the
+  assistant.
+- **Keyboard shortcuts** (`?` for help, `/`, `c`, `g` sequences) and an accessible dialog component.
+- **Installable app:** service worker with an offline app shell (static files only) and a richer
+  manifest.
+- **End-to-end tests** with Playwright (`e2e/`, `make test-e2e`, CI job): project and task flows, all
+  layouts, the palette, the assistant, PWA, and axe WCAG 2.1 AA scans of every screen in light and dark
+  themes and on a phone viewport. `docs/accessibility.md` covers the manual checks.
+
+### Fixed
+- Dark-mode contrast of secondary text, out-of-month calendar days, the page background under wide
+  content, sideways scrolling on narrow screens, and keyboard access to scrolling regions (board, table,
+  timeline, wide tables).
+
 ## [0.8.0] - 2026-10-08
 
 Phase 7 — governance, single sign-on, provisioning, integrations, hardening and performance.
@@ -222,7 +248,12 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.2.0...v0.2.1
