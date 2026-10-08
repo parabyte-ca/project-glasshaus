@@ -7,12 +7,16 @@ from glasshaus.core.models import DomainEventRecord
 from glasshaus.core.orm import RLS_TABLES, Base, TenantScoped, TimestampMixin
 from glasshaus.fields.models import CustomField
 from glasshaus.goals.models import CheckIn, KeyResult, Objective, Portfolio, PortfolioProject
+from glasshaus.governance.models import OrgSettings
 from glasshaus.identity.models import ApiToken, AuthSession, User, Workspace, WorkspaceMember
 from glasshaus.insights.models import Dashboard
+from glasshaus.integrations.models import CalendarFeed, Integration, IntegrationDelivery
 from glasshaus.models.tenant import Tenant
 from glasshaus.oauth.models import OAuthClient, OAuthGrant, OAuthRequest
 from glasshaus.projects.models import Project, ProjectMember, ProjectStatus
 from glasshaus.scheduling.models import Baseline, BaselineTask, TaskDependency
+from glasshaus.scim.models import ScimToken
+from glasshaus.sso.models import IdentityProvider, UserIdentity
 from glasshaus.tasks.models import Task
 from glasshaus.timetracking.models import RunningTimer, TimeEntry
 from glasshaus.views.models import SavedView
@@ -27,17 +31,22 @@ __all__ = [
     "Base",
     "Baseline",
     "BaselineTask",
+    "CalendarFeed",
     "CheckIn",
     "Comment",
     "CustomField",
     "Dashboard",
     "DomainEventRecord",
+    "IdentityProvider",
+    "Integration",
+    "IntegrationDelivery",
     "KeyResult",
     "Notification",
     "OAuthClient",
     "OAuthGrant",
     "OAuthRequest",
     "Objective",
+    "OrgSettings",
     "Portfolio",
     "PortfolioProject",
     "Project",
@@ -47,6 +56,7 @@ __all__ = [
     "RecurringTask",
     "RunningTimer",
     "SavedView",
+    "ScimToken",
     "Task",
     "TaskDependency",
     "Tenant",
@@ -54,6 +64,7 @@ __all__ = [
     "TimeEntry",
     "TimestampMixin",
     "User",
+    "UserIdentity",
     "Workspace",
     "WorkspaceMember",
 ]

@@ -39,6 +39,8 @@ class User(UUIDPk, TenantScoped, TimestampMixin, Base):
         Boolean, nullable=False, default=True, server_default=text("true")
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Identifier the provisioning system (SCIM) uses for this user.
+    external_id: Mapped[str | None] = mapped_column(String(255))
     # Workload capacity: minutes available per working day, and which weekdays (0 = Monday) are worked.
     capacity_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=480, server_default="480")
     working_days: Mapped[list[int]] = mapped_column(

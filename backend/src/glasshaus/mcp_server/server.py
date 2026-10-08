@@ -16,7 +16,7 @@ from starlette.responses import JSONResponse
 
 import glasshaus.models  # noqa: F401 - register every table so foreign keys resolve in this process
 from glasshaus.config import get_settings
-from glasshaus.mcp_server import resources, tools_core, tools_plan
+from glasshaus.mcp_server import resources, tools_admin, tools_core, tools_plan
 from glasshaus.mcp_server.auth import GlasshausOAuthProvider, GlasshausTokenVerifier
 from glasshaus.mcp_server.runtime import UNTRUSTED
 from glasshaus.oauth.service import ALL_SCOPES
@@ -85,6 +85,7 @@ def build_server() -> MCPServer:
 
     tools_core.register(server)
     tools_plan.register(server)
+    tools_admin.register(server)
     resources.register(server)
     return server
 

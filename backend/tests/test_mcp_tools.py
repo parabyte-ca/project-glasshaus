@@ -247,3 +247,22 @@ async def test_coverage_matrix_matches_server() -> None:
     registered = {t.name for t in await server.list_tools()}
     assert named - registered == set(), "matrix names tools the server lacks"
     assert registered - named == set(), "tools missing from the coverage matrix"
+
+
+async def test_admin_tools_preview_and_scope() -> None:
+    from tests.factories import make_user
+
+    world = await make_world()
+    member = await make_user(world.tenant)
+    async with connect(token_actor(world, {"admin"})) as client:
+        preview = await call(client, "manage_users", action="deactivate", user=member.email)
+        assert preview["preview"] is True and preview["would_deactivate"]["is_active"] is True
+        done = await call(client, "manage_users", action="deactivate", user=member.email, confirm=True)
+        assert done["user"]["is_active"] is False
+        settings = await call(client, "update_org_settings", audit_retention_days=90)
+        assert settings["preview"] is True and settings["current"]["audit_retention_days"] == 365
+        assert (await call(client, "get_org_settings"))["settings"]["audit_retention_days"] == 365
+        listed = await call(client, "manage_integrations")
+        assert listed["integrations"] == [] and "task.completed" in listed["event_types"]
+    async with connect(token_actor(world, {"read", "tasks:write"})) as client:
+        assert "admin" in await call_error(client, "manage_users")

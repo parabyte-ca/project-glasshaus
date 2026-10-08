@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     # HTTP elsewhere only API tokens are accepted.
     mcp_public_url: str = "http://localhost:8472"
     mcp_rate_limit_per_minute: int = 120
+    # REST/SCIM requests per principal (token, session or IP) per minute; 0 disables.
+    api_rate_limit_per_minute: int = 1200
     # stdio transport only: the API token the local process acts as.
     mcp_token: SecretStr | None = None
 

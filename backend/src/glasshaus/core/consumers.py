@@ -40,13 +40,16 @@ def handles(*event_types: str) -> Callable[[Handler], Handler]:
 def load_handlers() -> None:
     """Import every module that registers handlers, and every ORM model so foreign keys resolve
     (the worker never imports the web app, which otherwise pulls the models in)."""
+    import glasshaus.audit.handlers
     import glasshaus.automation.handlers
     import glasshaus.collab.handlers
+    import glasshaus.integrations.handlers
     import glasshaus.models  # noqa: F401
 
 
 async def dispatch(event: Event) -> None:
-    for handler in _handlers.get(event["type"], []):
+    """Run the handlers for the event's type, then catch-all ("*") handlers such as the audit log."""
+    for handler in [*_handlers.get(event["type"], []), *_handlers.get("*", [])]:
         await handler(event)
 
 
@@ -87,15 +90,16 @@ async def consume(stop: asyncio.Event, consumer: str | None = None, *, block_ms:
     log.info("consumer.started", consumer=name)
     while not stop.is_set():
         try:
-            # Retry entries another (or this) consumer failed on and left idle.
-            _, claimed, _ = await redis.xautoclaim(STREAM, GROUP, name, min_idle_time=RETRY_IDLE_MS, count=50)
-            for entry_id, fields in claimed:
-                info = await redis.xpending_range(STREAM, GROUP, min=entry_id, max=entry_id, count=1)
-                await _process(entry_id, fields, info[0]["times_delivered"] if info else MAX_DELIVERIES)
+            # New events first, so a backlog of retries never delays live work.
             batches = await redis.xreadgroup(GROUP, name, {STREAM: ">"}, count=50, block=block_ms)
             for _, entries in batches or []:
                 for entry_id, fields in entries:
                     await _process(entry_id, fields)
+            # Then retry entries another (or this) consumer failed on and left idle.
+            _, claimed, _ = await redis.xautoclaim(STREAM, GROUP, name, min_idle_time=RETRY_IDLE_MS, count=20)
+            for entry_id, fields in claimed:
+                info = await redis.xpending_range(STREAM, GROUP, min=entry_id, max=entry_id, count=1)
+                await _process(entry_id, fields, info[0]["times_delivered"] if info else MAX_DELIVERIES)
         except asyncio.CancelledError:
             raise
         except Exception:
