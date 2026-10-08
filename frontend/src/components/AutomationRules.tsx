@@ -539,7 +539,7 @@ function RunLog({ projectId, rules }: { projectId: string; rules: Rule[] }) {
               <tr key={r.id}>
                 <td className="py-1.5 whitespace-nowrap">{new Date(r.started_at).toLocaleString()}</td>
                 <td>{r.rule_name}</td>
-                <td className="font-mono text-xs">{String(r.results.task_key ?? '—')}</td>
+                <td className="font-mono text-xs whitespace-nowrap">{String(r.results.task_key ?? '—')}</td>
                 <td>
                   <span
                     className={
