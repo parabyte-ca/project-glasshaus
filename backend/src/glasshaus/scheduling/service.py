@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, date, datetime
+from typing import Any
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
@@ -52,6 +53,19 @@ async def _project_tasks(ctx: ServiceContext, project_id: uuid.UUID) -> dict[uui
         select(Task).where(Task.project_id == project_id, Task.deleted_at.is_(None)).order_by(Task.number)
     )
     return {t.id: t for t in rows.all()}
+
+
+_SCHEDULE_COLUMNS = (Task.id, Task.number, Task.title, Task.status_id, Task.start_date, Task.due_date)
+
+
+async def _schedule_rows(ctx: ServiceContext, project_id: uuid.UUID) -> dict[uuid.UUID, Any]:
+    """Read-only, lightweight rows for schedule views (no entity loading; large projects stay fast)."""
+    result = await ctx.session.execute(
+        select(*_SCHEDULE_COLUMNS)
+        .where(Task.project_id == project_id, Task.deleted_at.is_(None))
+        .order_by(Task.number)
+    )
+    return {row.id: row for row in result}
 
 
 async def _project_dependencies(ctx: ServiceContext, project_id: uuid.UUID) -> list[TaskDependency]:
@@ -277,7 +291,7 @@ async def delete_dependency(ctx: ServiceContext, dependency_id: uuid.UUID) -> No
 
 async def get_schedule(ctx: ServiceContext, project_id: uuid.UUID) -> ScheduleRead:
     project = await require_project(ctx, project_id, Permission.TASK_READ)
-    tasks = await _project_tasks(ctx, project_id)
+    tasks = await _schedule_rows(ctx, project_id)
     nodes = {tid: n for tid, t in tasks.items() if (n := node_for(t)) is not None}
     deps = await _project_dependencies(ctx, project_id)
     result = cpm.critical_path(nodes, _edges(deps, tasks))
@@ -434,7 +448,7 @@ async def schedule_warnings(
 ) -> list[ScheduleWarning]:
     project = await require_project(ctx, project_id, Permission.TASK_READ)
     today = today or datetime.now(UTC).date()
-    tasks = await _project_tasks(ctx, project_id)
+    tasks = await _schedule_rows(ctx, project_id)
     closed = set(
         (
             await ctx.session.scalars(

@@ -4,7 +4,8 @@
     GLASSHAUS_TOKEN=ghp_... python3 scripts/bench.py --url http://localhost:8471 --project WEB \
         [--seed 2000] [--requests 300] [--concurrency 10]
 
---seed first creates that many tasks in the project so lists and reports run on realistic volume.
+Requests over the API rate limit (GLASSHAUS_API_RATE_LIMIT_PER_MINUTE) wait and retry; only served
+requests are timed. --seed first creates that many tasks in the project so lists and reports run on realistic volume.
 Exits non-zero when any endpoint's p95 exceeds --budget-ms. Needs only httpx.
 """
 
@@ -19,16 +20,27 @@ import time
 import httpx
 
 
+async def call(client: httpx.AsyncClient, method: str, path: str, **kw: object) -> tuple[httpx.Response, float]:
+    """One request; waits out the API rate limit (429) so only served requests are timed."""
+    while True:
+        start = time.perf_counter()
+        r = await client.request(method, path, **kw)  # type: ignore[arg-type]
+        elapsed = (time.perf_counter() - start) * 1000
+        if r.status_code != 429:
+            return r, elapsed
+        await asyncio.sleep(float(r.headers.get("retry-after", "5")))
+
+
 async def seed(client: httpx.AsyncClient, project_id: str, count: int) -> None:
     sem = asyncio.Semaphore(10)
 
     async def one(i: int) -> None:
         async with sem:
-            r = await client.post(
-                "/api/v1/tasks",
+            r, _ = await call(
+                client, "POST", "/api/v1/tasks",
                 json={"project_id": project_id, "title": f"Bench task {i}", "priority": random.choice(["low", "medium", "high"]),
-                      "estimate_minutes": random.choice([30, 60, 120, 240])},  # fmt: skip
-            )
+                      "estimate_minutes": random.choice([30, 60, 120, 240])},
+            )  # fmt: skip
             r.raise_for_status()
 
     await asyncio.gather(*(one(i) for i in range(count)))
@@ -40,9 +52,7 @@ async def measure(client: httpx.AsyncClient, method: str, path: str, n: int, con
 
     async def one() -> None:
         async with sem:
-            start = time.perf_counter()
-            r = await client.request(method, path, **kw)  # type: ignore[arg-type]
-            elapsed = (time.perf_counter() - start) * 1000
+            r, elapsed = await call(client, method, path, **kw)
             if r.status_code >= 400:
                 raise SystemExit(f"{method} {path} -> {r.status_code}: {r.text[:200]}")
             times.append(elapsed)
@@ -61,7 +71,7 @@ async def main() -> int:
     parser.add_argument("--url", default=os.getenv("GLASSHAUS_API_URL", "http://localhost:8471"))
     parser.add_argument("--project", required=True, help="project key")
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--requests", type=int, default=300)
+    parser.add_argument("--requests", type=int, default=100)
     parser.add_argument("--concurrency", type=int, default=10)
     parser.add_argument("--budget-ms", type=float, default=200.0)
     args = parser.parse_args()
