@@ -6,7 +6,17 @@ import { useAuth } from '../auth/useAuth';
 import { useLiveUpdates } from '../lib/realtime';
 import { NotificationsBell } from './NotificationsBell';
 import { ThemeToggle } from './ThemeToggle';
+import { TimerIndicator } from './TimeTracking';
 import { GhostButton } from './ui';
+
+const SECTIONS = [
+  ['/', 'Home'],
+  ['/dashboards', 'Dashboards'],
+  ['/time', 'Time'],
+  ['/workload', 'Workload'],
+  ['/portfolios', 'Portfolios'],
+  ['/goals', 'Goals'],
+] as const;
 
 export function Layout() {
   const { user, logout } = useAuth();
@@ -34,6 +44,7 @@ export function Layout() {
           >
             {user.name}
           </Link>
+          <TimerIndicator />
           <NotificationsBell />
           <ThemeToggle />
           <GhostButton onClick={logout}>Sign out</GhostButton>
@@ -44,6 +55,21 @@ export function Layout() {
           aria-label="Projects"
           className="border-b border-slate-200 p-4 md:w-60 md:border-r md:border-b-0 dark:border-slate-800"
         >
+          <ul className="mb-4 flex flex-col gap-1">
+            {SECTIONS.map(([to, label]) => (
+              <li key={to}>
+                <NavLink
+                  to={to}
+                  end={to === '/'}
+                  className={({ isActive }) =>
+                    `block rounded px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isActive ? 'bg-slate-100 font-medium dark:bg-slate-800' : ''}`
+                  }
+                >
+                  {label}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
           <h2 className="mb-2 text-xs font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-400">
             Projects
           </h2>

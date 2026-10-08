@@ -4,6 +4,8 @@ import { fields, statuses, task, user } from '../test/mockApi';
 import type { CustomField, Status, Task, User } from '../api/client';
 import { formatValue, groupTasks, patchForGroup, positionBetween } from './grouping';
 import { triggerLabel } from './automation';
+import { niceScale } from './chartScale';
+import { currentQuarter, formatMinutes, hours, mondayOf, parseDuration } from './format';
 import { keysFor } from './realtime';
 import { addDays, monthGrid, parseDay, formatDay } from './dates';
 import { shiftPatch, tasksOn } from './schedule';
@@ -104,5 +106,35 @@ describe('automation labels', () => {
       triggerLabel({ type: 'scheduled', schedule: { frequency: 'weekly', weekday: 4, hour: 8, minute: 5 } }),
     ).toBe('Every Friday at 08:05');
     expect(triggerLabel({ type: 'task_updated', field: 'tags' })).toBe('Task updated (tags)');
+  });
+});
+
+describe('durations', () => {
+  it('parses the formats people type', () => {
+    expect(parseDuration('1h 30m')).toBe(90);
+    expect(parseDuration('1.5h')).toBe(90);
+    expect(parseDuration('45m')).toBe(45);
+    expect(parseDuration('90')).toBe(90);
+    expect(parseDuration('1:05')).toBe(65);
+    expect(parseDuration('soon')).toBeNull();
+    expect(parseDuration('0m')).toBeNull();
+  });
+  it('formats minutes and weeks', () => {
+    expect(formatMinutes(95)).toBe('1h 35m');
+    expect(formatMinutes(60)).toBe('1h');
+    expect(formatMinutes(5)).toBe('5m');
+    expect(hours(90)).toBe('1.5');
+    expect(mondayOf('2026-10-11')).toBe('2026-10-05');
+    expect(currentQuarter(new Date(2026, 9, 8))).toBe('2026-Q4');
+  });
+});
+
+describe('chart scale', () => {
+  it('picks round tick steps', () => {
+    expect(niceScale(25)).toEqual({ max: 40, step: 10 });
+    expect(niceScale(9)).toEqual({ max: 20, step: 5 });
+    expect(niceScale(3)).toEqual({ max: 4, step: 1 });
+    expect(niceScale(0)).toEqual({ max: 4, step: 1 });
+    expect(niceScale(130)).toEqual({ max: 200, step: 50 });
   });
 });

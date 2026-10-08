@@ -14,13 +14,18 @@ from glasshaus.automation.schemas import RecurringCreate, RuleCreate, TemplateCr
 from glasshaus.collab import service as collab
 from glasshaus.collab.schemas import CommentCreate
 from glasshaus.config import get_settings
-from glasshaus.core.context import Actor
+from glasshaus.core.context import Actor, ServiceContext
+from glasshaus.core.rbac import OrgRole
 from glasshaus.db import apply_tenant, system_session, unit_of_work
 from glasshaus.fields import service as fields
 from glasshaus.fields.schemas import FieldCreate, SelectOption
+from glasshaus.goals import service as goals
+from glasshaus.goals.schemas import ObjectiveCreate, PortfolioCreate
 from glasshaus.identity import service as identity
 from glasshaus.identity.models import User, Workspace
 from glasshaus.identity.schemas import UserCreate, WorkspaceCreate, WorkspaceMemberSet
+from glasshaus.insights import service as insights
+from glasshaus.insights.schemas import DashboardCreate
 from glasshaus.logs import get_logger
 from glasshaus.models import Tenant
 from glasshaus.projects import service as projects
@@ -30,6 +35,8 @@ from glasshaus.scheduling.schemas import BaselineCreate, DependencyCreate
 from glasshaus.tasks import service as tasks
 from glasshaus.tasks.models import Priority
 from glasshaus.tasks.schemas import TaskCreate, TaskUpdate
+from glasshaus.timetracking import service as timetracking
+from glasshaus.timetracking.schemas import TimeEntryCreate
 from glasshaus.views import service as views
 from glasshaus.views.schemas import ViewConfig, ViewCreate, ViewFilters
 
@@ -89,6 +96,8 @@ async def generate_demo_data(tenant: Tenant, owner: User, seed: int) -> None:
             )
             people.append(user.id)
         today = date.today()
+        project_ids: list[uuid.UUID] = []
+        web_id: uuid.UUID | None = None
         for key, name in (("WEB", "Website relaunch"), ("OPS", "Homelab operations"), ("MOB", "Mobile app")):
             project = await projects.create_project(
                 ctx, ProjectCreate(workspace_id=ws.id, key=key, name=name, description=fake.paragraph())
@@ -129,6 +138,7 @@ async def generate_demo_data(tenant: Tenant, owner: User, seed: int) -> None:
                 ),
             )
             parents: list[uuid.UUID] = []
+            created: list[uuid.UUID] = []
             for _ in range(rng.randint(18, 30)):
                 start = today + timedelta(days=rng.randint(-20, 30))
                 task = await tasks.create_task(
@@ -156,6 +166,7 @@ async def generate_demo_data(tenant: Tenant, owner: User, seed: int) -> None:
                     who = rng.choice(people)
                     body = f"{fake.sentence()} @[{fake.first_name()}](user:{who})"
                     await collab.create_comment(ctx, task.id, CommentCreate(body=body))
+                created.append(task.id)
                 if task.parent_id is None:
                     parents.append(task.id)
                 status = rng.choice(project.statuses)
@@ -214,7 +225,27 @@ async def generate_demo_data(tenant: Tenant, owner: User, seed: int) -> None:
                     }
                 ),
             )
+            project_ids.append(project.id)
+            # A few weeks of time logged by the team, each entry as its author.
+            for task_id in rng.sample(created, k=min(len(created), 12)):
+                who = rng.choice(people)
+                as_person = ServiceContext(
+                    session=ctx.session,
+                    actor=Actor(tenant_id=tenant.id, user_id=who, org_role=OrgRole.MEMBER, method="system"),
+                )
+                for _ in range(rng.randint(1, 3)):
+                    await timetracking.log_time(
+                        as_person,
+                        TimeEntryCreate(
+                            task=str(task_id),
+                            spent_on=today - timedelta(days=rng.randint(0, 20)),
+                            minutes=rng.choice([15, 30, 45, 60, 90, 120, 240]),
+                            note=rng.choice(["", "pairing", "review", "investigation"]),
+                            billable=rng.random() < 0.4,
+                        ),
+                    )
             if key == "WEB":
+                web_id = project.id
                 await templates.create_template(
                     ctx,
                     TemplateCreate(
@@ -223,6 +254,44 @@ async def generate_demo_data(tenant: Tenant, owner: User, seed: int) -> None:
                         description="Statuses, fields, views, tasks and automations from the demo website.",
                     ),
                 )
+        await goals.create_portfolio(ctx, PortfolioCreate(name="All demo projects", project_ids=project_ids))
+        quarter = f"{today.year}-Q{(today.month - 1) // 3 + 1}"
+        await goals.create_objective(
+            ctx,
+            ObjectiveCreate.model_validate(
+                {
+                    "title": "Relaunch the website",
+                    "period": quarter,
+                    "key_results": [
+                        {"title": "Launch tasks done", "kind": "tasks", "project_id": str(web_id)},
+                        {
+                            "title": "Newsletter sign-ups",
+                            "kind": "metric",
+                            "start_value": 200,
+                            "target_value": 1000,
+                            "current_value": 420,
+                            "unit": "people",
+                        },
+                    ],
+                }
+            ),
+        )
+        await insights.create_dashboard(
+            ctx,
+            DashboardCreate.model_validate(
+                {
+                    "name": "Team overview",
+                    "shared": True,
+                    "widgets": [
+                        {"id": "tasks", "type": "my_tasks", "width": 2},
+                        {"id": "time", "type": "my_time"},
+                        {"id": "burnup", "type": "burnup", "width": 2, "config": {"project_id": str(web_id)}},
+                        {"id": "workload", "type": "workload"},
+                        {"id": "byproject", "type": "time_by_project", "width": 3},
+                    ],
+                }
+            ),
+        )
     log.info("seed.demo.created")
 
 

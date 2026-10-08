@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.5.0 — Phase 4 (automation rules, signed webhooks, recurring tasks, project templates). See [CHANGELOG.md](CHANGELOG.md) and the [roadmap](#roadmap).
+> **Status:** v0.6.0 — Phase 5 (time tracking and timesheets, workload, reports, dashboards, portfolios, OKRs). See [CHANGELOG.md](CHANGELOG.md) and the [roadmap](#roadmap).
 
 ## Contents
 
@@ -14,6 +14,7 @@ webhooks and an MCP server.
 - [Configuration](#configuration)
 - [Using the API](#using-the-api)
 - [Automations and webhooks](#automations-and-webhooks)
+- [Time, workload and reports](#time-workload-and-reports)
 - [MCP and Copilot setup](#mcp-and-copilot-setup)
 - [Backup and restore](#backup-and-restore)
 - [Upgrading](#upgrading)
@@ -184,6 +185,25 @@ Homelab targets on private addresses (Home Assistant, n8n, Node-RED, Tailscale `
 `GLASSHAUS_WEBHOOK_ALLOW_PRIVATE=true` in `.env`; loopback, link-local and cloud metadata addresses are always
 refused.
 
+## Time, workload and reports
+
+- **Log time** from any task (Duration accepts `45m`, `1h 30m`, `1.5h`, `1:30`) or start a timer; the
+  running timer shows in the header with a Stop button.
+- **Timesheets:** **Time → Timesheet** shows a person's week by task and day. Organization admins can
+  pick anyone, so you can see which projects each person put time towards; **Time → Team report**
+  totals hours per person and project for any range. Both export CSV (`/api/v1/time-entries/export`).
+- **Workload:** planned remaining work against capacity per person and week. Admins set each person's
+  hours per day right on that page (or `PATCH /api/v1/users/{id}` with `capacity_minutes`).
+- **Reports:** every project has a **Report** (burn-up, throughput, status mix, lead time, estimate vs
+  actual, CSV export of tasks). **Portfolios** roll project health up; **Goals** tracks OKRs with
+  number-based or task-based key results and check-ins; **Dashboards** combine widgets and can be shared.
+
+```bash
+# Hours per person and project for September, as CSV
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8471/api/v1/time-entries/export?date_from=2026-09-01&date_to=2026-09-30" > september.csv
+```
+
 ## MCP and Copilot setup
 
 The MCP server listens at `http://<host>:8472/mcp` (Streamable HTTP). For local development,
@@ -254,7 +274,7 @@ builds, scans and publishes multi-arch (amd64/arm64) images to GHCR.
 | 2 | 0.3.0 | List/board/table views, custom fields, comments, activity | ✅ |
 | 3 | 0.4.0 | Dependencies, timeline/Gantt, critical path, calendar | ✅ |
 | 4 | 0.5.0 | Automation engine and templates | ✅ |
-| 5 | 0.6.0 | Workload, time tracking (incl. per-user timesheets across projects), reporting, dashboards, portfolio/OKRs | |
+| 5 | 0.6.0 | Workload, time tracking (incl. per-user timesheets across projects), reporting, dashboards, portfolio/OKRs | ✅ |
 | 6 | 0.7.0 | MCP server, OAuth 2.1, Copilot/Claude integration docs and tests | |
 | 7 | 0.8.0 | Integrations, SSO/SCIM, audit, admin console (users, roles, deactivation), hardening, performance | |
 | 8 | 0.9.0 | In-app AI layer, polish, accessibility, E2E tests | |

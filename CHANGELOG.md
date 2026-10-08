@@ -6,6 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-08
+
+Phase 5 — time tracking, workload, reporting, dashboards, portfolios and OKRs.
+
+### Added
+- Time tracking: log time on tasks (billable flag, notes), a one-click timer shown in the header,
+  per-person weekly timesheets (admins can view anyone's), a person × project time report and CSV
+  export.
+- Capacity per person (hours per working day, working weekdays) and a workload view comparing planned
+  remaining work (estimate − logged, spread over task dates) with capacity per week or day,
+  highlighting overload, undated, overdue and unestimated work.
+- Project reports: burn-up, weekly throughput, status mix, lead time (median and 85th percentile),
+  estimate vs actual, open work by assignee, health rating, and CSV export of tasks.
+- Dashboards with widgets (my tasks, my time, team time by project, workload, project status, burn-up,
+  throughput, portfolio, objective); private or shared.
+- Portfolios rolling up project progress, overdue work, baseline slip and health.
+- OKRs: objectives per period with weighted key results measured by a number or by task completion in a
+  project (optionally one tag), check-ins with confidence, and alignment to parent objectives.
+- Charts are accessible (keyboard readout, data tables, colour-blind-safe palette in light and dark).
+- Demo data includes logged time, a portfolio, an objective and a shared dashboard.
+
 ## [0.5.0] - 2026-10-08
 
 Phase 4 — automation engine and templates.

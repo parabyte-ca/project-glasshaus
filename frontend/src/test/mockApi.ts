@@ -29,7 +29,7 @@ export function mockApi(routes: Route[]) {
     );
     if (!route) throw new Error(`unmocked ${req.method} ${pathname}`);
     const body = route.handler ? await route.handler(req) : route.body;
-    return json(body ?? {}, route.status ?? 200);
+    return json(body === undefined ? {} : body, route.status ?? 200);
   });
   return { calls, spy };
 }
@@ -125,4 +125,6 @@ export const baseRoutes: Route[] = [
   { method: 'GET', path: '/api/v1/users', body: [user] },
   { method: 'GET', path: '/api/v1/projects/by-key/WEB', body: project },
   { method: 'GET', path: '/api/v1/project-templates', body: [] },
+  { method: 'GET', path: '/api/v1/timer', body: null },
+  { method: 'GET', path: '/api/v1/time-entries', body: { items: [], next_cursor: null } },
 ];
