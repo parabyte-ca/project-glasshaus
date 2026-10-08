@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-08
+
+Patch release: Azure OpenAI for the AI assistant and a proxy fix for restarted API containers.
+
 ### Added
 - **Azure OpenAI** for the AI assistant through the `openai` provider: `GLASSHAUS_AI_AUTH_HEADER=api-key`,
   optional `GLASSHAUS_AI_API_VERSION` for classic deployment URLs, and an automatic retry with
@@ -13,7 +17,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - The web container now re-resolves the API's address, so `/api` keeps working when the `api` container
-  is recreated on its own (for example `docker compose up -d` after an `.env` change).
+  is recreated on its own (for example `docker compose up -d` after an `.env` change). Before, `/api`
+  requests failed until `web` was restarted too.
+- End-to-end shortcut test waits for the task drawer to close (raced on slower CI runners).
 
 ## [0.9.0] - 2026-10-08
 
@@ -257,7 +263,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.6.0...v0.7.0
