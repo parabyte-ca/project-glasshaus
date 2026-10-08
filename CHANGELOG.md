@@ -27,6 +27,7 @@ Phase 2 — views, custom fields, comments, activity feed.
   markdown description, comments with an @mention picker and activity; project settings for custom fields;
   notifications menu.
 - Demo data includes custom fields, comments with mentions and shared views.
+- Account page with a change-password form (signs you out everywhere, then back to sign-in).
 
 ### Changed
 - Domain events record their project (`project_id`); existing events are backfilled.

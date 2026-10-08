@@ -27,7 +27,13 @@ export function Layout() {
           Project Glasshaus
         </Link>
         <div className="flex items-center gap-2">
-          <span className="hidden text-sm text-slate-600 sm:inline dark:text-slate-400">{user.name}</span>
+          <Link
+            to="/account"
+            className="hidden text-sm text-slate-600 hover:underline sm:inline dark:text-slate-400"
+            aria-label={`Account settings for ${user.name}`}
+          >
+            {user.name}
+          </Link>
           <NotificationsBell />
           <ThemeToggle />
           <GhostButton onClick={logout}>Sign out</GhostButton>
