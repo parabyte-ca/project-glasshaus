@@ -7,6 +7,7 @@ import { CommentComposer } from './CommentComposer';
 import { DependencyEditor } from './DependencyEditor';
 import { FieldEditor } from './FieldEditor';
 import { Markdown } from './Markdown';
+import { TaskTime } from './TimeTracking';
 import { ErrorText, GhostButton, Input, Select } from './ui';
 
 interface Props {
@@ -245,6 +246,8 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
                 <p className="text-sm text-slate-500">No description.</p>
               )}
             </section>
+
+            <TaskTime taskId={t.id} taskKey={t.key} users={users} />
 
             <section aria-labelledby="comments-h" className="flex flex-col gap-3">
               <h3 id="comments-h" className="text-sm font-semibold">

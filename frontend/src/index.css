@@ -5,3 +5,34 @@
 :root {
   color-scheme: light dark;
 }
+
+/* Chart tokens (dataviz reference palette; validated light on #fcfcfb and dark on slate-950). */
+:root {
+  --chart-surface: #ffffff;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #c3c2b7;
+  --chart-muted: #6b6a66;
+  --seq-1: #cde2fb;
+  --seq-2: #9ec5f4;
+  --seq-3: #6da7ec;
+  --seq-4: #3987e5;
+  --seq-5: #1c5cab;
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+}
+.dark {
+  --chart-surface: #020617;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --chart-grid: #2c2c2a;
+  --chart-axis: #383835;
+  --chart-muted: #a3a29c;
+  --seq-1: #104281;
+  --seq-2: #184f95;
+  --seq-3: #256abf;
+  --seq-4: #3987e5;
+  --seq-5: #86b6ef;
+}

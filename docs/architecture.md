@@ -97,6 +97,26 @@ PostgreSQL (RLS: tenant_id = app.tenant_id)  ──commit──▶  relay → Re
 - **Templates** snapshot statuses, fields, shared views, tasks (dates as offsets), dependencies, rules and
   recurring tasks; instantiating remaps every id and shifts dates to a chosen start.
 
+## Time, workload and reporting
+
+- **Time entries** belong to a task and its project. You see your own, organization admins see all,
+  and anyone who can read a project sees its entries. Logging needs task-edit rights, authors change
+  their own entries and project admins can change any in their project. One running timer per person;
+  stopping it logs the elapsed time (rounded up to a minute, at most 24 hours).
+- **Workload** (`insights/calc.py`, pure): remaining work = estimate − logged, spread evenly over the
+  working days between start and due (a single date is a one-day task), compared per day or week with
+  each person's capacity (`capacity_minutes` per working day, `working_days`). Undated, overdue and
+  unestimated work is reported separately rather than guessed into the plan.
+- **Project reports** are computed on read from current task state: status mix, burn-up (scope and
+  done per day), weekly throughput, lead time (created → completed), estimate vs actual. Burn-up uses
+  current status and timestamps, not a full status history.
+- **Health** (portfolios, dashboards): off track when ≥20 % of open work is overdue or the finish has
+  slipped more than a week past the latest baseline; at risk with any overdue work or slip.
+- **Dashboards** store only a widget layout; every widget reads the normal, permission-checked APIs.
+- **OKRs and portfolios** are organization-wide (hidden from guests). Task-based key results and
+  project health only show for projects the viewer can read.
+- CSV exports neutralize spreadsheet formulas in text cells.
+
 ## Authorization model
 
 | Level | Roles | Effect |

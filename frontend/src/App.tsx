@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router';
 
 import { AuthProvider } from './auth/AuthContext';
@@ -10,6 +10,22 @@ const AccountPage = lazy(() => import('./pages/AccountPage').then((m) => ({ defa
 const ProjectSettingsPage = lazy(() =>
   import('./pages/ProjectSettingsPage').then((m) => ({ default: m.ProjectSettingsPage })),
 );
+const TimePage = lazy(() => import('./pages/TimePage').then((m) => ({ default: m.TimePage })));
+const WorkloadPage = lazy(() => import('./pages/WorkloadPage').then((m) => ({ default: m.WorkloadPage })));
+const ProjectReportPage = lazy(() =>
+  import('./pages/ProjectReportPage').then((m) => ({ default: m.ProjectReportPage })),
+);
+const DashboardsPage = lazy(() =>
+  import('./pages/DashboardsPage').then((m) => ({ default: m.DashboardsPage })),
+);
+const PortfoliosPage = lazy(() =>
+  import('./pages/PortfoliosPage').then((m) => ({ default: m.PortfoliosPage })),
+);
+const GoalsPage = lazy(() => import('./pages/GoalsPage').then((m) => ({ default: m.GoalsPage })));
+
+function Lazy({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<p role="status">Loading…</p>}>{children}</Suspense>;
+}
 
 export default function App() {
   return (
@@ -33,6 +49,70 @@ export default function App() {
                 <Suspense fallback={<p role="status">Loading…</p>}>
                   <ProjectSettingsPage />
                 </Suspense>
+              }
+            />
+            <Route
+              path="time"
+              element={
+                <Lazy>
+                  <TimePage />
+                </Lazy>
+              }
+            />
+            <Route
+              path="workload"
+              element={
+                <Lazy>
+                  <WorkloadPage />
+                </Lazy>
+              }
+            />
+            <Route
+              path="dashboards"
+              element={
+                <Lazy>
+                  <DashboardsPage />
+                </Lazy>
+              }
+            />
+            <Route
+              path="dashboards/:dashboardId"
+              element={
+                <Lazy>
+                  <DashboardsPage />
+                </Lazy>
+              }
+            />
+            <Route
+              path="portfolios"
+              element={
+                <Lazy>
+                  <PortfoliosPage />
+                </Lazy>
+              }
+            />
+            <Route
+              path="portfolios/:portfolioId"
+              element={
+                <Lazy>
+                  <PortfoliosPage />
+                </Lazy>
+              }
+            />
+            <Route
+              path="goals"
+              element={
+                <Lazy>
+                  <GoalsPage />
+                </Lazy>
+              }
+            />
+            <Route
+              path="projects/:projectKey/report"
+              element={
+                <Lazy>
+                  <ProjectReportPage />
+                </Lazy>
               }
             />
           </Route>

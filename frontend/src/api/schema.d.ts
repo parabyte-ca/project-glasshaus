@@ -1071,6 +1071,361 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/time-entries': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List time entries */
+    get: operations['list_entries'];
+    put?: never;
+    /** Log time on a task */
+    post: operations['log_time'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/time-entries/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Export time entries as CSV (default: last 31 days) */
+    get: operations['export_entries'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/time-entries/{entry_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a time entry */
+    delete: operations['delete_entry'];
+    options?: never;
+    head?: never;
+    /** Change a time entry */
+    patch: operations['update_entry'];
+    trace?: never;
+  };
+  '/api/v1/timer': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Your running timer (null when none) */
+    get: operations['get_timer'];
+    put?: never;
+    /** Start a timer */
+    post: operations['start_timer'];
+    /** Discard the running timer */
+    delete: operations['discard_timer'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/timer/stop': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Stop the timer and log the time */
+    post: operations['stop_timer'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/timesheets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** A person's time per task and day (default: you, last 7 days) */
+    get: operations['get_timesheet'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/reports/time': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Minutes per person and project (default: last 30 days) */
+    get: operations['time_report'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/workload': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Planned work vs capacity per person (default: 4 weeks from this Monday) */
+    get: operations['get_workload'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/projects/{project_id}/report': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Status mix, burn-up, throughput, lead time and estimate vs actual (default: last 30 days) */
+    get: operations['project_report'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/projects/{project_id}/health': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Progress, overdue work, baseline slip and a health rating */
+    get: operations['project_health'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/projects/{project_id}/tasks/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Export the project's tasks as CSV */
+    get: operations['export_tasks'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/dashboards': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Your and shared dashboards */
+    get: operations['list_dashboards'];
+    put?: never;
+    /** Create a dashboard */
+    post: operations['create_dashboard'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/dashboards/{dashboard_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a dashboard */
+    get: operations['get_dashboard'];
+    put?: never;
+    post?: never;
+    /** Delete a dashboard */
+    delete: operations['delete_dashboard'];
+    options?: never;
+    head?: never;
+    /** Change a dashboard */
+    patch: operations['update_dashboard'];
+    trace?: never;
+  };
+  '/api/v1/portfolios': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List portfolios */
+    get: operations['list_portfolios'];
+    put?: never;
+    /** Create a portfolio */
+    post: operations['create_portfolio'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/portfolios/{portfolio_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** A portfolio with each project's health */
+    get: operations['get_portfolio'];
+    put?: never;
+    post?: never;
+    /** Delete a portfolio */
+    delete: operations['delete_portfolio'];
+    options?: never;
+    head?: never;
+    /** Change a portfolio */
+    patch: operations['update_portfolio'];
+    trace?: never;
+  };
+  '/api/v1/objectives': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List objectives */
+    get: operations['list_objectives'];
+    put?: never;
+    /** Create an objective with key results */
+    post: operations['create_objective'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/objectives/{objective_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get an objective */
+    get: operations['get_objective'];
+    put?: never;
+    post?: never;
+    /** Delete an objective */
+    delete: operations['delete_objective'];
+    options?: never;
+    head?: never;
+    /** Change an objective */
+    patch: operations['update_objective'];
+    trace?: never;
+  };
+  '/api/v1/objectives/{objective_id}/key-results': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Add a key result */
+    post: operations['add_key_result'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/key-results/{kr_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a key result */
+    delete: operations['delete_key_result'];
+    options?: never;
+    head?: never;
+    /** Change a key result */
+    patch: operations['update_key_result'];
+    trace?: never;
+  };
+  '/api/v1/key-results/{kr_id}/check-ins': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Check-in history */
+    get: operations['list_check_ins'];
+    put?: never;
+    /** Record progress and confidence */
+    post: operations['check_in'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1276,6 +1631,15 @@ export interface components {
       /** Revoked At */
       revoked_at: string | null;
     };
+    /** AssigneeLoad */
+    AssigneeLoad: {
+      /** User Id */
+      user_id: string | null;
+      /** Open Tasks */
+      open_tasks: number;
+      /** Remaining Minutes */
+      remaining_minutes: number;
+    };
     /** BaselineCreate */
     BaselineCreate: {
       /** Name */
@@ -1325,6 +1689,57 @@ export interface components {
       failed: {
         [key: string]: string;
       };
+    };
+    /** BurnupPoint */
+    BurnupPoint: {
+      /**
+       * Day
+       * Format: date
+       */
+      day: string;
+      /** Scope */
+      scope: number;
+      /** Done */
+      done: number;
+    };
+    /** CheckInCreate */
+    CheckInCreate: {
+      /**
+       * Value
+       * @description New current value (metric key results).
+       */
+      value?: number | null;
+      confidence: components['schemas']['Confidence'];
+      /**
+       * Note
+       * @default
+       */
+      note?: string;
+    };
+    /** CheckInRead */
+    CheckInRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Key Result Id
+       * Format: uuid
+       */
+      key_result_id: string;
+      /** Value */
+      value: number | null;
+      confidence: components['schemas']['Confidence'];
+      /** Note */
+      note: string;
+      /** Author Id */
+      author_id: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
     };
     /** CommentCreate */
     CommentCreate: {
@@ -1380,6 +1795,63 @@ export interface components {
       op: components['schemas']['Operator'];
       /** Value */
       value: unknown;
+    };
+    /**
+     * Confidence
+     * @enum {string}
+     */
+    Confidence: 'on_track' | 'at_risk' | 'off_track';
+    /** DashboardCreate */
+    DashboardCreate: {
+      /** Name */
+      name: string;
+      /**
+       * Shared
+       * @description Visible to everyone in the organization (not guests).
+       * @default false
+       */
+      shared?: boolean;
+      /** Widgets */
+      widgets?: components['schemas']['Widget-Input'][];
+    };
+    /** DashboardRead */
+    DashboardRead: {
+      /** Name */
+      name: string;
+      /**
+       * Shared
+       * @description Visible to everyone in the organization (not guests).
+       * @default false
+       */
+      shared: boolean;
+      /** Widgets */
+      widgets: components['schemas']['Widget-Output'][];
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Owner Id */
+      owner_id: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /** DashboardUpdate */
+    DashboardUpdate: {
+      /** Name */
+      name?: string | null;
+      /** Shared */
+      shared?: boolean | null;
+      /** Widgets */
+      widgets?: components['schemas']['Widget-Input'][] | null;
     };
     /**
      * DeletePreview
@@ -1558,6 +2030,110 @@ export interface components {
      * @enum {string}
      */
     Frequency: 'daily' | 'weekly' | 'monthly';
+    /** KeyResultCreate */
+    KeyResultCreate: {
+      /** Title */
+      title: string;
+      /** @default metric */
+      kind?: components['schemas']['KeyResultKind'];
+      /**
+       * Unit
+       * @description metric only, e.g. %, ms, users.
+       * @default
+       */
+      unit?: string;
+      /**
+       * Start Value
+       * @default 0
+       */
+      start_value?: number;
+      /**
+       * Target Value
+       * @default 100
+       */
+      target_value?: number;
+      /**
+       * Current Value
+       * @description metric only; defaults to start_value.
+       */
+      current_value?: number | null;
+      /**
+       * Project Id
+       * @description tasks only: progress = done / total in this project.
+       */
+      project_id?: string | null;
+      /**
+       * Tag
+       * @description tasks only: count only tasks with this tag.
+       */
+      tag?: string | null;
+      /**
+       * Weight
+       * @default 1
+       */
+      weight?: number;
+    };
+    /**
+     * KeyResultKind
+     * @enum {string}
+     */
+    KeyResultKind: 'metric' | 'tasks';
+    /** KeyResultRead */
+    KeyResultRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Objective Id
+       * Format: uuid
+       */
+      objective_id: string;
+      /** Title */
+      title: string;
+      kind: components['schemas']['KeyResultKind'];
+      /** Unit */
+      unit: string;
+      /** Start Value */
+      start_value: number;
+      /** Target Value */
+      target_value: number;
+      /**
+       * Current Value
+       * @description metric: last value; tasks: done count (null if hidden).
+       */
+      current_value: number | null;
+      /** Project Id */
+      project_id: string | null;
+      /** Tag */
+      tag: string | null;
+      /** Weight */
+      weight: number;
+      confidence: components['schemas']['Confidence'] | null;
+      /**
+       * Progress
+       * @description 0..1; null when the linked project is not visible to you.
+       */
+      progress: number | null;
+      /** Total Tasks */
+      total_tasks: number | null;
+    };
+    /** KeyResultUpdate */
+    KeyResultUpdate: {
+      /** Title */
+      title?: string | null;
+      /** Unit */
+      unit?: string | null;
+      /** Start Value */
+      start_value?: number | null;
+      /** Target Value */
+      target_value?: number | null;
+      /** Tag */
+      tag?: string | null;
+      /** Weight */
+      weight?: number | null;
+    };
     /** LoginRequest */
     LoginRequest: {
       /**
@@ -1615,6 +2191,90 @@ export interface components {
        */
       ids?: string[] | null;
     };
+    /** ObjectiveCreate */
+    ObjectiveCreate: {
+      /** Title */
+      title: string;
+      /**
+       * Description
+       * @default
+       */
+      description?: string;
+      /**
+       * Period
+       * @description e.g. 2026, 2026-Q4, 2026-H1.
+       */
+      period: string;
+      /** Start Date */
+      start_date?: string | null;
+      /** End Date */
+      end_date?: string | null;
+      /**
+       * Owner Id
+       * @description Defaults to you.
+       */
+      owner_id?: string | null;
+      /**
+       * Parent Id
+       * @description The objective this one supports.
+       */
+      parent_id?: string | null;
+      /** Key Results */
+      key_results?: components['schemas']['KeyResultCreate'][];
+    };
+    /** ObjectiveRead */
+    ObjectiveRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Title */
+      title: string;
+      /** Description */
+      description: string;
+      /** Period */
+      period: string;
+      /** Start Date */
+      start_date: string | null;
+      /** End Date */
+      end_date: string | null;
+      /** Owner Id */
+      owner_id: string | null;
+      /** Parent Id */
+      parent_id: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Key Results */
+      key_results: components['schemas']['KeyResultRead'][];
+      /**
+       * Progress
+       * @description Weighted progress of the visible key results, 0..1.
+       */
+      progress: number | null;
+      /** @description Worst latest confidence among key results. */
+      confidence: components['schemas']['Confidence'] | null;
+    };
+    /** ObjectiveUpdate */
+    ObjectiveUpdate: {
+      /** Title */
+      title?: string | null;
+      /** Description */
+      description?: string | null;
+      /** Period */
+      period?: string | null;
+      /** Start Date */
+      start_date?: string | null;
+      /** End Date */
+      end_date?: string | null;
+      /** Owner Id */
+      owner_id?: string | null;
+      /** Parent Id */
+      parent_id?: string | null;
+    };
     /**
      * Operator
      * @enum {string}
@@ -1656,12 +2316,106 @@ export interface components {
        */
       next_cursor?: string | null;
     };
+    /** Page[TimeEntryRead] */
+    Page_TimeEntryRead_: {
+      /** Items */
+      items: components['schemas']['TimeEntryRead'][];
+      /**
+       * Next Cursor
+       * @description Opaque cursor for the next page; null when done.
+       */
+      next_cursor?: string | null;
+    };
     /** PasswordChange */
     PasswordChange: {
       /** Current Password */
       current_password: string;
       /** New Password */
       new_password: string;
+    };
+    /** PortfolioCreate */
+    PortfolioCreate: {
+      /** Name */
+      name: string;
+      /**
+       * Description
+       * @default
+       */
+      description?: string;
+      /** Project Ids */
+      project_ids?: string[];
+    };
+    /** PortfolioDetail */
+    PortfolioDetail: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      /** Description */
+      description: string;
+      /** Owner Id */
+      owner_id: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Project Count
+       * @description Projects in the portfolio that you can see.
+       */
+      project_count: number;
+      /** Projects */
+      projects: components['schemas']['ProjectHealth'][];
+      /**
+       * Progress
+       * @description Done / total across the visible projects, 0..1.
+       */
+      progress: number;
+      /**
+       * Health
+       * @description Worst health among the visible projects.
+       */
+      health: string;
+    };
+    /** PortfolioRead */
+    PortfolioRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      /** Description */
+      description: string;
+      /** Owner Id */
+      owner_id: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Project Count
+       * @description Projects in the portfolio that you can see.
+       */
+      project_count: number;
+    };
+    /** PortfolioUpdate */
+    PortfolioUpdate: {
+      /** Name */
+      name?: string | null;
+      /** Description */
+      description?: string | null;
+      /**
+       * Project Ids
+       * @description Full replacement, in order.
+       */
+      project_ids?: string[] | null;
     };
     /**
      * Priority
@@ -1744,6 +2498,46 @@ export interface components {
       /** Statuses */
       statuses: components['schemas']['StatusRead'][];
     };
+    /** ProjectHealth */
+    ProjectHealth: {
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Key */
+      key: string;
+      /** Name */
+      name: string;
+      /** Total */
+      total: number;
+      /** Done */
+      done: number;
+      /**
+       * Progress
+       * @description Done / (total - cancelled), 0..1.
+       */
+      progress: number;
+      /** Overdue */
+      overdue: number;
+      /**
+       * Finish
+       * @description Latest due date of open work.
+       */
+      finish: string | null;
+      /**
+       * Slip Days
+       * @description Finish behind the latest baseline (0 without one).
+       */
+      slip_days: number;
+      /** Logged Minutes */
+      logged_minutes: number;
+      /**
+       * Health
+       * @enum {string}
+       */
+      health: 'on_track' | 'at_risk' | 'off_track';
+    };
     /** ProjectMemberRead */
     ProjectMemberRead: {
       /**
@@ -1796,6 +2590,67 @@ export interface components {
       updated_at: string;
       /** @description The caller's effective role on this project. */
       my_role: components['schemas']['ProjectRole'] | null;
+    };
+    /** ProjectReport */
+    ProjectReport: {
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /**
+       * Date From
+       * Format: date
+       */
+      date_from: string;
+      /**
+       * Date To
+       * Format: date
+       */
+      date_to: string;
+      /** Total */
+      total: number;
+      /** Open */
+      open: number;
+      /** Done */
+      done: number;
+      /** Overdue */
+      overdue: number;
+      /** By Status */
+      by_status: components['schemas']['StatusCount'][];
+      /** By Assignee */
+      by_assignee: components['schemas']['AssigneeLoad'][];
+      /**
+       * By Priority
+       * @description Open tasks per priority.
+       */
+      by_priority: {
+        [key: string]: number;
+      };
+      /** Burnup */
+      burnup: components['schemas']['BurnupPoint'][];
+      /**
+       * Throughput
+       * @description Tasks completed per week (Monday).
+       */
+      throughput: components['schemas']['ThroughputPoint'][];
+      /** @description Created → completed, for tasks completed in the range. */
+      lead_time_days: components['schemas']['TimeSummary'];
+      /**
+       * Estimate Minutes
+       * @description Estimates of tasks completed in the range.
+       */
+      estimate_minutes: number;
+      /**
+       * Actual Minutes
+       * @description Time logged on tasks completed in the range.
+       */
+      actual_minutes: number;
+      /**
+       * Logged Minutes
+       * @description All time logged on the project in the range.
+       */
+      logged_minutes: number;
     };
     /**
      * ProjectRole
@@ -2287,6 +3142,21 @@ export interface components {
      * @enum {string}
      */
     StatusCategory: 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled';
+    /** StatusCount */
+    StatusCount: {
+      /**
+       * Status Id
+       * Format: uuid
+       */
+      status_id: string;
+      /** Name */
+      name: string;
+      category: components['schemas']['StatusCategory'];
+      /** Color */
+      color: string;
+      /** Count */
+      count: number;
+    };
     /** StatusCreate */
     StatusCreate: {
       /** Name */
@@ -2644,6 +3514,255 @@ export interface components {
       /** Recurring */
       recurring: number;
     };
+    /** ThroughputPoint */
+    ThroughputPoint: {
+      /**
+       * Week
+       * Format: date
+       */
+      week: string;
+      /** Completed */
+      completed: number;
+    };
+    /** TimeEntryCreate */
+    TimeEntryCreate: {
+      /**
+       * Task
+       * @description Task id or reference, e.g. WEB-12.
+       */
+      task: string;
+      /**
+       * Spent On
+       * @description Day the work happened (default: today, UTC).
+       */
+      spent_on?: string | null;
+      /** Minutes */
+      minutes: number;
+      /**
+       * Note
+       * @default
+       */
+      note?: string;
+      /**
+       * Billable
+       * @default false
+       */
+      billable?: boolean;
+    };
+    /** TimeEntryRead */
+    TimeEntryRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Task Id
+       * Format: uuid
+       */
+      task_id: string;
+      /** Task Key */
+      task_key: string;
+      /** Task Title */
+      task_title: string;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
+      /**
+       * Spent On
+       * Format: date
+       */
+      spent_on: string;
+      /** Minutes */
+      minutes: number;
+      /** Note */
+      note: string;
+      /** Billable */
+      billable: boolean;
+      /** Started At */
+      started_at: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** TimeEntryUpdate */
+    TimeEntryUpdate: {
+      /** Spent On */
+      spent_on?: string | null;
+      /** Minutes */
+      minutes?: number | null;
+      /** Note */
+      note?: string | null;
+      /** Billable */
+      billable?: boolean | null;
+    };
+    /** TimeReport */
+    TimeReport: {
+      /**
+       * Date From
+       * Format: date
+       */
+      date_from: string;
+      /**
+       * Date To
+       * Format: date
+       */
+      date_to: string;
+      /**
+       * Rows
+       * @description One row per person and project with time in the range.
+       */
+      rows: components['schemas']['TimeReportRow'][];
+      /** Total */
+      total: number;
+    };
+    /** TimeReportRow */
+    TimeReportRow: {
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
+      /** User Name */
+      user_name: string;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Project Key */
+      project_key: string;
+      /** Project Name */
+      project_name: string;
+      /** Minutes */
+      minutes: number;
+      /** Billable Minutes */
+      billable_minutes: number;
+    };
+    /** TimeSummary */
+    TimeSummary: {
+      /** Median */
+      median: number | null;
+      /** P85 */
+      p85: number | null;
+      /** Average */
+      average: number | null;
+    };
+    /** TimerRead */
+    TimerRead: {
+      /**
+       * Task Id
+       * Format: uuid
+       */
+      task_id: string;
+      /** Task Key */
+      task_key: string;
+      /** Task Title */
+      task_title: string;
+      /**
+       * Started At
+       * Format: date-time
+       */
+      started_at: string;
+      /** Note */
+      note: string;
+      /** Elapsed Seconds */
+      elapsed_seconds: number;
+    };
+    /** TimerStart */
+    TimerStart: {
+      /**
+       * Task
+       * @description Task id or reference.
+       */
+      task: string;
+      /**
+       * Note
+       * @default
+       */
+      note?: string;
+    };
+    /** TimerStop */
+    TimerStop: {
+      /**
+       * Spent On
+       * @description Day to log against (default: the day the timer started).
+       */
+      spent_on?: string | null;
+      /** Note */
+      note?: string | null;
+      /**
+       * Billable
+       * @default false
+       */
+      billable?: boolean;
+    };
+    /** Timesheet */
+    Timesheet: {
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
+      /**
+       * Date From
+       * Format: date
+       */
+      date_from: string;
+      /**
+       * Date To
+       * Format: date
+       */
+      date_to: string;
+      /** Days */
+      days: string[];
+      /** Rows */
+      rows: components['schemas']['TimesheetRow'][];
+      /** Totals By Day */
+      totals_by_day: {
+        [key: string]: number;
+      };
+      /** Total */
+      total: number;
+      /** Billable Total */
+      billable_total: number;
+    };
+    /** TimesheetRow */
+    TimesheetRow: {
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Project Key */
+      project_key: string;
+      /** Project Name */
+      project_name: string;
+      /**
+       * Task Id
+       * Format: uuid
+       */
+      task_id: string;
+      /** Task Key */
+      task_key: string;
+      /** Task Title */
+      task_title: string;
+      /** Minutes By Day */
+      minutes_by_day: {
+        [key: string]: number;
+      };
+      /** Total */
+      total: number;
+    };
     /** Trigger */
     'Trigger-Input': {
       type: components['schemas']['TriggerType'];
@@ -2737,6 +3856,16 @@ export interface components {
       created_at: string;
       /** Last Login At */
       last_login_at: string | null;
+      /**
+       * Capacity Minutes
+       * @description Minutes available per working day (workload).
+       */
+      capacity_minutes: number;
+      /**
+       * Working Days
+       * @description Worked weekdays, 0 = Monday.
+       */
+      working_days: number[];
     };
     /** UserUpdate */
     UserUpdate: {
@@ -2745,6 +3874,10 @@ export interface components {
       org_role?: components['schemas']['OrgRole'] | null;
       /** Is Active */
       is_active?: boolean | null;
+      /** Capacity Minutes */
+      capacity_minutes?: number | null;
+      /** Working Days */
+      working_days?: number[] | null;
     };
     /** VersionInfo */
     VersionInfo: {
@@ -2916,6 +4049,168 @@ export interface components {
      * @enum {string}
      */
     WarningKind: 'overdue' | 'dependency_violated' | 'behind_baseline' | 'finish_behind_baseline';
+    /** Widget */
+    'Widget-Input': {
+      /** Id */
+      id: string;
+      /**
+       * Type
+       * @enum {string}
+       */
+      type:
+        | 'my_tasks'
+        | 'my_time'
+        | 'project_status'
+        | 'burnup'
+        | 'throughput'
+        | 'workload'
+        | 'time_by_project'
+        | 'portfolio'
+        | 'objective';
+      /**
+       * Title
+       * @default
+       */
+      title?: string;
+      /**
+       * Width
+       * @description Columns spanned in a 3-column grid.
+       * @default 1
+       */
+      width?: number;
+      /**
+       * Config
+       * @description project_id, portfolio_id or objective_id, depending on the type.
+       */
+      config?: {
+        [key: string]: unknown;
+      };
+    };
+    /** Widget */
+    'Widget-Output': {
+      /** Id */
+      id: string;
+      /**
+       * Type
+       * @enum {string}
+       */
+      type:
+        | 'my_tasks'
+        | 'my_time'
+        | 'project_status'
+        | 'burnup'
+        | 'throughput'
+        | 'workload'
+        | 'time_by_project'
+        | 'portfolio'
+        | 'objective';
+      /**
+       * Title
+       * @default
+       */
+      title: string;
+      /**
+       * Width
+       * @description Columns spanned in a 3-column grid.
+       * @default 1
+       */
+      width: number;
+      /**
+       * Config
+       * @description project_id, portfolio_id or objective_id, depending on the type.
+       */
+      config: {
+        [key: string]: unknown;
+      };
+    };
+    /** Workload */
+    Workload: {
+      /**
+       * Date From
+       * Format: date
+       */
+      date_from: string;
+      /**
+       * Date To
+       * Format: date
+       */
+      date_to: string;
+      /**
+       * Bucket
+       * @enum {string}
+       */
+      bucket: 'day' | 'week';
+      /** Buckets */
+      buckets: string[];
+      /** Users */
+      users: components['schemas']['WorkloadUser'][];
+    };
+    /** WorkloadBucket */
+    WorkloadBucket: {
+      /**
+       * Start
+       * Format: date
+       */
+      start: string;
+      /**
+       * Capacity
+       * @description Available minutes in this bucket (within the range).
+       */
+      capacity: number;
+      /**
+       * Planned
+       * @description Remaining estimated work scheduled in this bucket.
+       */
+      planned: number;
+      /**
+       * Logged
+       * @description Minutes logged in this bucket.
+       */
+      logged: number;
+    };
+    /** WorkloadUser */
+    WorkloadUser: {
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
+      /** Name */
+      name: string;
+      /** Capacity Minutes */
+      capacity_minutes: number;
+      /** Working Days */
+      working_days: number[];
+      /** Buckets */
+      buckets: components['schemas']['WorkloadBucket'][];
+      /** Capacity Total */
+      capacity_total: number;
+      /** Planned Total */
+      planned_total: number;
+      /** Logged Total */
+      logged_total: number;
+      /**
+       * Utilization
+       * @description planned / capacity over the range; null without capacity.
+       */
+      utilization: number | null;
+      /** Overloaded Buckets */
+      overloaded_buckets: number;
+      /** Open Tasks */
+      open_tasks: number;
+      /** Unestimated Tasks */
+      unestimated_tasks: number;
+      /**
+       * Unscheduled Minutes
+       * @description Remaining work on tasks with no dates.
+       */
+      unscheduled_minutes: number;
+      /**
+       * Overdue Minutes
+       * @description Remaining work on tasks due before the range.
+       */
+      overdue_minutes: number;
+    };
     /** WorkspaceCreate */
     WorkspaceCreate: {
       /** Name */
@@ -8589,6 +9884,2218 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ProjectDetail'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  list_entries: {
+    parameters: {
+      query?: {
+        user_id?: string | null;
+        project_id?: string | null;
+        /** @description Task id or reference */
+        task?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
+        limit?: number;
+        cursor?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Page_TimeEntryRead_'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  log_time: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TimeEntryCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TimeEntryRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  export_entries: {
+    parameters: {
+      query?: {
+        user_id?: string | null;
+        project_id?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description CSV file */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/csv': unknown;
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  delete_entry: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        entry_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  update_entry: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        entry_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TimeEntryUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TimeEntryRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_timer: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TimerRead'] | null;
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  start_timer: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TimerStart'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TimerRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  discard_timer: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  stop_timer: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TimerStop'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TimeEntryRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_timesheet: {
+    parameters: {
+      query?: {
+        user_id?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Timesheet'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  time_report: {
+    parameters: {
+      query?: {
+        date_from?: string | null;
+        date_to?: string | null;
+        project_id?: string | null;
+        user_id?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TimeReport'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_workload: {
+    parameters: {
+      query?: {
+        date_from?: string | null;
+        date_to?: string | null;
+        project_id?: string | null;
+        workspace_id?: string | null;
+        bucket?: 'day' | 'week';
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Workload'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  project_report: {
+    parameters: {
+      query?: {
+        date_from?: string | null;
+        date_to?: string | null;
+      };
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProjectReport'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  project_health: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProjectHealth'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  export_tasks: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description CSV file */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/csv': unknown;
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  list_dashboards: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DashboardRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  create_dashboard: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DashboardCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DashboardRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_dashboard: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        dashboard_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DashboardRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  delete_dashboard: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        dashboard_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  update_dashboard: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        dashboard_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DashboardUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DashboardRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  list_portfolios: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PortfolioRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  create_portfolio: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PortfolioCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PortfolioDetail'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_portfolio: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        portfolio_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PortfolioDetail'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  delete_portfolio: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        portfolio_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  update_portfolio: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        portfolio_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PortfolioUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PortfolioDetail'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  list_objectives: {
+    parameters: {
+      query?: {
+        period?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ObjectiveRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  create_objective: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ObjectiveCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ObjectiveRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_objective: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        objective_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ObjectiveRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  delete_objective: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        objective_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  update_objective: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        objective_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ObjectiveUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ObjectiveRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  add_key_result: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        objective_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['KeyResultCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['KeyResultRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  delete_key_result: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        kr_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  update_key_result: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        kr_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['KeyResultUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['KeyResultRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  list_check_ins: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        kr_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CheckInRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  check_in: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        kr_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CheckInCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CheckInRead'];
         };
       };
       /** @description Not authenticated */

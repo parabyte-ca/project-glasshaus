@@ -128,14 +128,22 @@ export function ProjectPage() {
         <h1 className="text-2xl font-bold">
           {p.name} <span className="font-mono text-sm text-slate-600 dark:text-slate-400">{p.key}</span>
         </h1>
-        {p.my_role === 'admin' && (
+        <div className="flex items-center gap-4">
           <Link
-            to={`/projects/${p.key}/settings`}
+            to={`/projects/${p.key}/report`}
             className="text-sm text-sky-700 hover:underline dark:text-sky-400"
           >
-            Project settings
+            Report
           </Link>
-        )}
+          {p.my_role === 'admin' && (
+            <Link
+              to={`/projects/${p.key}/settings`}
+              className="text-sm text-sky-700 hover:underline dark:text-sky-400"
+            >
+              Project settings
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-3" role="toolbar" aria-label="View options">

@@ -567,3 +567,118 @@ describe('automations', () => {
     await waitFor(() => expect(calls.some((c) => c.url.endsWith('/tpl1/instantiate'))).toBe(true));
   });
 });
+
+describe('time tracking and goals', () => {
+  it('logs time from the task drawer', async () => {
+    let logged: unknown;
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/tasks', body: { items: [task(1)], next_cursor: null } },
+      { method: 'GET', path: '/api/v1/tasks/WEB-1', body: task(1) },
+      { method: 'GET', path: '/api/v1/tasks/t1/comments', body: [] },
+      { method: 'GET', path: '/api/v1/activity', body: { items: [], next_cursor: null } },
+      { method: 'GET', path: '/api/v1/tasks/t1/dependencies', body: { predecessors: [], successors: [] } },
+      {
+        method: 'POST',
+        path: '/api/v1/time-entries',
+        status: 201,
+        handler: async (req) => {
+          logged = await req.json();
+          return {};
+        },
+      },
+    ]);
+    renderAt('/projects/WEB?task=WEB-1');
+    const duration = await screen.findByLabelText('Duration');
+    await userEvent.type(duration, 'soon');
+    await userEvent.click(screen.getByRole('button', { name: 'Log time' }));
+    expect(await screen.findByText(/Enter a duration like/)).toBeInTheDocument();
+    await userEvent.clear(duration);
+    await userEvent.type(duration, '1h 15m');
+    await userEvent.type(screen.getByLabelText('Note'), 'review');
+    await userEvent.click(screen.getByRole('button', { name: 'Log time' }));
+    await waitFor(() => expect(logged).toEqual({ task: 't1', minutes: 75, note: 'review' }));
+  });
+
+  it('shows a weekly timesheet with totals', async () => {
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/timesheets',
+        handler: (req) => {
+          const from = new URL(req.url).searchParams.get('date_from')!;
+          const days = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(`${from}T00:00:00Z`);
+            d.setUTCDate(d.getUTCDate() + i);
+            return d.toISOString().slice(0, 10);
+          });
+          return {
+            user_id: 'u1',
+            date_from: days[0],
+            date_to: days[6],
+            days,
+            rows: [
+              {
+                project_id: 'p1',
+                project_key: 'WEB',
+                project_name: 'Website',
+                task_id: 't1',
+                task_key: 'WEB-1',
+                task_title: 'Fix login',
+                minutes_by_day: { [days[0]!]: 90, [days[2]!]: 30 },
+                total: 120,
+              },
+            ],
+            totals_by_day: { [days[0]!]: 90, [days[2]!]: 30 },
+            total: 120,
+            billable_total: 30,
+          };
+        },
+      },
+    ]);
+    renderAt('/time');
+    const table = await screen.findByRole('table', { name: /Timesheet/ });
+    expect(within(table).getByText('Fix login')).toBeInTheDocument();
+    expect(within(table).getAllByText('1.5')).toHaveLength(2);
+    expect(screen.getByText('2h this week, 30m billable.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Export CSV' }).getAttribute('href')).toMatch(
+      /^\/api\/v1\/time-entries\/export\?user_id=u1&date_from=/,
+    );
+  });
+
+  it('creates an objective with a task-based key result', async () => {
+    let created: unknown;
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/objectives', body: [] },
+      {
+        method: 'POST',
+        path: '/api/v1/objectives',
+        status: 201,
+        handler: async (req) => {
+          created = await req.json();
+          return {};
+        },
+      },
+    ]);
+    renderAt('/goals');
+    await userEvent.click(await screen.findByRole('button', { name: 'New objective' }));
+    const form = screen.getByRole('form', { name: 'New objective' });
+    await userEvent.type(within(form).getByLabelText('Objective'), 'Relaunch the site');
+    await userEvent.type(within(form).getByLabelText('Key result'), 'Launch tasks done');
+    await userEvent.selectOptions(within(form).getByLabelText('Measured by'), 'tasks');
+    await userEvent.selectOptions(await within(form).findByLabelText('Project'), 'p1');
+    await userEvent.click(within(form).getByRole('button', { name: 'Create objective' }));
+    await waitFor(() =>
+      expect(created).toMatchObject({
+        title: 'Relaunch the site',
+        key_results: [{ title: 'Launch tasks done', kind: 'tasks', project_id: 'p1' }],
+      }),
+    );
+    expect((created as { period: string }).period).toMatch(/^\d{4}-Q[1-4]$/);
+  });
+});

@@ -70,4 +70,12 @@ RLS_TABLES = (
     "automation_runs",
     "recurring_tasks",
     "project_templates",
+    "time_entries",
+    "running_timers",
+    "dashboards",
+    "portfolios",
+    "portfolio_projects",
+    "objectives",
+    "key_results",
+    "kr_check_ins",
 )

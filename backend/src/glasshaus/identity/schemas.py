@@ -23,6 +23,8 @@ class UserRead(Schema):
     is_active: bool
     created_at: datetime
     last_login_at: datetime | None
+    capacity_minutes: int = Field(description="Minutes available per working day (workload).")
+    working_days: list[int] = Field(description="Worked weekdays, 0 = Monday.")
 
 
 class UserCreate(Schema):
@@ -36,6 +38,17 @@ class UserUpdate(Schema):
     name: str | None = Field(None, min_length=1, max_length=200)
     org_role: OrgRole | None = None
     is_active: bool | None = None
+    capacity_minutes: int | None = Field(None, ge=0, le=1440)
+    working_days: list[int] | None = Field(None, max_length=7)
+
+    @field_validator("working_days")
+    @classmethod
+    def _days(cls, v: list[int] | None) -> list[int] | None:
+        if v is None:
+            return None
+        if any(d < 0 or d > 6 for d in v):
+            raise ValueError("weekdays are 0 (Monday) to 6 (Sunday)")
+        return sorted(set(v))
 
 
 class PasswordChange(Schema):

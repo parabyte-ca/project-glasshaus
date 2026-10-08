@@ -33,6 +33,19 @@ export type Run = Schemas['RunRead'];
 export type Recurring = Schemas['RecurringRead'];
 export type ScheduleSpec = Schemas['ScheduleSpec-Input'];
 export type ProjectTemplate = Schemas['TemplateRead'];
+export type TimeEntry = Schemas['TimeEntryRead'];
+export type Timer = Schemas['TimerRead'];
+export type Timesheet = Schemas['Timesheet'];
+export type TimeReport = Schemas['TimeReport'];
+export type Workload = Schemas['Workload'];
+export type ProjectReport = Schemas['ProjectReport'];
+export type ProjectHealth = Schemas['ProjectHealth'];
+export type Dashboard = Schemas['DashboardRead'];
+export type Widget = Schemas['Widget-Input'];
+export type Portfolio = Schemas['PortfolioRead'];
+export type PortfolioDetail = Schemas['PortfolioDetail'];
+export type Objective = Schemas['ObjectiveRead'];
+export type KeyResult = Schemas['KeyResultRead'];
 
 export class ApiError extends Error {
   constructor(
