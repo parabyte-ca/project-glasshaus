@@ -33,8 +33,18 @@ supported.
 
 ## Accounts and enforcement
 
-- **Linking:** a returning person is matched by their subject at the IdP; the first time, by email
-  (case-insensitive). Set **allowed domains** to limit which emails a provider can sign in or create.
+- **Linking:** a returning person is matched by their subject at the IdP. A first sign-in whose email
+  matches an existing account is linked only when that is safe:
+  - **members and guests:** when the IdP marks the standard `email` claim verified
+    (`email_verified: true`), or when **Link existing accounts by email** is on for that provider (it needs
+    allowed domains; use it for IdPs that don't send the flag, such as SAML or Entra ID);
+  - **admins:** only with `email_verified: true`;
+  - **owners:** never automatically.
+
+  Anyone can link a provider themselves: **Account → Single sign-on → Link**, while signed in. Claims
+  other than `email` (for example `preferred_username` or `upn`) never count as verified, because users
+  can change them at some IdPs. Set **allowed domains** to limit which emails a provider can sign in or
+  create.
 - **Just-in-time accounts:** on by default, with the role you choose (member, guest or admin; never owner).
   Turn it off to allow only invited people.
 - **Require SSO:** turns off password sign-in for everyone except owners, who keep it as break-glass
@@ -53,7 +63,15 @@ Provisioning; shown once).
 | `/ServiceProviderConfig`, `/ResourceTypes`, `/Schemas` | discovery |
 
 Mapping: users are accounts (`userName` = email); deactivating or deleting a user disables the account and
-ends their sessions (their history is kept; owners cannot be deactivated through SCIM). Groups are
+ends their sessions (their history is kept).
+
+Limits, so a leaked SCIM token or a compromised IdP cannot take over or lock out administrators:
+
+- Owner and admin accounts are managed in Glasshaus only: SCIM cannot change their email, `active` state or
+  `externalId` (re-sending unchanged values, as IdPs do on every sync, is fine).
+- SCIM changes the email only of accounts it provisioned or adopted (an `externalId` is set); email
+  changes end the person's sessions.
+- An account an admin deactivated in Glasshaus is not reactivated through SCIM. Groups are
 workspaces: members become workspace members with the member role. Deleting a group removes its members
 but keeps the workspace and its projects.
 
