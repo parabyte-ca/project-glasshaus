@@ -11,6 +11,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
   optional `GLASSHAUS_AI_API_VERSION` for classic deployment URLs, and an automatic retry with
   `max_completion_tokens` for models that refuse `max_tokens`. See `docs/ai.md`.
 
+### Fixed
+- The web container now re-resolves the API's address, so `/api` keeps working when the `api` container
+  is recreated on its own (for example `docker compose up -d` after an `.env` change).
+
 ## [0.9.0] - 2026-10-08
 
 Phase 8 — optional in-app AI, polish, accessibility and end-to-end tests.
