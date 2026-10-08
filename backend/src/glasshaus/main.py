@@ -10,6 +10,7 @@ from fastapi.routing import APIRoute
 from glasshaus.api import health, scim, ws
 from glasshaus.api.errors import install_error_handlers
 from glasshaus.api.hardening import HardeningMiddleware
+from glasshaus.api.proxy import ProxyHeadersMiddleware
 from glasshaus.api.v1.router import api_router
 from glasshaus.config import get_settings
 from glasshaus.db import get_engine
@@ -73,6 +74,8 @@ def create_app() -> FastAPI:
         install_tracing(app)
     install_error_handlers(app)
     app.add_middleware(HardeningMiddleware)
+    # Outermost: everything inside sees the real client address.
+    app.add_middleware(ProxyHeadersMiddleware)
     app.include_router(health.router)
     app.include_router(api_router)
     app.include_router(ws.router)

@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     mcp_token: SecretStr | None = None
 
     mcp_allowed_hosts: CsvList = Field(default_factory=lambda: ["localhost:*", "127.0.0.1:*", "mcp:*"])
+    # Proxies whose X-Forwarded-For is believed (hostnames, IPs or CIDRs). Everyone else is identified
+    # by their own connection address.
+    trusted_proxies: CsvList = Field(default_factory=lambda: ["web", "127.0.0.1", "::1"])
 
     # Optional AI assistant (off unless a provider is set here AND an org admin turns it on).
     # anthropic: Claude API (GLASSHAUS_AI_API_KEY or ANTHROPIC_API_KEY). openai: any OpenAI-compatible
@@ -76,7 +79,7 @@ class Settings(BaseSettings):
     # AI requests per user per minute; 0 disables the limit.
     ai_rate_limit_per_minute: int = 10
 
-    @field_validator("cors_origins", "mcp_allowed_hosts", mode="before")
+    @field_validator("cors_origins", "mcp_allowed_hosts", "trusted_proxies", mode="before")
     @classmethod
     def _split_csv(cls, value: object) -> object:
         if isinstance(value, str):

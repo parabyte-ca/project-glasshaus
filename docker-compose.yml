@@ -8,6 +8,12 @@ x-backend: &backend
     # Least-privilege role (row-level security enforced); created by the migrate service.
     GLASSHAUS_DATABASE_URL: postgresql+asyncpg://glasshaus_app:${POSTGRES_APP_PASSWORD:?run ./setup.sh}@postgres:5432/glasshaus
     GLASSHAUS_REDIS_URL: redis://:${REDIS_PASSWORD:?run ./setup.sh}@redis:6379/0
+    # .env also holds infrastructure secrets the app never needs: blank them inside app containers so
+    # a leak or code-execution bug there does not reveal the database owner (superuser) password.
+    POSTGRES_PASSWORD: ""
+    POSTGRES_APP_PASSWORD: ""
+    REDIS_PASSWORD: ""
+    GLASSHAUS_ADMIN_PASSWORD: ""
   restart: unless-stopped
   read_only: true
   tmpfs: [/tmp]
@@ -60,6 +66,8 @@ services:
     environment:
       <<: *backend-env
       GLASSHAUS_MIGRATION_DATABASE_URL: postgresql+asyncpg://glasshaus:${POSTGRES_PASSWORD}@postgres:5432/glasshaus
+      # Only the one-shot migrate/seed job sees the first owner's password (to create the account).
+      GLASSHAUS_ADMIN_PASSWORD: ${GLASSHAUS_ADMIN_PASSWORD:-}
     restart: "no"
     healthcheck: { disable: true }
     depends_on:
@@ -72,7 +80,8 @@ services:
       <<: *backend-env
       # API worker processes (uvicorn reads WEB_CONCURRENCY); raise on hosts with spare cores.
       WEB_CONCURRENCY: ${GLASSHAUS_API_WORKERS:-2}
-    ports: ["${GLASSHAUS_BIND_ADDRESS:-0.0.0.0}:${GLASSHAUS_API_PORT:-8471}:8000"]
+    # Direct API access is for this host by default; browsers and API clients use the web port (/api).
+    ports: ["${GLASSHAUS_API_BIND_ADDRESS:-127.0.0.1}:${GLASSHAUS_API_PORT:-8471}:8000"]
     depends_on:
       migrate: { condition: service_completed_successfully }
     networks: [backend, frontend]
@@ -105,6 +114,8 @@ services:
         VERSION: ${GLASSHAUS_VERSION:-0.0.0}
         BUILD_SHA: ${GLASSHAUS_BUILD_SHA:-dev}
     ports: ["${GLASSHAUS_BIND_ADDRESS:-0.0.0.0}:${GLASSHAUS_WEB_PORT:-8470}:8080"]
+    environment:
+      GLASSHAUS_UPSTREAM_PROXY: ${GLASSHAUS_UPSTREAM_PROXY:-127.0.0.1/32}
     depends_on:
       api: { condition: service_healthy }
     restart: unless-stopped

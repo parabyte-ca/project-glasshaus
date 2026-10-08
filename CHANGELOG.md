@@ -6,6 +6,34 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-10-08
+
+Patch release: security fixes from a code review, Azure OpenAI for the AI assistant, and a proxy fix for
+restarted API containers.
+
+### Security
+- **Single sign-on account linking:** a first sign-in links to an existing account only when the IdP marks
+  the standard `email` claim verified (members, guests, admins) or, for members and guests, when the
+  provider is set to **Link existing accounts by email** (needs allowed domains). Owners never auto-link.
+  Anyone can link a provider from **Account → Single sign-on**. Before, any matching email was linked,
+  which allowed account takeover through an IdP that does not verify addresses.
+- **SCIM** can no longer change owner or admin accounts (email, active, externalId), change the email of
+  accounts it did not provision, or reactivate accounts an admin deactivated. Email changes end sessions.
+- **Client addresses** are taken only from the web container (`GLASSHAUS_TRUSTED_PROXIES`); spoofed
+  `X-Forwarded-For` headers no longer affect login throttling, rate limits or the audit log. Rate limits
+  also count per client address.
+- **Request size:** the 10 MB cap now applies to chunked uploads too.
+- **Email-to-task** connects only to addresses that pass the webhook checks (no loopback, link-local or
+  metadata; private ranges with `GLASSHAUS_WEBHOOK_ALLOW_PRIVATE`), reports errors generically, and is
+  limited to organization admins.
+- **Secrets:** the api, worker and mcp containers no longer receive the database owner, Redis or first-owner
+  passwords.
+
+### Changed
+- The direct API port (8471) now listens on `127.0.0.1` by default (`GLASSHAUS_API_BIND_ADDRESS`). Use the
+  web port (`http://host:8470/api`) for API clients, or set `GLASSHAUS_API_BIND_ADDRESS=0.0.0.0`.
+- Behind another reverse proxy, set `GLASSHAUS_UPSTREAM_PROXY` to its address or CIDR.
+
 ### Added
 - **Azure OpenAI** for the AI assistant through the `openai` provider: `GLASSHAUS_AI_AUTH_HEADER=api-key`,
   optional `GLASSHAUS_AI_API_VERSION` for classic deployment URLs, and an automatic retry with
@@ -13,7 +41,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed
 - The web container now re-resolves the API's address, so `/api` keeps working when the `api` container
-  is recreated on its own (for example `docker compose up -d` after an `.env` change).
+  is recreated on its own (for example `docker compose up -d` after an `.env` change). Before, `/api`
+  requests failed until `web` was restarted too.
+- End-to-end shortcut test waits for the task drawer to close (raced on slower CI runners).
 
 ## [0.9.0] - 2026-10-08
 
@@ -257,7 +287,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.6.0...v0.7.0

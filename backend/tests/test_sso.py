@@ -161,16 +161,95 @@ async def test_oidc_jit_link_and_errors(client: AsyncClient, idp: FakeIdP) -> No
     assert "expired" in sso_error(r)
 
 
-async def test_oidc_links_existing_account_and_respects_jit_off(client: AsyncClient, idp: FakeIdP) -> None:
+async def test_oidc_links_existing_account_only_when_safe(client: AsyncClient, idp: FakeIdP) -> None:
+    """A first sign-in links to an existing account only with a verified email; never for owners."""
     world = await make_world()
-    existing = await make_user(world.tenant, email=f"grace-{uuid.uuid4().hex[:6]}@example.com")
+    tag = uuid.uuid4().hex[:6]
+    member = await make_user(world.tenant, email=f"grace-{tag}@example.com")
+    admin = await make_user(world.tenant, OrgRole.ADMIN, email=f"root-{tag}@example.com")
     await add_oidc(client, world, jit_provisioning=False)
-    await oidc_sign_in(client, world, idp, {"sub": "g-1", "email": existing.email.upper()})
-    assert (await client.get("/api/v1/users/me")).json()["id"] == str(existing.id)
+
+    # Unverified (claim missing): refused, nothing linked.
+    assert "already exists" in sso_error(
+        await oidc_sign_in(client, world, idp, {"sub": "g-1", "email": member.email.upper()})
+    )
+    # Verified through the standard claim: linked.
+    claims = {"sub": "g-1", "email": member.email.upper(), "email_verified": True}
+    await oidc_sign_in(client, world, idp, claims)
+    assert (await client.get("/api/v1/users/me")).json()["id"] == str(member.id)
     client.cookies.clear()
+    # Admins: verified only. Owners: never, even verified.
+    assert "already exists" in sso_error(
+        await oidc_sign_in(client, world, idp, {"sub": "a-1", "email": admin.email})
+    )
+    await oidc_sign_in(client, world, idp, {"sub": "a-1", "email": admin.email, "email_verified": "true"})
+    assert (await client.get("/api/v1/users/me")).json()["id"] == str(admin.id)
+    client.cookies.clear()
+    owner = {"sub": "o-1", "email": world.owner.email, "email_verified": True}
+    assert "already exists" in sso_error(await oidc_sign_in(client, world, idp, owner))
+    assert (await client.get("/api/v1/users/me")).status_code == 401
     assert "invite" in sso_error(
         await oidc_sign_in(client, world, idp, {"sub": "n-1", "email": "new@example.com"})
     )
+
+
+async def test_untrusted_email_claims_and_trusted_providers(client: AsyncClient, idp: FakeIdP) -> None:
+    world = await make_world()
+    member = await make_user(world.tenant, email=f"lin-{uuid.uuid4().hex[:6]}@corp.example")
+    # A claim users can set (preferred_username) never counts as verified ("nOAuth").
+    provider = await add_oidc(
+        client, world, oidc={"issuer": ISSUER, "client_id": "glasshaus", "email_claim": "preferred_username"}
+    )
+    claims = {"sub": "p-1", "preferred_username": member.email, "email_verified": True}
+    assert "already exists" in sso_error(await oidc_sign_in(client, world, idp, claims))
+
+    # Trusting the provider's addresses needs allowed domains; then members link without the claim.
+    url = f"/api/v1/admin/sso-providers/{provider['id']}"
+    r = await client.patch(url, json={"link_existing_accounts": True}, headers=world.headers)
+    assert r.status_code == 422 and "allowed domain" in r.json()["detail"]
+    r = await client.patch(
+        url,
+        json={"link_existing_accounts": True, "allowed_domains": ["corp.example"],
+              "oidc": {"issuer": ISSUER, "client_id": "glasshaus"}},
+        headers=world.headers,
+    )  # fmt: skip
+    assert r.status_code == 200 and r.json()["link_existing_accounts"] is True
+    await oidc_sign_in(client, world, idp, {"sub": "p-2", "email": member.email})
+    assert (await client.get("/api/v1/users/me")).json()["id"] == str(member.id)
+
+
+async def test_link_from_account_settings(client: AsyncClient, idp: FakeIdP) -> None:
+    world = await make_world()
+    await add_oidc(client, world)
+    start = f"/api/v1/auth/sso/{world.tenant.slug}/example/start"
+
+    # Not signed in: refused before reaching the IdP.
+    assert "sign in" in sso_error(await client.get(start, params={"link": "true"}))
+
+    # The owner signs in with a password and links the provider.
+    r = await client.post(
+        "/api/v1/auth/login",
+        json={"email": world.owner.email, "password": PASSWORD, "organization": world.tenant.slug},
+    )
+    assert r.status_code == 200
+    options = (await client.get("/api/v1/auth/sso/identities")).json()
+    assert [(o["provider_slug"], o["linked"]) for o in options] == [("example", False)]
+    assert options[0]["link_url"] == f"{start}?link=true"
+    r = await client.get(start, params={"link": "true"})
+    assert r.status_code == 302
+    query = parse_qs(urlsplit(r.headers["location"]).query)
+    idp.challenge, idp.nonce = query["code_challenge"][0], query["nonce"][0]
+    idp.claims = {"sub": "owner-at-idp", "email": "someone-else@example.com"}
+    r = await client.get(
+        "/api/v1/auth/sso/oidc/callback", params={"state": query["state"][0], "code": "good-code"}
+    )
+    assert r.status_code == 303 and r.headers["location"] == "/account?sso_linked=1"
+    assert (await client.get("/api/v1/auth/sso/identities")).json()[0]["linked"] is True
+    client.cookies.clear()
+
+    # The linked subject now signs the owner in, whatever email the IdP sends.
+    await oidc_sign_in(client, world, idp, {"sub": "owner-at-idp", "email": "x@example.com"})
+    assert (await client.get("/api/v1/users/me")).json()["id"] == str(world.owner.id)
 
 
 async def test_enforced_sso_blocks_password_sign_in_except_owners(client: AsyncClient, idp: FakeIdP) -> None:
