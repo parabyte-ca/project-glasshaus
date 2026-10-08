@@ -59,8 +59,8 @@ def check_address(ip: IP, *, allow_private: bool) -> None:
         raise WebhookRefused(f"private address {ip} is not allowed (set GLASSHAUS_WEBHOOK_ALLOW_PRIVATE)")
 
 
-async def resolve(host: str, port: int) -> IP:
-    """Resolve and check every address; return the first (all must pass)."""
+async def resolve(host: str, port: int) -> list[IP]:
+    """Resolve and check every address (all must pass); return them in resolver order."""
     try:
         literal = ipaddress.ip_address(host)
     except ValueError:
@@ -78,7 +78,7 @@ async def resolve(host: str, port: int) -> IP:
     allow_private = get_settings().webhook_allow_private
     for ip in addresses:
         check_address(ip, allow_private=allow_private)
-    return addresses[0]
+    return addresses
 
 
 def sign(secret: str, timestamp: int, body: bytes) -> str:
@@ -97,9 +97,7 @@ async def send(
         if parts.username or parts.password:
             raise WebhookRefused("credentials in webhook URLs are not allowed")
         port = parts.port or (443 if parts.scheme == "https" else 80)
-        ip = await resolve(parts.hostname, port)
-        pinned_host = f"[{ip}]" if ip.version == 6 else str(ip)
-        pinned = urlunsplit((parts.scheme, f"{pinned_host}:{port}", parts.path or "/", parts.query, ""))
+        addresses = await resolve(parts.hostname, port)
         body = orjson.dumps(payload)
         timestamp = int(time.time())
         headers = {
@@ -114,10 +112,21 @@ async def send(
         async with httpx.AsyncClient(
             timeout=get_settings().webhook_timeout_seconds, follow_redirects=False, trust_env=False
         ) as client:
-            request = client.build_request(
-                "POST", pinned, content=body, headers=headers, extensions={"sni_hostname": parts.hostname}
-            )
-            response = await client.send(request)
+            # Try each checked address in turn (dual-stack hosts may refuse on one family).
+            for index, ip in enumerate(addresses):
+                pinned_host = f"[{ip}]" if ip.version == 6 else str(ip)
+                pinned = urlunsplit(
+                    (parts.scheme, f"{pinned_host}:{port}", parts.path or "/", parts.query, "")
+                )
+                request = client.build_request(
+                    "POST", pinned, content=body, headers=headers, extensions={"sni_hostname": parts.hostname}
+                )
+                try:
+                    response = await client.send(request)
+                    break
+                except httpx.ConnectError:
+                    if index == len(addresses) - 1:
+                        raise
         ok = 200 <= response.status_code < 300
         return Delivery(
             url=url,

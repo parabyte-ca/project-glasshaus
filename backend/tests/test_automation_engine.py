@@ -164,3 +164,25 @@ async def test_webhook_refuses_unsafe_urls() -> None:
 def test_signature_format() -> None:
     sig = webhooks.sign("secret", 1700000000, b'{"a":1}')
     assert sig.startswith("t=1700000000,v1=") and len(sig.split("v1=")[1]) == 64
+
+
+async def test_webhook_falls_back_to_the_next_address(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A dual-stack name whose first address refuses (e.g. ::1 with an IPv4-only listener) still delivers."""
+    import asyncio
+
+    async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        await reader.readuntil(b"\r\n\r\n")
+        writer.write(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
+        await writer.drain()
+        writer.close()
+
+    server = await asyncio.start_server(handle, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+
+    async def fake_resolve(host: str, port: int) -> list[webhooks.IP]:
+        return [ipaddress.ip_address("::1"), ipaddress.ip_address("127.0.0.1")]
+
+    monkeypatch.setattr(webhooks, "resolve", fake_resolve)
+    async with server:
+        result = await webhooks.send(f"http://example.test:{port}/", {}, secret=None)
+    assert result.ok and result.status_code == 204
