@@ -27,7 +27,8 @@ RUN if [ "$UPGRADE_OS_PACKAGES" = "true" ]; then apk upgrade --no-cache; fi
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /src/dist /usr/share/nginx/html
-ENV GLASSHAUS_API_UPSTREAM=api:8000
+ENV GLASSHAUS_API_UPSTREAM=api:8000 \
+    GLASSHAUS_DNS_RESOLVER=127.0.0.11
 USER 101
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \

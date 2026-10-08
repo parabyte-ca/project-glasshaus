@@ -32,7 +32,7 @@ The same features are available through the REST API (`/api/v1/ai/...`) and MCP 
 | --- | --- | --- |
 | `none` (default) | Assistant unavailable | — |
 | `anthropic` | Claude through the official Anthropic SDK. Default model `claude-opus-5-5` | `GLASSHAUS_AI_API_KEY` (or `ANTHROPIC_API_KEY`), optional `GLASSHAUS_AI_MODEL`, `GLASSHAUS_AI_EFFORT` (`low`, `medium`, `high`; blank uses the model default), `GLASSHAUS_AI_FALLBACKS` |
-| `openai` | Any OpenAI-compatible `/chat/completions` server, e.g. **Ollama**, LM Studio, vLLM, LocalAI — keeps data on your network | `GLASSHAUS_AI_BASE_URL` (e.g. `http://ollama:11434/v1`), `GLASSHAUS_AI_MODEL` (default `llama3.1`), optional `GLASSHAUS_AI_API_KEY` |
+| `openai` | Any OpenAI-compatible `/chat/completions` server, e.g. **Ollama**, LM Studio, vLLM, LocalAI (keeps data on your network), or **Azure OpenAI** | `GLASSHAUS_AI_BASE_URL` (e.g. `http://ollama:11434/v1`), `GLASSHAUS_AI_MODEL` (default `llama3.1`), optional `GLASSHAUS_AI_API_KEY`; for Azure also `GLASSHAUS_AI_AUTH_HEADER` and, on classic deployment URLs, `GLASSHAUS_AI_API_VERSION` |
 | `fake` | Deterministic sample output for demos and tests | — |
 
 Other settings: `GLASSHAUS_AI_TIMEOUT_SECONDS` (default 120) and `GLASSHAUS_AI_RATE_LIMIT_PER_MINUTE`
@@ -44,6 +44,32 @@ Anthropic's recommended fallback model in the same call (beta `server-side-fallb
 to `false` to turn that off, or if you point `GLASSHAUS_AI_BASE_URL` at a gateway that does not support
 it. Local models get the schema in the prompt and as `response_format`; replies that are not valid JSON
 are rejected with a clear error.
+
+### Example: Azure OpenAI
+
+Microsoft 365 Copilot has no model API for apps, so for a Microsoft-hosted model use Azure OpenAI
+(Azure AI Foundry). Deploy a model (for example `gpt-4.1` or `gpt-5-mini`), then use either endpoint:
+
+```bash
+# v1 endpoint (recommended): no api-version needed
+GLASSHAUS_AI_PROVIDER=openai
+GLASSHAUS_AI_BASE_URL=https://<resource>.openai.azure.com/openai/v1
+GLASSHAUS_AI_MODEL=<deployment name>
+GLASSHAUS_AI_API_KEY=<key from Keys and Endpoint>
+GLASSHAUS_AI_AUTH_HEADER=api-key
+
+# Classic deployment endpoint: add the API version
+GLASSHAUS_AI_BASE_URL=https://<resource>.openai.azure.com/openai/deployments/<deployment name>
+GLASSHAUS_AI_API_VERSION=2024-10-21
+```
+
+`GLASSHAUS_AI_AUTH_HEADER=api-key` sends the key in Azure's `api-key` header instead of
+`Authorization: Bearer`. Newer reasoning models that refuse `max_tokens` are retried automatically with
+`max_completion_tokens`. Data stays in your Azure tenant under Microsoft's Azure OpenAI terms. Microsoft
+Entra ID (keyless) sign-in is not supported yet; use a key.
+
+Copilot itself (Microsoft 365 Copilot, Copilot Studio, GitHub Copilot) connects to Glasshaus through the
+MCP server instead; see [integrations](integrations/README.md).
 
 ### Example: Ollama on the same host
 

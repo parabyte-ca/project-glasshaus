@@ -76,6 +76,8 @@ test('command palette and keyboard shortcuts', async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`/projects/${project.key}\\?task=${created.key}`));
   await expect(page.getByRole('dialog').getByLabel('Title')).toHaveValue('Renew the TLS certificate');
   await page.keyboard.press('Escape');
+  // Single-key shortcuts are ignored while a dialog is open, so wait for the drawer to close.
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await page.keyboard.press('c');
   await expect(page.getByLabel('New task title')).toBeFocused();

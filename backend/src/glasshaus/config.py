@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     ai_api_key: SecretStr | None = None
     ai_base_url: str = ""
     ai_timeout_seconds: float = 120.0
+    # openai provider only. Azure OpenAI with an API key: api-key. Classic Azure deployment URLs
+    # (/openai/deployments/<name>) also need an api-version; the v1 endpoint (/openai/v1) does not.
+    ai_auth_header: Literal["bearer", "api-key"] = "bearer"
+    ai_api_version: str = ""
     # Effort for Claude models that support it; empty uses the model's default.
     ai_effort: Literal["", "low", "medium", "high"] = ""
     # Claude API only: let Anthropic re-run a declined request on its recommended fallback model.
