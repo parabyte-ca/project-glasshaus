@@ -2,15 +2,18 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 COMPOSE := docker compose
-DEV_COMPOSE := $(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml
+# Separate project name: never touches a production stack running on the same host.
+DEV_COMPOSE := $(COMPOSE) -p glasshaus-dev -f docker-compose.yml -f docker-compose.dev.yml
 BACKEND := cd backend &&
 FRONTEND := cd frontend &&
-DEV_DB_URL ?= postgresql+asyncpg://glasshaus_app:$$(grep ^POSTGRES_APP_PASSWORD= .env | cut -d= -f2)@127.0.0.1:15432/glasshaus
-DEV_OWNER_DB_URL ?= postgresql+asyncpg://glasshaus:$$(grep ^POSTGRES_PASSWORD= .env | cut -d= -f2)@127.0.0.1:15432/glasshaus
-DEV_REDIS_URL ?= redis://:$$(grep ^REDIS_PASSWORD= .env | cut -d= -f2)@127.0.0.1:16379/0
+# Read from the repository's .env when make starts (recipes `cd backend`, so no runtime lookups).
+env_get = $(shell grep -m1 '^$(1)=' .env 2>/dev/null | cut -d= -f2-)
+DEV_DB_URL ?= postgresql+asyncpg://glasshaus_app:$(call env_get,POSTGRES_APP_PASSWORD)@127.0.0.1:15432/glasshaus
+DEV_OWNER_DB_URL ?= postgresql+asyncpg://glasshaus:$(call env_get,POSTGRES_PASSWORD)@127.0.0.1:15432/glasshaus
+DEV_REDIS_URL ?= redis://:$(call env_get,REDIS_PASSWORD)@127.0.0.1:16379/0
 DEV_ENV = GLASSHAUS_ENV=development GLASSHAUS_LOG_JSON=false GLASSHAUS_DATABASE_URL=$(DEV_DB_URL) \
 	GLASSHAUS_MIGRATION_DATABASE_URL=$(DEV_OWNER_DB_URL) GLASSHAUS_REDIS_URL=$(DEV_REDIS_URL) \
-	GLASSHAUS_ADMIN_PASSWORD=$$(grep ^GLASSHAUS_ADMIN_PASSWORD= .env | cut -d= -f2)
+	GLASSHAUS_ADMIN_PASSWORD=$(call env_get,GLASSHAUS_ADMIN_PASSWORD)
 
 .PHONY: help
 help: ## Show this help

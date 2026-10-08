@@ -124,4 +124,5 @@ export const baseRoutes: Route[] = [
   },
   { method: 'GET', path: '/api/v1/users', body: [user] },
   { method: 'GET', path: '/api/v1/projects/by-key/WEB', body: project },
+  { method: 'GET', path: '/api/v1/project-templates', body: [] },
 ];

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from glasshaus.core.rbac import ORG_ADMIN_ROLES, OrgRole
 
-AuthMethod = Literal["session", "token", "system"]
+AuthMethod = Literal["session", "token", "system", "automation"]
 
 
 @dataclass(frozen=True, slots=True)

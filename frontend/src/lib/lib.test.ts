@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { fields, statuses, task, user } from '../test/mockApi';
 import type { CustomField, Status, Task, User } from '../api/client';
 import { formatValue, groupTasks, patchForGroup, positionBetween } from './grouping';
+import { triggerLabel } from './automation';
 import { keysFor } from './realtime';
 import { addDays, monthGrid, parseDay, formatDay } from './dates';
 import { shiftPatch, tasksOn } from './schedule';
@@ -93,5 +94,15 @@ describe('dates and scheduling helpers', () => {
     const undated = { ...task(2), start_date: null, due_date: null } as Task;
     expect(tasksOn([span, undated], '2026-03-03').map((t) => t.id)).toEqual(['t1']);
     expect(tasksOn([span], '2026-03-05')).toEqual([]);
+  });
+});
+
+describe('automation labels', () => {
+  it('describes triggers in plain words', () => {
+    expect(triggerLabel({ type: 'due_soon', days_before: 2 })).toBe('2 days before due');
+    expect(
+      triggerLabel({ type: 'scheduled', schedule: { frequency: 'weekly', weekday: 4, hour: 8, minute: 5 } }),
+    ).toBe('Every Friday at 08:05');
+    expect(triggerLabel({ type: 'task_updated', field: 'tags' })).toBe('Task updated (tags)');
   });
 });

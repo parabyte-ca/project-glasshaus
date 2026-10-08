@@ -27,6 +27,7 @@ class NotificationKind(StrEnum):
     MENTION = "mention"
     ASSIGNED = "assigned"
     COMMENT = "comment"
+    AUTOMATION = "automation"
 
 
 class Notification(UUIDPk, TenantScoped, Base):

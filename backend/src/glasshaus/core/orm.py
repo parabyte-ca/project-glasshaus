@@ -66,4 +66,8 @@ RLS_TABLES = (
     "task_dependencies",
     "baselines",
     "baseline_tasks",
+    "automation_rules",
+    "automation_runs",
+    "recurring_tasks",
+    "project_templates",
 )

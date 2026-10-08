@@ -17,6 +17,11 @@ export function HomePage() {
   const [workspaceId, setWorkspaceId] = useState('');
   const [key, setKey] = useState('');
   const [name, setName] = useState('');
+  const [templateId, setTemplateId] = useState('');
+  const templates = useQuery({
+    queryKey: ['project-templates'],
+    queryFn: () => unwrap(api.GET('/api/v1/project-templates')),
+  });
 
   const createWorkspace = useMutation({
     mutationFn: () =>
@@ -39,12 +44,21 @@ export function HomePage() {
     },
   });
   const createProject = useMutation({
-    mutationFn: () =>
-      unwrap(
-        api.POST('/api/v1/projects', {
-          body: { workspace_id: workspaceId || workspaces.data?.[0]?.id || '', key: key.toUpperCase(), name },
-        }),
-      ),
+    mutationFn: () => {
+      const body = {
+        workspace_id: workspaceId || workspaces.data?.[0]?.id || '',
+        key: key.toUpperCase(),
+        name,
+      };
+      return templateId
+        ? unwrap(
+            api.POST('/api/v1/project-templates/{template_id}/instantiate', {
+              params: { path: { template_id: templateId } },
+              body,
+            }),
+          )
+        : unwrap(api.POST('/api/v1/projects', { body }));
+    },
     onSuccess: (project) => {
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
       void navigate(`/projects/${project.key}`);
@@ -119,6 +133,18 @@ export function HomePage() {
             <Field label="Name" id="name">
               <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
+            {!!templates.data?.length && (
+              <Field label="Start from" id="template">
+                <Select id="template" value={templateId} onChange={(e) => setTemplateId(e.target.value)}>
+                  <option value="">Blank project</option>
+                  {templates.data.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      Template: {t.name} ({t.summary.tasks} tasks)
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
             <Button type="submit" disabled={createProject.isPending}>
               Create project
             </Button>

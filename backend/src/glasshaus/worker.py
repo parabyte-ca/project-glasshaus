@@ -31,6 +31,20 @@ async def relay_outbox(ctx: dict[str, Any]) -> int:
     return await relay_events()
 
 
+async def automation_tick(ctx: dict[str, Any]) -> dict[str, int]:
+    """Time-based automations: scheduled rules and recurring tasks (every minute)."""
+    from glasshaus.automation.handlers import run_recurring_tasks, run_scheduled_rules
+
+    return {"scheduled": await run_scheduled_rules(), "recurring": await run_recurring_tasks()}
+
+
+async def automation_due_soon(ctx: dict[str, Any]) -> int:
+    """Due-date reminders; deduplicated per task and due date, so frequent sweeps are safe."""
+    from glasshaus.automation.handlers import run_due_soon_rules
+
+    return await run_due_soon_rules()
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     import asyncio
 
@@ -58,10 +72,14 @@ async def shutdown(ctx: dict[str, Any]) -> None:
 
 
 class WorkerSettings:
-    functions: ClassVar[list[Any]] = [heartbeat, relay_outbox]
+    functions: ClassVar[list[Any]] = [heartbeat, relay_outbox, automation_tick, automation_due_soon]
     cron_jobs: ClassVar[list[Any]] = [
         cron(heartbeat, second={0, 30}, run_at_startup=False),
         cron(relay_outbox, second=set(range(0, 60, 10)), run_at_startup=True),
+        cron(automation_tick, second={5}, run_at_startup=True, timeout=300),
+        cron(
+            automation_due_soon, minute=set(range(0, 60, 10)), second={20}, run_at_startup=True, timeout=300
+        ),
     ]
     on_startup = startup
     on_shutdown = shutdown

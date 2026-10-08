@@ -877,10 +877,299 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/projects/{project_id}/automation-rules': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List automation rules */
+    get: operations['list_rules'];
+    put?: never;
+    /** Create a rule: trigger → conditions → actions (project admins) */
+    post: operations['create_rule'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/projects/{project_id}/automation-rules/test': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Dry run a rule against a task (changes nothing) */
+    post: operations['test_rule'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/automation-rules/{rule_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a rule */
+    get: operations['get_rule'];
+    put?: never;
+    post?: never;
+    /** Delete a rule */
+    delete: operations['delete_rule'];
+    options?: never;
+    head?: never;
+    /** Update or enable/disable a rule */
+    patch: operations['update_rule'];
+    trace?: never;
+  };
+  '/api/v1/automation-rules/{rule_id}/rotate-secret': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** New webhook signing secret */
+    post: operations['rotate_secret'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/projects/{project_id}/automation-runs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Automation run log (newest first) */
+    get: operations['list_runs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/automation-runs/{run_id}/retry': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Retry a failed run (only failed webhooks are resent if the actions succeeded) */
+    post: operations['retry_run'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/projects/{project_id}/recurring-tasks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List recurring tasks */
+    get: operations['list_recurring'];
+    put?: never;
+    /** Create a task on a daily, weekly or monthly schedule */
+    post: operations['create_recurring'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/recurring-tasks/{recurring_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a recurring task */
+    delete: operations['delete_recurring'];
+    options?: never;
+    head?: never;
+    /** Update a recurring task */
+    patch: operations['update_recurring'];
+    trace?: never;
+  };
+  '/api/v1/project-templates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List project templates */
+    get: operations['list_templates'];
+    put?: never;
+    /** Save a project's structure as a template */
+    post: operations['create_template'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/project-templates/{template_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a template */
+    get: operations['get_template'];
+    put?: never;
+    post?: never;
+    /** Delete a template */
+    delete: operations['delete_template'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/project-templates/{template_id}/instantiate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create a new project from a template */
+    post: operations['instantiate_template'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /**
+     * Action
+     * @description One step. Text fields accept placeholders: {{task.key}}, {{task.title}}, {{task.status}},
+     *     {{task.priority}}, {{task.due_date}}, {{task.url}}, {{project.name}}, {{rule.name}}.
+     */
+    'Action-Input': {
+      type: components['schemas']['ActionType'];
+      /** Status Id */
+      status_id?: string | null;
+      status_category?: components['schemas']['StatusCategory'] | null;
+      priority?: components['schemas']['Priority'] | null;
+      /**
+       * User
+       * @description User id, or 'reporter' / 'actor' (assign).
+       */
+      user?: string | null;
+      /**
+       * Users
+       * @description notify: user ids and/or 'assignee', 'reporter'.
+       */
+      users?: string[] | null;
+      /**
+       * Days From Now
+       * @description set_due_date: relative to today.
+       */
+      days_from_now?: number | null;
+      /** Tags */
+      tags?: string[] | null;
+      /** Field Id */
+      field_id?: string | null;
+      /** Value */
+      value?: unknown;
+      /** Title */
+      title?: string | null;
+      /** Body */
+      body?: string | null;
+      /** Url */
+      url?: string | null;
+    };
+    /**
+     * Action
+     * @description One step. Text fields accept placeholders: {{task.key}}, {{task.title}}, {{task.status}},
+     *     {{task.priority}}, {{task.due_date}}, {{task.url}}, {{project.name}}, {{rule.name}}.
+     */
+    'Action-Output': {
+      type: components['schemas']['ActionType'];
+      /** Status Id */
+      status_id: string | null;
+      status_category: components['schemas']['StatusCategory'] | null;
+      priority: components['schemas']['Priority'] | null;
+      /**
+       * User
+       * @description User id, or 'reporter' / 'actor' (assign).
+       */
+      user: string | null;
+      /**
+       * Users
+       * @description notify: user ids and/or 'assignee', 'reporter'.
+       */
+      users: string[] | null;
+      /**
+       * Days From Now
+       * @description set_due_date: relative to today.
+       */
+      days_from_now: number | null;
+      /** Tags */
+      tags: string[] | null;
+      /** Field Id */
+      field_id: string | null;
+      /** Value */
+      value: unknown;
+      /** Title */
+      title: string | null;
+      /** Body */
+      body: string | null;
+      /** Url */
+      url: string | null;
+    };
+    /**
+     * ActionType
+     * @enum {string}
+     */
+    ActionType:
+      | 'set_status'
+      | 'set_priority'
+      | 'assign'
+      | 'unassign'
+      | 'set_due_date'
+      | 'add_tags'
+      | 'remove_tags'
+      | 'set_custom_field'
+      | 'create_subtask'
+      | 'post_comment'
+      | 'notify'
+      | 'webhook';
     /** ActivityActor */
     ActivityActor: {
       /** User Id */
@@ -1076,6 +1365,22 @@ export interface components {
       /** Body */
       body: string;
     };
+    /** Condition */
+    'Condition-Input': {
+      /** Field */
+      field: string;
+      op: components['schemas']['Operator'];
+      /** Value */
+      value?: unknown;
+    };
+    /** Condition */
+    'Condition-Output': {
+      /** Field */
+      field: string;
+      op: components['schemas']['Operator'];
+      /** Value */
+      value: unknown;
+    };
     /**
      * DeletePreview
      * @description Returned by destructive operations when dry_run=true (and as the result when executed).
@@ -1248,6 +1553,11 @@ export interface components {
       /** Position */
       position?: number | null;
     };
+    /**
+     * Frequency
+     * @enum {string}
+     */
+    Frequency: 'daily' | 'weekly' | 'monthly';
     /** LoginRequest */
     LoginRequest: {
       /**
@@ -1272,7 +1582,7 @@ export interface components {
      * NotificationKind
      * @enum {string}
      */
-    NotificationKind: 'mention' | 'assigned' | 'comment';
+    NotificationKind: 'mention' | 'assigned' | 'comment' | 'automation';
     /** NotificationRead */
     NotificationRead: {
       /**
@@ -1305,6 +1615,12 @@ export interface components {
        */
       ids?: string[] | null;
     };
+    /**
+     * Operator
+     * @enum {string}
+     */
+    Operator:
+      'eq' | 'neq' | 'in' | 'not_in' | 'contains' | 'not_contains' | 'lt' | 'gt' | 'is_empty' | 'not_empty';
     /**
      * OrgRole
      * @enum {string}
@@ -1512,6 +1828,113 @@ export interface components {
         [key: string]: string;
       };
     };
+    /** RecurringCreate */
+    RecurringCreate: {
+      /**
+       * Enabled
+       * @default true
+       */
+      enabled?: boolean;
+      template: components['schemas']['RecurringTemplate-Input'];
+      schedule: components['schemas']['ScheduleSpec-Input'];
+    };
+    /** RecurringRead */
+    RecurringRead: {
+      /**
+       * Enabled
+       * @default true
+       */
+      enabled: boolean;
+      template: components['schemas']['RecurringTemplate-Output'];
+      schedule: components['schemas']['ScheduleSpec-Output'];
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Created By */
+      created_by: string | null;
+      /**
+       * Next Run At
+       * Format: date-time
+       */
+      next_run_at: string;
+      /** Last Run At */
+      last_run_at: string | null;
+      /** Last Task Id */
+      last_task_id: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** RecurringTemplate */
+    'RecurringTemplate-Input': {
+      /** Title */
+      title: string;
+      /**
+       * Description
+       * @default
+       */
+      description?: string;
+      /** @default none */
+      priority?: components['schemas']['Priority'];
+      /** Assignee Id */
+      assignee_id?: string | null;
+      /** Tags */
+      tags?: string[];
+      /** Estimate Minutes */
+      estimate_minutes?: number | null;
+      /**
+       * Due In Days
+       * @description Due date relative to the creation day.
+       */
+      due_in_days?: number | null;
+      /** Custom Fields */
+      custom_fields?: {
+        [key: string]: unknown;
+      };
+    };
+    /** RecurringTemplate */
+    'RecurringTemplate-Output': {
+      /** Title */
+      title: string;
+      /**
+       * Description
+       * @default
+       */
+      description: string;
+      /** @default none */
+      priority: components['schemas']['Priority'];
+      /** Assignee Id */
+      assignee_id: string | null;
+      /** Tags */
+      tags: string[];
+      /** Estimate Minutes */
+      estimate_minutes: number | null;
+      /**
+       * Due In Days
+       * @description Due date relative to the creation day.
+       */
+      due_in_days: number | null;
+      /** Custom Fields */
+      custom_fields: {
+        [key: string]: unknown;
+      };
+    };
+    /** RecurringUpdate */
+    RecurringUpdate: {
+      /** Enabled */
+      enabled?: boolean | null;
+      template?: components['schemas']['RecurringTemplate-Input'] | null;
+      schedule?: components['schemas']['ScheduleSpec-Input'] | null;
+    };
     /** RescheduleResult */
     RescheduleResult: {
       /** Executed */
@@ -1519,6 +1942,172 @@ export interface components {
       /** Moves */
       moves: components['schemas']['TaskMove'][];
     };
+    /** RuleBase */
+    RuleBase: {
+      /** Name */
+      name: string;
+      /**
+       * Enabled
+       * @default true
+       */
+      enabled?: boolean;
+      trigger: components['schemas']['Trigger-Input'];
+      /** Conditions */
+      conditions?: components['schemas']['Condition-Input'][];
+      /** Actions */
+      actions: components['schemas']['Action-Input'][];
+      /**
+       * Run On Automation
+       * @description Also react to changes made by automations (off prevents loops).
+       * @default false
+       */
+      run_on_automation?: boolean;
+    };
+    /** RuleCreate */
+    RuleCreate: {
+      /** Name */
+      name: string;
+      /**
+       * Enabled
+       * @default true
+       */
+      enabled?: boolean;
+      trigger: components['schemas']['Trigger-Input'];
+      /** Conditions */
+      conditions?: components['schemas']['Condition-Input'][];
+      /** Actions */
+      actions: components['schemas']['Action-Input'][];
+      /**
+       * Run On Automation
+       * @description Also react to changes made by automations (off prevents loops).
+       * @default false
+       */
+      run_on_automation?: boolean;
+    };
+    /** RuleRead */
+    RuleRead: {
+      /** Name */
+      name: string;
+      /**
+       * Enabled
+       * @default true
+       */
+      enabled: boolean;
+      trigger: components['schemas']['Trigger-Output'];
+      /** Conditions */
+      conditions: components['schemas']['Condition-Output'][];
+      /** Actions */
+      actions: components['schemas']['Action-Output'][];
+      /**
+       * Run On Automation
+       * @description Also react to changes made by automations (off prevents loops).
+       * @default false
+       */
+      run_on_automation: boolean;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Created By */
+      created_by: string | null;
+      /**
+       * Webhook Secret
+       * @description HMAC-SHA256 key for X-Glasshaus-Signature (project admins only).
+       */
+      webhook_secret: string | null;
+      /** Last Run At */
+      last_run_at: string | null;
+      /** Next Run At */
+      next_run_at: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** RuleTestRequest */
+    RuleTestRequest: {
+      rule: components['schemas']['RuleBase'];
+      /**
+       * Task
+       * @description Task id or reference (e.g. WEB-12) to evaluate the conditions against.
+       */
+      task: string;
+    };
+    /** RuleTestResult */
+    RuleTestResult: {
+      /** Matched */
+      matched: boolean;
+      /**
+       * Conditions
+       * @description Each condition with its outcome.
+       */
+      conditions: {
+        [key: string]: unknown;
+      }[];
+      /** Planned Actions */
+      planned_actions: string[];
+    };
+    /** RuleUpdate */
+    RuleUpdate: {
+      /** Name */
+      name?: string | null;
+      /** Enabled */
+      enabled?: boolean | null;
+      trigger?: components['schemas']['Trigger-Input'] | null;
+      /** Conditions */
+      conditions?: components['schemas']['Condition-Input'][] | null;
+      /** Actions */
+      actions?: components['schemas']['Action-Input'][] | null;
+      /** Run On Automation */
+      run_on_automation?: boolean | null;
+    };
+    /** RunRead */
+    RunRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Rule Id
+       * Format: uuid
+       */
+      rule_id: string;
+      /** Rule Name */
+      rule_name: string;
+      /** Task Id */
+      task_id: string | null;
+      /** Trigger Type */
+      trigger_type: string;
+      status: components['schemas']['RunStatus'];
+      /** Error */
+      error: string | null;
+      /** Results */
+      results: {
+        [key: string]: unknown;
+      };
+      /** Attempts */
+      attempts: number;
+      /**
+       * Started At
+       * Format: date-time
+       */
+      started_at: string;
+      /** Finished At */
+      finished_at: string | null;
+    };
+    /**
+     * RunStatus
+     * @enum {string}
+     */
+    RunStatus: 'success' | 'failed' | 'skipped';
     /** ScheduleRead */
     ScheduleRead: {
       /**
@@ -1544,6 +2133,66 @@ export interface components {
       unscheduled: string[];
       /** Dependencies */
       dependencies: components['schemas']['DependencyRead'][];
+    };
+    /** ScheduleSpec */
+    'ScheduleSpec-Input': {
+      frequency: components['schemas']['Frequency'];
+      /**
+       * Hour
+       * @default 9
+       */
+      hour?: number;
+      /**
+       * Minute
+       * @default 0
+       */
+      minute?: number;
+      /**
+       * Weekday
+       * @description 0 = Monday (weekly only).
+       */
+      weekday?: number | null;
+      /**
+       * Day
+       * @description Day of month (monthly only).
+       */
+      day?: number | null;
+      /**
+       * Timezone
+       * @description IANA time zone, e.g. America/Toronto.
+       * @default UTC
+       */
+      timezone?: string;
+    };
+    /** ScheduleSpec */
+    'ScheduleSpec-Output': {
+      frequency: components['schemas']['Frequency'];
+      /**
+       * Hour
+       * @default 9
+       */
+      hour: number;
+      /**
+       * Minute
+       * @default 0
+       */
+      minute: number;
+      /**
+       * Weekday
+       * @description 0 = Monday (weekly only).
+       */
+      weekday: number | null;
+      /**
+       * Day
+       * @description Day of month (monthly only).
+       */
+      day: number | null;
+      /**
+       * Timezone
+       * @description IANA time zone, e.g. America/Toronto.
+       * @default UTC
+       */
+      timezone: string;
     };
     /** ScheduleWarning */
     ScheduleWarning: {
@@ -1910,6 +2559,144 @@ export interface components {
       /** Finish Variance Days */
       finish_variance_days: number | null;
     };
+    /** TemplateCreate */
+    TemplateCreate: {
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Name */
+      name: string;
+      /**
+       * Description
+       * @default
+       */
+      description?: string;
+      /**
+       * Include Tasks
+       * @default true
+       */
+      include_tasks?: boolean;
+      /**
+       * Include Automations
+       * @description Automation rules and recurring tasks.
+       * @default true
+       */
+      include_automations?: boolean;
+    };
+    /** TemplateInstantiate */
+    TemplateInstantiate: {
+      /**
+       * Workspace Id
+       * Format: uuid
+       */
+      workspace_id: string;
+      /** Key */
+      key: string;
+      /** Name */
+      name: string;
+      /**
+       * Description
+       * @description Defaults to the template's.
+       */
+      description?: string | null;
+      /**
+       * Start Date
+       * @description Task dates shift so the earliest lands here (default today).
+       */
+      start_date?: string | null;
+    };
+    /** TemplateRead */
+    TemplateRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      /** Description */
+      description: string;
+      /** Created By */
+      created_by: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      summary: components['schemas']['TemplateSummary'];
+    };
+    /** TemplateSummary */
+    TemplateSummary: {
+      /** Statuses */
+      statuses: number;
+      /** Fields */
+      fields: number;
+      /** Views */
+      views: number;
+      /** Tasks */
+      tasks: number;
+      /** Dependencies */
+      dependencies: number;
+      /** Rules */
+      rules: number;
+      /** Recurring */
+      recurring: number;
+    };
+    /** Trigger */
+    'Trigger-Input': {
+      type: components['schemas']['TriggerType'];
+      /**
+       * Field
+       * @description task_updated only: fire when this field changed (any field when omitted).
+       */
+      field?:
+        ('status_id' | 'priority' | 'assignee_id' | 'due_date' | 'start_date' | 'title' | 'tags') | null;
+      /** @description status_changed only: new status category. */
+      to_category?: components['schemas']['StatusCategory'] | null;
+      /**
+       * To Status Id
+       * @description status_changed only: new status.
+       */
+      to_status_id?: string | null;
+      /**
+       * Days Before
+       * @description due_soon only: days before the due date.
+       */
+      days_before?: number | null;
+      /** @description scheduled only. */
+      schedule?: components['schemas']['ScheduleSpec-Input'] | null;
+    };
+    /** Trigger */
+    'Trigger-Output': {
+      type: components['schemas']['TriggerType'];
+      /**
+       * Field
+       * @description task_updated only: fire when this field changed (any field when omitted).
+       */
+      field: ('status_id' | 'priority' | 'assignee_id' | 'due_date' | 'start_date' | 'title' | 'tags') | null;
+      /** @description status_changed only: new status category. */
+      to_category: components['schemas']['StatusCategory'] | null;
+      /**
+       * To Status Id
+       * @description status_changed only: new status.
+       */
+      to_status_id: string | null;
+      /**
+       * Days Before
+       * @description due_soon only: days before the due date.
+       */
+      days_before: number | null;
+      /** @description scheduled only. */
+      schedule: components['schemas']['ScheduleSpec-Output'] | null;
+    };
+    /**
+     * TriggerType
+     * @enum {string}
+     */
+    TriggerType:
+      'task_created' | 'task_updated' | 'status_changed' | 'comment_created' | 'due_soon' | 'scheduled';
     /** UnreadCount */
     UnreadCount: {
       /** Unread */
@@ -6664,6 +7451,1144 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['Page_ActivityItem_'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  list_rules: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RuleRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  create_rule: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RuleCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RuleRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  test_rule: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RuleTestRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RuleTestResult'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_rule: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        rule_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RuleRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  delete_rule: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        rule_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  update_rule: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        rule_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RuleUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RuleRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  rotate_secret: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        rule_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RuleRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  list_runs: {
+    parameters: {
+      query?: {
+        rule_id?: string | null;
+        status?: components['schemas']['RunStatus'] | null;
+        limit?: number;
+      };
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RunRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  retry_run: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RunRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  list_recurring: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecurringRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  create_recurring: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecurringCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecurringRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  delete_recurring: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        recurring_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  update_recurring: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        recurring_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RecurringUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecurringRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  list_templates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TemplateRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  create_template: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TemplateCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TemplateRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_template: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        template_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TemplateRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  delete_template: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        template_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  instantiate_template: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        template_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['TemplateInstantiate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ProjectDetail'];
         };
       };
       /** @description Not authenticated */

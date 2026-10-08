@@ -71,6 +71,32 @@ PostgreSQL (RLS: tenant_id = app.tenant_id)  ──commit──▶  relay → Re
 - Rescheduling is opt-in per project (`auto_schedule`); otherwise violations surface as warnings and
   `POST /reschedule` previews (then applies) the fix.
 
+## Automations
+
+`glasshaus/automation/` turns *trigger → conditions → actions* rules into service-layer calls.
+
+- **Triggers:** `task_created`, `task_updated` (optionally one field), `status_changed` (to a status or
+  category), `comment_created` come from domain events in the consumer; `due_soon` (every 10 min) and
+  `scheduled` (daily/weekly/monthly in an IANA zone, every minute) come from worker crons. Recurring tasks use
+  the same scheduler.
+- **Execution** (`runner.fire`): one transaction per run, as an `automation` principal scoped to the rule's
+  project. A run is claimed with a unique `(rule_id, dedupe_key)` row (event id, schedule occurrence, or task
+  and due date), so redelivery and concurrent workers never double-run. Conditions are evaluated against the
+  task's current state; non-matching events leave no trace. If any action fails, all are rolled back and the
+  run is logged as failed.
+- **Webhooks** go out after commit: resolved once, every address checked (loopback, link-local and metadata
+  always refused; private networks only with `GLASSHAUS_WEBHOOK_ALLOW_PRIVATE`), connected by IP so DNS
+  rebinding cannot redirect, no redirects, 10 s timeout, signed with
+  `X-Glasshaus-Signature: t=<unix>,v1=<hex HMAC-SHA256(secret, "<t>.<body>")>`. Retrying a run whose actions
+  succeeded resends only the failed webhooks.
+- **Loop prevention:** events caused by automations are ignored unless a rule opts in (`run_on_automation`);
+  a rule never reacts to its own changes; more than 20 runs on one task in a minute trips a guard; rules ignore
+  events older than themselves.
+- **Safety:** task text is data. Placeholders (`{{task.key}}` …) are substituted from a fixed list, never
+  evaluated, and nothing in task content can choose which actions run.
+- **Templates** snapshot statuses, fields, shared views, tasks (dates as offsets), dependencies, rules and
+  recurring tasks; instantiating remaps every id and shifts dates to a chosen start.
+
 ## Authorization model
 
 | Level | Roles | Effect |
