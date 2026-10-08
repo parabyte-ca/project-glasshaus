@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- **Azure OpenAI** for the AI assistant through the `openai` provider: `GLASSHAUS_AI_AUTH_HEADER=api-key`,
+  optional `GLASSHAUS_AI_API_VERSION` for classic deployment URLs, and an automatic retry with
+  `max_completion_tokens` for models that refuse `max_tokens`. See `docs/ai.md`.
+
 ## [0.9.0] - 2026-10-08
 
 Phase 8 — optional in-app AI, polish, accessibility and end-to-end tests.

@@ -147,3 +147,42 @@ async def test_anthropic_without_credentials(monkeypatch: pytest.MonkeyPatch) ->
     p = AnthropicProvider(settings(ai_provider="anthropic", ai_api_key=""))
     with pytest.raises(Unavailable, match="GLASSHAUS_AI_API_KEY"):
         await p.complete(system="s", prompt="p", output=Out, max_tokens=10)
+
+
+async def test_openai_provider_with_azure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Azure OpenAI: api-key header, optional api-version, and max_completion_tokens for newer models."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        body = json.loads(request.content)
+        if "max_tokens" in body:
+            return httpx.Response(400, json={"error": {"message": "Unsupported parameter: 'max_tokens'. "
+                                                       "Use 'max_completion_tokens' instead."}})  # fmt: skip
+        content = json.dumps({"headline": "Azure", "items": []})
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": content}}], "model": "gpt-5-mini"}
+        )
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    p = OpenAICompatibleProvider(
+        settings(
+            ai_provider="openai",
+            ai_base_url="https://acme.openai.azure.com/openai/deployments/glasshaus",
+            ai_model="glasshaus",
+            ai_api_key="azure-key",
+            ai_auth_header="api-key",
+            ai_api_version="2024-10-21",
+        )
+    )
+    result = await p.complete(system="s", prompt="p", output=Out, max_tokens=50)
+    assert result.output.headline == "Azure" and result.model == "gpt-5-mini"
+    assert len(seen) == 2
+    first, retry = seen
+    assert str(first.url) == (
+        "https://acme.openai.azure.com/openai/deployments/glasshaus/chat/completions?api-version=2024-10-21"
+    )
+    assert first.headers["api-key"] == "azure-key" and "authorization" not in first.headers
+    assert json.loads(retry.content)["max_completion_tokens"] == 50
+    assert "max_tokens" not in json.loads(retry.content)
