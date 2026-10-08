@@ -6,6 +6,32 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-08
+
+Phase 4 — automation engine and templates.
+
+### Added
+- Automation rules per project: trigger (task created/updated, status changed, comment added, due soon,
+  daily/weekly/monthly schedule in any time zone) → conditions (priority, status, assignee, tags, title, days
+  until due, subtask, custom fields) → actions (set status/priority/due date/custom field, assign/unassign,
+  add/remove tags, create subtask, post comment, notify people, call a webhook). Text supports placeholders
+  such as `{{task.key}}`.
+- Exactly-once runs per event or occurrence, atomic actions, a run log with errors and one-click retry (only
+  failed webhooks are resent when the actions succeeded), dry run against any task, and loop prevention.
+- Signed outbound webhooks (`X-Glasshaus-Signature`, HMAC-SHA256) with SSRF protection; private networks are
+  opt-in via `GLASSHAUS_WEBHOOK_ALLOW_PRIVATE` for homelab targets.
+- Recurring tasks on daily, weekly or monthly schedules.
+- Project templates: save a project's statuses, fields, shared views, tasks (relative dates), dependencies,
+  rules and recurring tasks; start new projects from them.
+- Web UI: project settings tabs for automations (rule builder, dry run, run log, retry), recurring tasks and
+  templates; "Start from" template choice when creating a project; automation-made comments and changes are
+  labelled "Automation".
+- Demo data includes rules, a recurring review and a "Website launch" template.
+
+### Changed
+- `make dev-deps` uses its own Compose project (`glasshaus-dev`), so it never touches a stack running from
+  another directory on the same host, and Makefile targets read `.env` correctly.
+
 ## [0.4.0] - 2026-10-08
 
 Phase 3 — dependencies, timeline/Gantt, critical path, calendar.

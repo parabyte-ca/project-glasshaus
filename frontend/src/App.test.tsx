@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
-import { baseRoutes, mockApi, task, user, type Route } from './test/mockApi';
+import { baseRoutes, mockApi, project, task, user, type Route } from './test/mockApi';
 
 function renderAt(path: string) {
   window.history.pushState({}, '', path);
@@ -441,5 +441,129 @@ describe('theme', () => {
     const before = document.documentElement.classList.contains('dark');
     await userEvent.click(button);
     expect(document.documentElement.classList.contains('dark')).toBe(!before);
+  });
+});
+
+describe('automations', () => {
+  const rule = {
+    id: 'r1',
+    project_id: 'p1',
+    name: 'Ship it',
+    enabled: true,
+    trigger: { type: 'status_changed', to_category: 'done' },
+    conditions: [],
+    actions: [{ type: 'add_tags', tags: ['shipped'] }],
+    run_on_automation: false,
+    created_by: 'u1',
+    webhook_secret: 'abc',
+    last_run_at: null,
+    next_run_at: null,
+    created_at: '2026-01-01T00:00:00Z',
+  };
+
+  it('builds a rule, dry-runs it and retries a failed run', async () => {
+    let created: unknown;
+    const { calls } = mockApi([
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/projects/p1/automation-rules', handler: () => (created ? [rule] : []) },
+      {
+        method: 'GET',
+        path: '/api/v1/projects/p1/automation-runs',
+        body: [
+          {
+            id: 'run1',
+            rule_id: 'r1',
+            rule_name: 'Ship it',
+            task_id: 't1',
+            trigger_type: 'status_changed',
+            status: 'failed',
+            error: 'https://hooks.example.com: HTTP 503',
+            results: { task_key: 'WEB-1', phase: 'webhooks' },
+            attempts: 1,
+            started_at: '2026-01-02T00:00:00Z',
+            finished_at: '2026-01-02T00:00:01Z',
+          },
+        ],
+      },
+      {
+        method: 'POST',
+        path: '/api/v1/projects/p1/automation-rules/test',
+        body: { matched: true, conditions: [], planned_actions: ["add_tags: add tags ['shipped']"] },
+      },
+      {
+        method: 'POST',
+        path: '/api/v1/projects/p1/automation-rules',
+        status: 201,
+        handler: async (req) => {
+          created = await req.json();
+          return rule;
+        },
+      },
+      { method: 'POST', path: '/api/v1/automation-runs/run1/retry', body: {} },
+    ]);
+    renderAt('/projects/WEB/settings?tab=automations');
+    await userEvent.click(await screen.findByRole('button', { name: 'New rule' }));
+    const form = screen.getByRole('form', { name: 'New rule' });
+    await userEvent.type(within(form).getByLabelText('Rule name'), 'Ship it');
+    await userEvent.type(within(form).getByLabelText('Tags (comma separated)'), 'shipped, done');
+    await userEvent.click(within(form).getByRole('button', { name: 'Add condition' }));
+    await userEvent.selectOptions(within(form).getByLabelText('Operator'), 'in');
+    const value = within(form).getByLabelText('Value');
+    await userEvent.clear(value);
+    await userEvent.type(value, 'high, urgent');
+    await userEvent.type(within(form).getByLabelText('Test against task (e.g. WEB-12)'), 'WEB-1');
+    await userEvent.click(within(form).getByRole('button', { name: 'Dry run' }));
+    expect(await within(form).findByText('Conditions match — it would:')).toBeInTheDocument();
+    await userEvent.click(within(form).getByRole('button', { name: 'Create rule' }));
+    await waitFor(() =>
+      expect(created).toEqual({
+        name: 'Ship it',
+        trigger: { type: 'status_changed', to_category: 'done' },
+        conditions: [{ field: 'priority', op: 'in', value: ['high', 'urgent'] }],
+        actions: [{ type: 'add_tags', tags: ['shipped', 'done'] }],
+      }),
+    );
+    expect(await screen.findByText('Ship it', { selector: 'span' })).toBeInTheDocument();
+    expect(screen.getByText(/Status changed → done/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Retry run of Ship it' }));
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith('/automation-runs/run1/retry'))).toBe(true));
+  });
+
+  it('creates a project from a template', async () => {
+    const { calls } = mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/project-templates'),
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/project-templates',
+        body: [
+          {
+            id: 'tpl1',
+            name: 'Launch',
+            description: '',
+            created_by: 'u1',
+            created_at: '2026-01-01T00:00:00Z',
+            summary: { statuses: 5, fields: 1, views: 0, tasks: 12, dependencies: 2, rules: 1, recurring: 0 },
+          },
+        ],
+      },
+      {
+        method: 'POST',
+        path: '/api/v1/project-templates/tpl1/instantiate',
+        status: 201,
+        handler: async (req) => {
+          expect(await req.json()).toEqual({ workspace_id: 'w1', key: 'WEB', name: 'Website' });
+          return project;
+        },
+      },
+      { method: 'GET', path: /\/api\/v1\/tasks$/, body: { items: [], next_cursor: null } },
+    ]);
+    renderAt('/');
+    await userEvent.type(await screen.findByLabelText('Key'), 'web');
+    await userEvent.type(screen.getByLabelText('Name'), 'Website');
+    await userEvent.selectOptions(await screen.findByLabelText('Start from'), 'tpl1');
+    await userEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith('/tpl1/instantiate'))).toBe(true));
   });
 });

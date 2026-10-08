@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     otel_enabled: bool = False
     otel_service_name: str = "glasshaus"
 
+    # Automation webhooks may target private networks (homelab services). Loopback, link-local and
+    # cloud metadata addresses are always refused.
+    webhook_allow_private: bool = False
+    webhook_timeout_seconds: float = 10.0
+
     mcp_allowed_hosts: CsvList = Field(default_factory=lambda: ["localhost:*", "127.0.0.1:*", "mcp:*"])
 
     @field_validator("cors_origins", "mcp_allowed_hosts", mode="before")

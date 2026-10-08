@@ -1,5 +1,5 @@
 # Development overrides: expose Postgres/Redis on localhost for running api/web from source.
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis
+#   docker compose -p glasshaus-dev -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis  (or: make dev-deps)
 services:
   postgres:
     ports: ["127.0.0.1:${GLASSHAUS_DEV_PG_PORT:-15432}:5432"]

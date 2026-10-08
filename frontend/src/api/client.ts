@@ -24,6 +24,15 @@ export type Schedule = Schemas['ScheduleRead'];
 export type Baseline = Schemas['BaselineRead'];
 export type BaselineVariance = Schemas['BaselineVariance'];
 export type ScheduleWarning = Schemas['ScheduleWarning'];
+export type Rule = Schemas['RuleRead'];
+export type RuleInput = Schemas['RuleCreate'];
+export type RuleAction = Schemas['Action-Input'];
+export type RuleCondition = Schemas['Condition-Input'];
+export type RuleTrigger = Schemas['Trigger-Input'];
+export type Run = Schemas['RunRead'];
+export type Recurring = Schemas['RecurringRead'];
+export type ScheduleSpec = Schemas['ScheduleSpec-Input'];
+export type ProjectTemplate = Schemas['TemplateRead'];
 
 export class ApiError extends Error {
   constructor(

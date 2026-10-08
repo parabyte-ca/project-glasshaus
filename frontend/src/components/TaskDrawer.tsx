@@ -254,7 +254,7 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
                 {comments.data?.map((c) => (
                   <li key={c.id} className="rounded-md border border-slate-200 p-3 dark:border-slate-800">
                     <p className="mb-1 text-xs text-slate-600 dark:text-slate-400">
-                      {(c.author_id && names.get(c.author_id)) ?? 'Someone'} ·{' '}
+                      {c.author_id ? (names.get(c.author_id) ?? 'Someone') : 'Automation'} ·{' '}
                       {new Date(c.created_at).toLocaleString()}
                       {c.edited_at && ' (edited)'}
                     </p>
@@ -278,7 +278,8 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
                 {activity.data?.items.map((a) => (
                   <li key={a.id}>
                     <span className="font-medium text-slate-800 dark:text-slate-200">
-                      {(a.actor.user_id && names.get(a.actor.user_id)) ?? a.actor.method}
+                      {(a.actor.user_id && names.get(a.actor.user_id)) ??
+                        (a.actor.method === 'automation' ? 'Automation' : a.actor.method)}
                     </span>{' '}
                     {describe(a.type, a.data)} · {new Date(a.occurred_at).toLocaleString()}
                   </li>

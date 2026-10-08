@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.4.0 — Phase 3 (dependencies, timeline/Gantt, critical path, baselines, calendar). See [CHANGELOG.md](CHANGELOG.md) and the [roadmap](#roadmap).
+> **Status:** v0.5.0 — Phase 4 (automation rules, signed webhooks, recurring tasks, project templates). See [CHANGELOG.md](CHANGELOG.md) and the [roadmap](#roadmap).
 
 ## Contents
 
@@ -12,6 +12,8 @@ webhooks and an MCP server.
 - [Architecture](#architecture)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
+- [Using the API](#using-the-api)
+- [Automations and webhooks](#automations-and-webhooks)
 - [MCP and Copilot setup](#mcp-and-copilot-setup)
 - [Backup and restore](#backup-and-restore)
 - [Upgrading](#upgrading)
@@ -158,6 +160,30 @@ curl -s -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
 
 The full feature → REST → event → MCP mapping is in [docs/coverage-matrix.md](docs/coverage-matrix.md).
 
+## Automations and webhooks
+
+Project admins build rules under **Project settings → Automations**: *when* something happens (task created or
+updated, status changed, comment added, due date approaching, or on a schedule), *only if* conditions match,
+*then* run actions (set fields, assign, tag, create a subtask, comment, notify, call a webhook). Use **Dry run**
+to check a rule against a task, and the run log to see what happened and retry failures. **Recurring tasks**
+and **Template** live in the same settings page; pick a template under **Start from** when creating a project.
+
+Webhooks POST JSON (`rule`, `project`, `task`, `event`, `sent_at`) and are signed with the rule's secret
+(shown to project admins). Verify a delivery before trusting it:
+
+```python
+import hashlib, hmac, time
+
+def verify(secret: str, header: str, body: bytes, tolerance: int = 300) -> bool:
+    parts = dict(p.split("=", 1) for p in header.split(","))  # X-Glasshaus-Signature: t=…,v1=…
+    expected = hmac.new(secret.encode(), f"{parts['t']}.".encode() + body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, parts["v1"]) and abs(time.time() - int(parts["t"])) < tolerance
+```
+
+Homelab targets on private addresses (Home Assistant, n8n, Node-RED, Tailscale `100.x`) need
+`GLASSHAUS_WEBHOOK_ALLOW_PRIVATE=true` in `.env`; loopback, link-local and cloud metadata addresses are always
+refused.
+
 ## MCP and Copilot setup
 
 The MCP server listens at `http://<host>:8472/mcp` (Streamable HTTP). For local development,
@@ -227,10 +253,10 @@ builds, scans and publishes multi-arch (amd64/arm64) images to GHCR.
 | 1 | 0.2.0 | Data model, auth/RBAC, task/project CRUD, service layer, OpenAPI | ✅ |
 | 2 | 0.3.0 | List/board/table views, custom fields, comments, activity | ✅ |
 | 3 | 0.4.0 | Dependencies, timeline/Gantt, critical path, calendar | ✅ |
-| 4 | 0.5.0 | Automation engine and templates | |
-| 5 | 0.6.0 | Workload, time tracking, reporting, dashboards, portfolio/OKRs | |
+| 4 | 0.5.0 | Automation engine and templates | ✅ |
+| 5 | 0.6.0 | Workload, time tracking (incl. per-user timesheets across projects), reporting, dashboards, portfolio/OKRs | |
 | 6 | 0.7.0 | MCP server, OAuth 2.1, Copilot/Claude integration docs and tests | |
-| 7 | 0.8.0 | Integrations, SSO/SCIM, audit, hardening, performance | |
+| 7 | 0.8.0 | Integrations, SSO/SCIM, audit, admin console (users, roles, deactivation), hardening, performance | |
 | 8 | 0.9.0 | In-app AI layer, polish, accessibility, E2E tests | |
 
 ## Licence

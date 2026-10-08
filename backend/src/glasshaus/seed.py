@@ -8,6 +8,9 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from glasshaus.automation import service as automation
+from glasshaus.automation import templates
+from glasshaus.automation.schemas import RecurringCreate, RuleCreate, TemplateCreate
 from glasshaus.collab import service as collab
 from glasshaus.collab.schemas import CommentCreate
 from glasshaus.config import get_settings
@@ -168,6 +171,58 @@ async def generate_demo_data(tenant: Tenant, owner: User, seed: int) -> None:
                     ),
                 )
             await scheduling.create_baseline(ctx, project.id, BaselineCreate(name="Initial plan"))
+            await automation.create_rule(
+                ctx,
+                project.id,
+                RuleCreate.model_validate(
+                    {
+                        "name": "Thank the team when work ships",
+                        "trigger": {"type": "status_changed", "to_category": "done"},
+                        "conditions": [{"field": "priority", "op": "in", "value": ["high", "urgent"]}],
+                        "actions": [
+                            {"type": "add_tags", "tags": ["shipped"]},
+                            {"type": "post_comment", "body": "{{task.key}} shipped. Nice work!"},
+                        ],
+                    }
+                ),
+            )
+            await automation.create_rule(
+                ctx,
+                project.id,
+                RuleCreate.model_validate(
+                    {
+                        "name": "Due tomorrow reminder",
+                        "trigger": {"type": "due_soon", "days_before": 1},
+                        "actions": [
+                            {"type": "notify", "users": ["assignee"], "title": "{{task.key}} is due tomorrow"}
+                        ],
+                    }
+                ),
+            )
+            await automation.create_recurring(
+                ctx,
+                project.id,
+                RecurringCreate.model_validate(
+                    {
+                        "template": {"title": f"Weekly {key} review", "tags": ["review"], "due_in_days": 1},
+                        "schedule": {
+                            "frequency": "weekly",
+                            "weekday": 0,
+                            "hour": 9,
+                            "timezone": "America/Toronto",
+                        },
+                    }
+                ),
+            )
+            if key == "WEB":
+                await templates.create_template(
+                    ctx,
+                    TemplateCreate(
+                        project_id=project.id,
+                        name="Website launch",
+                        description="Statuses, fields, views, tasks and automations from the demo website.",
+                    ),
+                )
     log.info("seed.demo.created")
 
 
