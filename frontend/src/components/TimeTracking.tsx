@@ -170,7 +170,7 @@ export function TaskTime({ taskId, taskKey, users }: { taskId: string; taskKey: 
             </span>
             <button
               type="button"
-              className="text-slate-500 hover:text-red-700"
+              className="text-slate-500 dark:text-slate-400 hover:text-red-700"
               aria-label={`Delete ${formatMinutes(e.minutes)} logged on ${e.spent_on}`}
               onClick={() => remove.mutate(e.id)}
             >

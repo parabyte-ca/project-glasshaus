@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 
 import { api, unwrap, type Schemas } from '../../api/client';
-import { Button, ErrorText, Field, GhostButton, Input, Select } from '../ui';
+import { Button, ErrorText, Field, GhostButton, Input, ScrollArea, Select } from '../ui';
 import { Copyable, SecretOnce, Section } from './common';
 import { dateTime, table, td, th } from './format';
 
@@ -231,7 +231,7 @@ export function Integrations() {
         <ErrorText error={list.error} />
         {list.data?.length === 0 && <p className="text-sm text-slate-600 dark:text-slate-400">None yet.</p>}
         {(list.data?.length ?? 0) > 0 && (
-          <div className="overflow-x-auto">
+          <ScrollArea label="Integrations">
             <table className={table}>
               <thead>
                 <tr>
@@ -250,7 +250,7 @@ export function Integrations() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollArea>
         )}
       </Section>
       <Section title="Connect">

@@ -108,7 +108,7 @@ export function AccessSettings() {
               <li key={t.id} className="flex items-center justify-between gap-3 py-2">
                 <span>
                   <span className="font-medium">{t.name}</span>{' '}
-                  <span className="font-mono text-slate-500">{t.prefix}…</span>
+                  <span className="font-mono text-slate-500 dark:text-slate-400">{t.prefix}…</span>
                   <span className="block text-slate-600 dark:text-slate-400">
                     {t.scopes.join(', ')} · last used {shortDate(t.last_used_at)} · expires{' '}
                     {t.expires_at ? shortDate(t.expires_at) : 'never'}

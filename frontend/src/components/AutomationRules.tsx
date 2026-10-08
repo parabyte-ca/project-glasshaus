@@ -663,7 +663,9 @@ export function AutomationRules({
         {rules.data?.map((r) => (
           <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
             <span>
-              <span className={`font-medium ${r.enabled ? '' : 'text-slate-500 line-through'}`}>
+              <span
+                className={`font-medium ${r.enabled ? '' : 'text-slate-500 dark:text-slate-400 line-through'}`}
+              >
                 {r.name}
               </span>{' '}
               <span className="text-slate-600 dark:text-slate-400">

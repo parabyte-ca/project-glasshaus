@@ -4,8 +4,12 @@ updates:
     directory: /backend
     schedule: { interval: weekly }
     groups: { python: { patterns: ["*"] } }
+    ignore:
+      # arq requires redis>=4.2,<6; newer majors make the lockfile unsolvable.
+      - dependency-name: redis
+        versions: [">=6"]
   - package-ecosystem: npm
-    directory: /frontend
+    directories: [/frontend, /e2e]
     schedule: { interval: weekly }
     groups: { npm: { patterns: ["*"] } }
   - package-ecosystem: docker

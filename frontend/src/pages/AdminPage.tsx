@@ -21,6 +21,10 @@ const TABS = {
     'Audit log',
     lazy(() => import('../components/admin/AuditLog').then((m) => ({ default: m.AuditLog }))),
   ],
+  ai: [
+    'AI assistant',
+    lazy(() => import('../components/admin/AiSettings').then((m) => ({ default: m.AiSettings }))),
+  ],
   data: [
     'Data & retention',
     lazy(() => import('../components/admin/DataRetention').then((m) => ({ default: m.DataRetention }))),

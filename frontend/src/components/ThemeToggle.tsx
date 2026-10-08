@@ -1,25 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-const KEY = 'glasshaus.theme';
+import { THEME_EVENT, toggleTheme } from '../lib/theme';
 
 export function ThemeToggle() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
-
-  const toggle = () => {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle('dark', next);
-    try {
-      localStorage.setItem(KEY, next ? 'dark' : 'light');
-    } catch {
-      /* storage unavailable: theme still applies for this session */
-    }
-  };
+  useEffect(() => {
+    const sync = () => setDark(document.documentElement.classList.contains('dark'));
+    window.addEventListener(THEME_EVENT, sync);
+    return () => window.removeEventListener(THEME_EVENT, sync);
+  }, []);
 
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={toggleTheme}
       aria-pressed={dark}
       className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 dark:border-slate-600 dark:hover:bg-slate-800"
     >

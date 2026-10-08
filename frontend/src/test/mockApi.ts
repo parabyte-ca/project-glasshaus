@@ -131,4 +131,21 @@ export const baseRoutes: Route[] = [
   { method: 'GET', path: '/api/v1/oauth/apps', body: [] },
   { method: 'GET', path: '/api/v1/calendar-feed', body: { url: null, created_at: null, last_used_at: null } },
   { method: 'GET', path: '/api/v1/auth/sso/providers', body: [] },
+  {
+    method: 'GET',
+    path: '/api/v1/ai/status',
+    body: { available: false, enabled: false, provider: 'none', model: '', features: [] },
+  },
 ];
+
+export const aiOn: Route = {
+  method: 'GET',
+  path: '/api/v1/ai/status',
+  body: {
+    available: true,
+    enabled: true,
+    provider: 'fake',
+    model: 'fake',
+    features: ['summaries', 'drafting', 'risks', 'search'],
+  },
+};

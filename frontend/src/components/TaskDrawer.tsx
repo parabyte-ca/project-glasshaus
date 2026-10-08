@@ -243,7 +243,7 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
               ) : t.description ? (
                 <Markdown text={t.description} />
               ) : (
-                <p className="text-sm text-slate-500">No description.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">No description.</p>
               )}
             </section>
 

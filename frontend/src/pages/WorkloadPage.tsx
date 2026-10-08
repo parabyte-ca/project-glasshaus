@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { api, unwrap, type Workload } from '../api/client';
 import { useAuth } from '../auth/useAuth';
-import { ErrorText, Field, GhostButton, Input, Select } from '../components/ui';
+import { ErrorText, Field, GhostButton, Input, ScrollArea, Select } from '../components/ui';
 import { addDays, todayIso } from '../lib/dates';
 import { formatMinutes, hours, mondayOf, shortDate } from '../lib/format';
 
@@ -168,7 +168,7 @@ export function WorkloadPage() {
         </p>
       )}
       {data && data.users.length > 0 && (
-        <div className="overflow-x-auto">
+        <ScrollArea label="Workload table">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Planned hours against capacity per person</caption>
             <thead className="text-xs text-slate-600 dark:text-slate-400">
@@ -211,7 +211,7 @@ export function WorkloadPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollArea>
       )}
     </div>
   );

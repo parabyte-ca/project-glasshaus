@@ -6,6 +6,13 @@
   color-scheme: light dark;
 }
 
+/* The page background follows the theme even where content is wider than the layout. */
+@layer base {
+  body {
+    @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  }
+}
+
 /* Chart tokens (dataviz reference palette; validated light on #fcfcfb and dark on slate-950). */
 :root {
   --chart-surface: #ffffff;

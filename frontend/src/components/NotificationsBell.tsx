@@ -79,10 +79,10 @@ export function NotificationsBell() {
                 <button
                   type="button"
                   onClick={() => go(n)}
-                  className={`block w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800 ${n.read_at ? 'text-slate-500' : 'font-medium'}`}
+                  className={`block w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800 ${n.read_at ? 'text-slate-500 dark:text-slate-400' : 'font-medium'}`}
                 >
                   {n.title}
-                  <span className="block text-xs font-normal text-slate-500">
+                  <span className="block text-xs font-normal text-slate-500 dark:text-slate-400">
                     {new Date(n.created_at).toLocaleString()}
                   </span>
                 </button>

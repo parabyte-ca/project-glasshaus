@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react';
 
 import { api, unwrap, type Schemas, type User } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
-import { Button, ErrorText, Field, GhostButton, Input, Select } from '../ui';
+import { Button, ErrorText, Field, GhostButton, Input, ScrollArea, Select } from '../ui';
 import { Section } from './common';
 import { dateTime, table, td, th } from './format';
 
@@ -118,7 +118,7 @@ export function People() {
           </p>
         )}
         <ErrorText error={users.error ?? update.error ?? signOut.error} />
-        <div className="overflow-x-auto">
+        <ScrollArea label="People">
           <table className={table}>
             <thead>
               <tr>
@@ -134,7 +134,7 @@ export function People() {
             </thead>
             <tbody>
               {(users.data ?? []).map((u) => (
-                <tr key={u.id} className={u.is_active ? '' : 'text-slate-500'}>
+                <tr key={u.id} className={u.is_active ? '' : 'text-slate-500 dark:text-slate-400'}>
                   <td className={td}>{u.name}</td>
                   <td className={td}>{u.email}</td>
                   <td className={td}>
@@ -202,7 +202,7 @@ export function People() {
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollArea>
       </Section>
 
       <Section

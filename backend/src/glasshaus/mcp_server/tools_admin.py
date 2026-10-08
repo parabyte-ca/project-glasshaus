@@ -76,7 +76,8 @@ def register(server: MCPServer) -> None:
 
     @server.tool(name="get_org_settings", title="Get governance settings", annotations=READ)
     async def get_org_settings() -> dict[str, Any]:
-        """Retention settings (audit, activity, notifications, deleted tasks). Organization admins."""
+        """Retention settings (audit, activity, notifications, deleted tasks) and the AI assistant switch.
+        Organization admins."""
         from glasshaus.governance import service as governance
 
         async def run(ctx: ServiceContext) -> dict[str, Any]:
@@ -90,10 +91,17 @@ def register(server: MCPServer) -> None:
         activity_retention_days: Annotated[int | None, Field(ge=0, le=3650)] = None,
         notification_retention_days: Annotated[int | None, Field(ge=0, le=3650)] = None,
         deleted_task_retention_days: Annotated[int | None, Field(ge=0, le=3650)] = None,
+        ai_enabled: Annotated[
+            bool | None, Field(description="Turn the in-app AI assistant on or off for the organization.")
+        ] = None,
+        ai_features: Annotated[
+            list[Literal["summaries", "drafting", "risks", "search"]] | None,
+            Field(description="AI features people may use when the assistant is on."),
+        ] = None,
         confirm: Confirm = False,
     ) -> dict[str, Any]:
-        """Shorter retention deletes older data at the next nightly run (0 keeps forever). Previews
-        unless confirm=true."""
+        """Retention and AI settings. Shorter retention deletes older data at the next nightly run (0
+        keeps forever). Previews unless confirm=true."""
         from glasshaus.governance import service as governance
         from glasshaus.governance.service import OrgSettingsUpdate
 
@@ -102,6 +110,8 @@ def register(server: MCPServer) -> None:
             activity_retention_days=activity_retention_days,
             notification_retention_days=notification_retention_days,
             deleted_task_retention_days=deleted_task_retention_days,
+            ai_enabled=ai_enabled,
+            ai_features=ai_features,
         )
 
         async def run(ctx: ServiceContext) -> dict[str, Any]:

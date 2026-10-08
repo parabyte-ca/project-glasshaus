@@ -46,8 +46,8 @@ function ProviderCard({ p }: { p: Provider }) {
     <li className="flex flex-col gap-2 rounded border border-slate-200 p-3 dark:border-slate-700">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-medium">
-          {p.name} <span className="text-xs text-slate-500 uppercase">{p.kind}</span>
-          {!p.enabled && <span className="ml-2 text-xs text-slate-500">(disabled)</span>}
+          {p.name} <span className="text-xs text-slate-500 dark:text-slate-400 uppercase">{p.kind}</span>
+          {!p.enabled && <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">(disabled)</span>}
           {p.enforce && (
             <span className="ml-2 text-xs text-amber-700 dark:text-amber-400">required for sign-in</span>
           )}

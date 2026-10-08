@@ -6,7 +6,8 @@ import { Button, ErrorText, Field, Input } from '../ui';
 import { Section } from './common';
 
 type Settings = Schemas['OrgSettingsRead'];
-const FIELDS: [keyof Settings, string][] = [
+type RetentionKey = Exclude<keyof Settings, 'ai_enabled' | 'ai_features'>;
+const FIELDS: [RetentionKey, string][] = [
   ['audit_retention_days', 'Audit log'],
   ['activity_retention_days', 'Activity history'],
   ['notification_retention_days', 'Notifications'],
@@ -22,7 +23,7 @@ export function DataRetention() {
   const [edits, setDraft] = useState<Settings | null>(null);
   const draft = edits ?? settings.data ?? null;
   const save = useMutation({
-    mutationFn: (body: Settings) => unwrap(api.PATCH('/api/v1/admin/settings', { body })),
+    mutationFn: (body: Schemas['OrgSettingsUpdate']) => unwrap(api.PATCH('/api/v1/admin/settings', { body })),
     onSuccess: (data) => queryClient.setQueryData(['org-settings'], data),
   });
   return (
@@ -36,7 +37,7 @@ export function DataRetention() {
             className="grid max-w-xl gap-3 sm:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
-              save.mutate(draft);
+              save.mutate(Object.fromEntries(FIELDS.map(([key]) => [key, draft[key]])));
             }}
           >
             {FIELDS.map(([key, label]) => (

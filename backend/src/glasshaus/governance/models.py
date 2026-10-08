@@ -1,6 +1,7 @@
 import uuid
 
-from sqlalchemy import ForeignKey, Integer
+from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from glasshaus.core.orm import Base, TimestampMixin
@@ -26,4 +27,12 @@ class OrgSettings(TimestampMixin, Base):
     )
     deleted_task_retention_days: Mapped[int] = mapped_column(
         Integer, nullable=False, default=30, server_default="30"
+    )
+    # Optional AI assistant: needs a server provider (GLASSHAUS_AI_PROVIDER) and this switch.
+    ai_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    ai_features: Mapped[list[str]] = mapped_column(
+        ARRAY(String(40)),
+        nullable=False,
+        default=lambda: ["summaries", "drafting", "risks", "search"],
+        server_default="{summaries,drafting,risks,search}",
     )

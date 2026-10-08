@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router';
 
 import { api, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
-import { ErrorText, Field, GhostButton, Input, Select } from '../components/ui';
+import { ErrorText, Field, GhostButton, Input, ScrollArea, Select } from '../components/ui';
 import { addDays, todayIso } from '../lib/dates';
 import { formatMinutes, hours, mondayOf, shortDay } from '../lib/format';
 
@@ -68,7 +68,7 @@ function TimesheetView() {
       </div>
       <ErrorText error={sheet.error} />
       {s && (
-        <div className="overflow-x-auto">
+        <ScrollArea label="Timesheet">
           <table className="w-full min-w-[640px] text-left text-sm">
             <caption className="sr-only">Timesheet, hours per task and day</caption>
             <thead className="text-xs text-slate-600 dark:text-slate-400">
@@ -120,7 +120,7 @@ function TimesheetView() {
           <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
             {formatMinutes(s.total)} this week, {formatMinutes(s.billable_total)} billable.
           </p>
-        </div>
+        </ScrollArea>
       )}
     </div>
   );

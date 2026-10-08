@@ -4,7 +4,7 @@ import io
 import uuid
 import zipfile
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 import orjson
 from pydantic import Field, field_validator
@@ -20,6 +20,8 @@ from glasshaus.core.schemas import Schema
 from glasshaus.governance.models import OrgSettings
 from glasshaus.identity import security
 from glasshaus.identity.models import ApiToken, AuthSession, User
+
+AiFeature = Literal["summaries", "drafting", "risks", "search"]
 
 # Columns never exported (credentials and secret hashes).
 EXPORT_EXCLUDED_COLUMNS = {
@@ -42,6 +44,10 @@ class OrgSettingsRead(Schema):
         description="Days a deleted task stays restorable before it is purged (0 = forever). Tasks with "
         "logged time are kept."
     )
+    ai_enabled: bool = Field(
+        description="AI assistant on for this organization (also needs a provider configured on the server)."
+    )
+    ai_features: list[AiFeature] = Field(description="AI features people may use when the assistant is on.")
 
 
 class OrgSettingsUpdate(Schema):
@@ -49,6 +55,13 @@ class OrgSettingsUpdate(Schema):
     activity_retention_days: int | None = Field(None, ge=0, le=3650)
     notification_retention_days: int | None = Field(None, ge=0, le=3650)
     deleted_task_retention_days: int | None = Field(None, ge=0, le=3650)
+    ai_enabled: bool | None = None
+    ai_features: list[AiFeature] | None = None
+
+    @field_validator("ai_features")
+    @classmethod
+    def _unique(cls, v: list[str] | None) -> list[str] | None:
+        return None if v is None else sorted(set(v))
 
 
 class PasswordReset(Schema):
