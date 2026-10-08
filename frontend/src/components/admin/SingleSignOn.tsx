@@ -59,6 +59,11 @@ function ProviderCard({ p }: { p: Provider }) {
           <GhostButton onClick={() => update.mutate({ enforce: !p.enforce })}>
             {p.enforce ? 'Allow passwords' : 'Require SSO'}
           </GhostButton>
+          {p.allowed_domains.length > 0 && (
+            <GhostButton onClick={() => update.mutate({ link_existing_accounts: !p.link_existing_accounts })}>
+              {p.link_existing_accounts ? 'Stop linking by email' : 'Link existing accounts by email'}
+            </GhostButton>
+          )}
           <GhostButton
             aria-label={`Remove ${p.name}`}
             onClick={() => window.confirm(`Remove ${p.name}? People keep their accounts.`) && remove.mutate()}
@@ -90,6 +95,13 @@ function ProviderCard({ p }: { p: Provider }) {
         )}
         <dt className="text-slate-600 dark:text-slate-400">Allowed domains</dt>
         <dd>{p.allowed_domains.length ? p.allowed_domains.join(', ') : 'any'}</dd>
+        <dt className="text-slate-600 dark:text-slate-400">Existing accounts</dt>
+        <dd>
+          {p.link_existing_accounts
+            ? 'members and guests are linked by email on first sign-in'
+            : 'linked only when the provider marks the email verified (or from Account settings)'}
+          ; owners always link from Account settings
+        </dd>
         <dt className="text-slate-600 dark:text-slate-400">New accounts</dt>
         <dd>
           {p.jit_provisioning ? `created on first sign-in as ${p.default_role}` : 'must be invited first'}

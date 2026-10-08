@@ -60,7 +60,9 @@ def metadata_xml(org: str, provider: IdentityProvider) -> str:
     )
 
 
-async def start(org: str, provider: IdentityProvider, next_path: str) -> str:
+async def start(
+    org: str, provider: IdentityProvider, next_path: str, extra: dict[str, str] | None = None
+) -> str:
     cfg = SamlConfig.model_validate(provider.config)
     request_id = "_" + secrets.token_hex(20)
     issued = _iso(_now())
@@ -85,6 +87,7 @@ async def start(org: str, provider: IdentityProvider, next_path: str) -> str:
             "org": org,
             "request_id": request_id,
             "next": next_path,
+            **(extra or {}),
         }
     )
     query = urlencode({"SAMLRequest": base64.b64encode(deflated).decode(), "RelayState": state})

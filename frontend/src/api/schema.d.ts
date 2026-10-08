@@ -1839,6 +1839,23 @@ export interface paths {
     patch: operations['update_provider'];
     trace?: never;
   };
+  '/api/v1/auth/sso/identities': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Single sign-on identities linked to your account */
+    get: operations['my_identities'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/integrations/event-types': {
     parameters: {
       query?: never;
@@ -3282,6 +3299,32 @@ export interface components {
       /** Weight */
       weight?: number | null;
     };
+    /**
+     * LinkedIdentity
+     * @description An enabled identity provider and whether it is linked to your account.
+     */
+    LinkedIdentity: {
+      /** Provider Name */
+      provider_name: string;
+      /** Provider Slug */
+      provider_slug: string;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: 'oidc' | 'saml';
+      /** Linked */
+      linked: boolean;
+      /** Linked At */
+      linked_at: string | null;
+      /** Last Login At */
+      last_login_at: string | null;
+      /**
+       * Link Url
+       * @description Open in the browser while signed in to link this provider.
+       */
+      link_url: string;
+    };
     /** LoginRequest */
     LoginRequest: {
       /**
@@ -3956,6 +3999,12 @@ export interface components {
        * @default false
        */
       enforce?: boolean;
+      /**
+       * Link Existing Accounts
+       * @description Link a first sign-in to an existing member or guest account with the same email even when the IdP does not mark the address verified (SAML, Entra ID). Needs allowed domains. Owner and admin accounts are never linked this way; they link from Account settings.
+       * @default false
+       */
+      link_existing_accounts?: boolean;
       /** Slug */
       slug: string;
       /**
@@ -4003,6 +4052,12 @@ export interface components {
        * @default false
        */
       enforce: boolean;
+      /**
+       * Link Existing Accounts
+       * @description Link a first sign-in to an existing member or guest account with the same email even when the IdP does not mark the address verified (SAML, Entra ID). Needs allowed domains. Owner and admin accounts are never linked this way; they link from Account settings.
+       * @default false
+       */
+      link_existing_accounts: boolean;
       /**
        * Id
        * Format: uuid
@@ -4061,6 +4116,8 @@ export interface components {
       default_role?: ('member' | 'guest' | 'admin') | null;
       /** Enforce */
       enforce?: boolean | null;
+      /** Link Existing Accounts */
+      link_existing_accounts?: boolean | null;
       oidc?: components['schemas']['OidcConfig-Input'] | null;
       saml?: components['schemas']['SamlConfig-Input'] | null;
       /**
@@ -15191,6 +15248,8 @@ export interface operations {
     parameters: {
       query?: {
         next?: string | null;
+        /** @description Link this provider to the signed-in account instead. */
+        link?: boolean;
       };
       header?: never;
       path: {
@@ -15648,6 +15707,66 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ProviderRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  my_identities: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LinkedIdentity'][];
         };
       };
       /** @description Not authenticated */

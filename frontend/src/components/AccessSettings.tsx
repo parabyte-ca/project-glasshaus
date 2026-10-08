@@ -127,6 +127,8 @@ export function AccessSettings() {
         )}
       </section>
 
+      <SingleSignOnLinks />
+
       <CalendarFeed />
 
       <section aria-labelledby="apps-h" className="flex flex-col gap-3">
@@ -216,6 +218,54 @@ function CalendarFeed() {
         </p>
       )}
       <ErrorText error={feed.error ?? reset.error ?? off.error} />
+    </section>
+  );
+}
+
+function SingleSignOnLinks() {
+  const options = useQuery({
+    queryKey: ['sso-identities'],
+    queryFn: () => unwrap(api.GET('/api/v1/auth/sso/identities')),
+  });
+  const justLinked = new URLSearchParams(window.location.search).has('sso_linked');
+  if (!options.data?.length) return null;
+  return (
+    <section aria-labelledby="sso-h" className="flex flex-col gap-3">
+      <h2 id="sso-h" className="text-lg font-semibold">
+        Single sign-on
+      </h2>
+      <p className="text-sm text-slate-600 dark:text-slate-400">
+        Link your organization&apos;s identity provider to sign in with it. You will be asked to sign in
+        there.
+      </p>
+      {justLinked && (
+        <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">
+          Single sign-on linked.
+        </p>
+      )}
+      <ul className="divide-y divide-slate-200 text-sm dark:divide-slate-700">
+        {options.data.map((o) => (
+          <li key={o.provider_slug} className="flex items-center justify-between gap-3 py-2">
+            <span>
+              <span className="font-medium">{o.provider_name}</span>
+              <span className="block text-slate-600 dark:text-slate-400">
+                {o.linked
+                  ? `linked ${shortDate(o.linked_at)} · last used ${shortDate(o.last_login_at)}`
+                  : 'not linked'}
+              </span>
+            </span>
+            {!o.linked && (
+              <a
+                href={o.link_url}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
+              >
+                Link {o.provider_name}
+              </a>
+            )}
+          </li>
+        ))}
+      </ul>
+      <ErrorText error={options.error} />
     </section>
   );
 }

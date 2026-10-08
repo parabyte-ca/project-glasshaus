@@ -661,6 +661,32 @@ describe('single sign-on', () => {
     expect(await screen.findByText('http://localhost/api/v1/calendar/ghc_abc.ics')).toBeInTheDocument();
     expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/v1/calendar-feed'))).toBe(true);
   });
+
+  it('links single sign-on from Account', async () => {
+    mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/auth/sso/identities'),
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/auth/sso/identities',
+        body: [
+          {
+            provider_name: 'Entra ID',
+            provider_slug: 'entra',
+            kind: 'oidc',
+            linked: false,
+            linked_at: null,
+            last_login_at: null,
+            link_url: '/api/v1/auth/sso/default/entra/start?link=true',
+          },
+        ],
+      },
+    ]);
+    renderAt('/account?sso_linked=1');
+    const link = await screen.findByRole('link', { name: 'Link Entra ID' });
+    expect(link).toHaveAttribute('href', '/api/v1/auth/sso/default/entra/start?link=true');
+    expect(screen.getByText('Single sign-on linked.')).toBeInTheDocument();
+  });
 });
 
 describe('theme', () => {

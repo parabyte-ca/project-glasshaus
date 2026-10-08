@@ -12326,6 +12326,18 @@
               ],
               "title": "Next"
             }
+          },
+          {
+            "name": "link",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Link this provider to the signed-in account instead.",
+              "default": false,
+              "title": "Link"
+            },
+            "description": "Link this provider to the signed-in account instead."
           }
         ],
         "responses": {
@@ -12956,6 +12968,75 @@
               }
             },
             "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/sso/identities": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Single sign-on identities linked to your account",
+        "operationId": "my_identities",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LinkedIdentity"
+                  },
+                  "type": "array",
+                  "title": "Response My Identities"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           }
         }
       }
@@ -17670,6 +17751,72 @@
         "type": "object",
         "title": "KeyResultUpdate"
       },
+      "LinkedIdentity": {
+        "properties": {
+          "provider_name": {
+            "type": "string",
+            "title": "Provider Name"
+          },
+          "provider_slug": {
+            "type": "string",
+            "title": "Provider Slug"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "oidc",
+              "saml"
+            ],
+            "title": "Kind"
+          },
+          "linked": {
+            "type": "boolean",
+            "title": "Linked"
+          },
+          "linked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linked At"
+          },
+          "last_login_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login At"
+          },
+          "link_url": {
+            "type": "string",
+            "title": "Link Url",
+            "description": "Open in the browser while signed in to link this provider."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider_name",
+          "provider_slug",
+          "kind",
+          "linked",
+          "linked_at",
+          "last_login_at",
+          "link_url"
+        ],
+        "title": "LinkedIdentity",
+        "description": "An enabled identity provider and whether it is linked to your account."
+      },
       "LoginRequest": {
         "properties": {
           "email": {
@@ -19340,6 +19487,12 @@
             "description": "Require SSO for everyone except owners.",
             "default": false
           },
+          "link_existing_accounts": {
+            "type": "boolean",
+            "title": "Link Existing Accounts",
+            "description": "Link a first sign-in to an existing member or guest account with the same email even when the IdP does not mark the address verified (SAML, Entra ID). Needs allowed domains. Owner and admin accounts are never linked this way; they link from Account settings.",
+            "default": false
+          },
           "slug": {
             "type": "string",
             "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$",
@@ -19438,6 +19591,12 @@
             "type": "boolean",
             "title": "Enforce",
             "description": "Require SSO for everyone except owners.",
+            "default": false
+          },
+          "link_existing_accounts": {
+            "type": "boolean",
+            "title": "Link Existing Accounts",
+            "description": "Link a first sign-in to an existing member or guest account with the same email even when the IdP does not mark the address verified (SAML, Entra ID). Needs allowed domains. Owner and admin accounts are never linked this way; they link from Account settings.",
             "default": false
           },
           "id": {
@@ -19548,6 +19707,7 @@
           "jit_provisioning",
           "default_role",
           "enforce",
+          "link_existing_accounts",
           "id",
           "slug",
           "kind",
@@ -19641,6 +19801,17 @@
               }
             ],
             "title": "Enforce"
+          },
+          "link_existing_accounts": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Existing Accounts"
           },
           "oidc": {
             "anyOf": [

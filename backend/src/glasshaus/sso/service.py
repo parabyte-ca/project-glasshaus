@@ -82,6 +82,12 @@ class ProviderBase(Schema):
     jit_provisioning: bool = Field(True, description="Create accounts on first sign-in.")
     default_role: Literal["member", "guest", "admin"] = "member"
     enforce: bool = Field(False, description="Require SSO for everyone except owners.")
+    link_existing_accounts: bool = Field(
+        False,
+        description="Link a first sign-in to an existing member or guest account with the same email even "
+        "when the IdP does not mark the address verified (SAML, Entra ID). Needs allowed domains. Owner "
+        "and admin accounts are never linked this way; they link from Account settings.",
+    )
 
     @field_validator("allowed_domains")
     @classmethod
@@ -104,6 +110,7 @@ class ProviderUpdate(Schema):
     jit_provisioning: bool | None = None
     default_role: Literal["member", "guest", "admin"] | None = None
     enforce: bool | None = None
+    link_existing_accounts: bool | None = None
     oidc: OidcConfig | None = None
     saml: SamlConfig | None = None
     client_secret: str | None = Field(None, max_length=500, description="Set to replace; '' to clear.")
@@ -178,6 +185,7 @@ def _read(p: IdentityProvider, org: str) -> ProviderRead:
         jit_provisioning=p.jit_provisioning,
         default_role=p.default_role,
         enforce=p.enforce,
+        link_existing_accounts=p.link_existing_accounts,
         oidc=OidcConfig.model_validate(p.config) if p.kind == "oidc" else None,
         saml=SamlConfig.model_validate(p.config) if p.kind == "saml" else None,
         client_secret_set=bool(p.client_secret),
@@ -225,7 +233,9 @@ async def create_provider(ctx: ServiceContext, data: ProviderCreate) -> Provider
         jit_provisioning=data.jit_provisioning,
         default_role=data.default_role,
         enforce=data.enforce,
+        link_existing_accounts=data.link_existing_accounts,
     )
+    _check_linking(provider)
     ctx.session.add(provider)
     try:
         await ctx.session.flush()
@@ -236,9 +246,15 @@ async def create_provider(ctx: ServiceContext, data: ProviderCreate) -> Provider
     return result
 
 
+def _check_linking(p: IdentityProvider) -> None:
+    if p.link_existing_accounts and not p.allowed_domains:
+        raise InvalidInput("linking existing accounts by email needs at least one allowed domain")
+
+
 def _audit_view(p: ProviderRead) -> dict[str, Any]:
     return p.model_dump(
-        mode="json", include={"name", "slug", "kind", "enabled", "enforce", "allowed_domains"}
+        mode="json",
+        include={"name", "slug", "kind", "enabled", "enforce", "allowed_domains", "link_existing_accounts"},
     )
 
 
@@ -253,7 +269,15 @@ async def update_provider(ctx: ServiceContext, provider_id: uuid.UUID, data: Pro
     require_org(ctx, Permission.ORG_MANAGE)
     p = await _provider(ctx, provider_id)
     changes = data.model_dump(exclude_unset=True)
-    for field in ("name", "enabled", "allowed_domains", "jit_provisioning", "default_role", "enforce"):
+    for field in (
+        "name",
+        "enabled",
+        "allowed_domains",
+        "jit_provisioning",
+        "default_role",
+        "enforce",
+        "link_existing_accounts",
+    ):
         if field in changes and changes[field] is not None:
             setattr(p, field, changes[field])
     if p.kind == "oidc" and data.oidc is not None:
@@ -262,6 +286,7 @@ async def update_provider(ctx: ServiceContext, provider_id: uuid.UUID, data: Pro
         p.config = data.saml.model_dump(mode="json")
     if data.client_secret is not None:
         p.client_secret = crypto.encrypt(data.client_secret) if data.client_secret else None
+    _check_linking(p)
     await ctx.session.flush()
     result = _read(p, await _org_slug(ctx.session, ctx.tenant_id))
     events.emit(ctx, "sso.provider_updated", "identity_provider", p.id, _audit_view(result))
@@ -358,9 +383,20 @@ async def remember_once(key: str, ttl_seconds: int) -> None:
 
 
 async def resolve_user(
-    session: AsyncSession, provider: IdentityProvider, *, subject: str, email: str | None, name: str | None
+    session: AsyncSession,
+    provider: IdentityProvider,
+    *,
+    subject: str,
+    email: str | None,
+    name: str | None,
+    email_verified: bool = False,
 ) -> User:
-    """Find the linked user, link an existing account by email, or create one (JIT)."""
+    """Find the linked user, link an existing account by email, or create one (JIT).
+
+    A first sign-in is linked to an existing account only when that is safe: never for owners (they
+    link from Account settings), admins only when the IdP asserts the email is verified, members and
+    guests when it is verified or the provider is set to trust its addresses (`link_existing_accounts`).
+    """
     from glasshaus.audit.service import record_raw
 
     now = datetime.now(UTC)
@@ -391,6 +427,22 @@ async def resolve_user(
             )
             raise Unauthenticated("your email domain is not allowed to sign in with this provider")
         user = await session.scalar(select(User).where(func.lower(User.email) == email.lower()))
+        if user is not None:
+            reason = _link_refusal(provider, user, email_verified=email_verified)
+            if reason:
+                await record_raw(
+                    provider.tenant_id,
+                    "auth.sso_login",
+                    outcome="denied",
+                    actor_id=user.id,
+                    method="sso",
+                    client=f"sso:{provider.slug}",
+                    detail={"email": email, "reason": reason},
+                )
+                raise Unauthenticated(
+                    "an account with this email already exists; sign in with your password and link "
+                    "single sign-on under Account, or ask an administrator"
+                )
         if user is None:
             if not provider.jit_provisioning:
                 raise Unauthenticated("no account exists for this email; ask an administrator to invite you")
@@ -432,3 +484,85 @@ async def resolve_user(
         detail={"email": user.email},
     )
     return user
+
+
+def _link_refusal(provider: IdentityProvider, user: User, *, email_verified: bool) -> str | None:
+    """Why a first sign-in may not be linked to this existing account (None: it may)."""
+    if user.org_role == OrgRole.OWNER:
+        return "owner accounts link single sign-on from Account settings"
+    if user.org_role == OrgRole.ADMIN:
+        return None if email_verified else "admin accounts need an email the IdP marks verified"
+    if email_verified or (provider.link_existing_accounts and provider.allowed_domains):
+        return None
+    return "email not verified by the identity provider"
+
+
+async def link_identity(
+    session: AsyncSession, provider: IdentityProvider, user: User, *, subject: str
+) -> None:
+    """Link an IdP subject to the signed-in user (Account > Single sign-on)."""
+    from glasshaus.audit.service import record_raw
+
+    existing = await session.scalar(
+        select(UserIdentity).where(UserIdentity.provider_id == provider.id, UserIdentity.subject == subject)
+    )
+    if existing is not None and existing.user_id != user.id:
+        raise Conflict("this identity is already linked to another account")
+    if existing is None:
+        session.add(
+            UserIdentity(
+                tenant_id=provider.tenant_id, user_id=user.id, provider_id=provider.id, subject=subject
+            )
+        )
+        await session.flush()
+    await record_raw(
+        provider.tenant_id,
+        "auth.sso_linked",
+        outcome="ok",
+        actor_id=user.id,
+        method="session",
+        client=f"sso:{provider.slug}",
+        target=f"user:{user.id}",
+    )
+
+
+class LinkedIdentity(Schema):
+    """An enabled identity provider and whether it is linked to your account."""
+
+    provider_name: str
+    provider_slug: str
+    kind: Kind
+    linked: bool
+    linked_at: datetime | None
+    last_login_at: datetime | None
+    link_url: str = Field(description="Open in the browser while signed in to link this provider.")
+
+
+async def my_identities(ctx: ServiceContext) -> list[LinkedIdentity]:
+    org = await _org_slug(ctx.session, ctx.tenant_id)
+    providers = (
+        await ctx.session.scalars(
+            select(IdentityProvider).where(IdentityProvider.enabled.is_(True)).order_by(IdentityProvider.name)
+        )
+    ).all()
+    links = {
+        i.provider_id: i
+        for i in (
+            await ctx.session.scalars(select(UserIdentity).where(UserIdentity.user_id == ctx.actor.user_id))
+        ).all()
+    }
+    result = []
+    for p in providers:
+        i = links.get(p.id)
+        result.append(
+            LinkedIdentity(
+                provider_name=p.name,
+                provider_slug=p.slug,
+                kind=p.kind,
+                linked=i is not None,
+                linked_at=i.created_at if i else None,
+                last_login_at=i.last_login_at if i else None,
+                link_url=start_url(org, p.slug) + "?link=true",
+            )
+        )
+    return result

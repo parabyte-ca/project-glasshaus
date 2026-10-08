@@ -131,6 +131,7 @@ export const baseRoutes: Route[] = [
   { method: 'GET', path: '/api/v1/oauth/apps', body: [] },
   { method: 'GET', path: '/api/v1/calendar-feed', body: { url: null, created_at: null, last_used_at: null } },
   { method: 'GET', path: '/api/v1/auth/sso/providers', body: [] },
+  { method: 'GET', path: '/api/v1/auth/sso/identities', body: [] },
   {
     method: 'GET',
     path: '/api/v1/ai/status',
