@@ -241,6 +241,9 @@ async def get_integration(ctx: ServiceContext, integration_id: uuid.UUID) -> Int
 
 async def create_integration(ctx: ServiceContext, data: IntegrationCreate) -> IntegrationCreated:
     await _authorize(ctx, data.project_id)
+    if data.kind == "email":
+        # The server connects to the configured mail host, so only organization admins choose it.
+        require_org(ctx, Permission.ORG_MANAGE)
     generated: str | None = None
     values: dict[str, str] = {}
     config: dict[str, Any] = {}
@@ -309,6 +312,7 @@ async def update_integration(
     if data.secret is not None:
         values["password" if i.kind == "email" else "signing"] = data.secret
     if data.email is not None and i.kind == "email":
+        require_org(ctx, Permission.ORG_MANAGE)
         config["email"] = data.email.model_dump(mode="json")
     i.config = config
     i.secret = _store_secrets(values)

@@ -301,3 +301,42 @@ async def test_calendar_feed(client: AsyncClient) -> None:
     assert "SUMMARY:" not in (await client.get(path)).text
     await client.post("/api/v1/calendar-feed", headers=member_h)
     assert (await client.get(path)).status_code == 404
+
+
+async def test_email_integration_cannot_probe_internal_hosts(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The IMAP host goes through the same address checks as webhooks; errors don't echo servers."""
+    import ssl
+
+    from glasshaus.automation.webhooks import WebhookRefused
+    from glasshaus.config import get_settings
+    from glasshaus.integrations.service import EmailConfig
+
+    def cfg(host: str) -> EmailConfig:
+        return EmailConfig(host=host, username="u")
+
+    monkeypatch.setattr(get_settings(), "webhook_allow_private", False)
+    for host in ("127.0.0.1", "169.254.169.254", "10.0.0.5", "localhost"):
+        with pytest.raises(WebhookRefused):
+            email_mod.mail_address(cfg(host))
+    monkeypatch.setattr(get_settings(), "webhook_allow_private", True)
+    assert email_mod.mail_address(cfg("10.0.0.5")) == "10.0.0.5"  # homelab mail server
+    with pytest.raises(WebhookRefused):
+        email_mod.mail_address(cfg("169.254.169.254"))  # metadata: never
+
+    assert (
+        email_mod.describe_error(ConnectionRefusedError("postgres banner"))
+        == "could not connect to the mail server"
+    )
+    assert "TLS" in email_mod.describe_error(ssl.SSLError("wrong version"))
+    assert email_mod.describe_error(WebhookRefused("address 127.0.0.1 is not allowed")).startswith("refused")
+
+    # Project admins (not org admins) cannot add a mailbox the server will connect to.
+    world = await make_world()
+    lead = await make_user(world.tenant)
+    await add_member(client, world, lead, "admin")
+    body = {"kind": "email", "name": "Inbox", "project_id": str(world.project.id), "secret": "pw",
+            "email": {"host": "imap.example.com", "username": "tasks"}}  # fmt: skip
+    r = await client.post("/api/v1/integrations", json=body, headers=auth(await token_for(lead)))
+    assert r.status_code == 403
