@@ -3,11 +3,14 @@ import { Link, NavLink, Outlet } from 'react-router';
 
 import { api, getVersion, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
+import { useLiveUpdates } from '../lib/realtime';
+import { NotificationsBell } from './NotificationsBell';
 import { ThemeToggle } from './ThemeToggle';
 import { GhostButton } from './ui';
 
 export function Layout() {
   const { user, logout } = useAuth();
+  useLiveUpdates();
   const version = useQuery({ queryKey: ['version'], queryFn: getVersion, staleTime: Infinity });
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => unwrap(api.GET('/api/v1/projects')) });
 
@@ -25,6 +28,7 @@ export function Layout() {
         </Link>
         <div className="flex items-center gap-2">
           <span className="hidden text-sm text-slate-600 sm:inline dark:text-slate-400">{user.name}</span>
+          <NotificationsBell />
           <ThemeToggle />
           <GhostButton onClick={logout}>Sign out</GhostButton>
         </div>

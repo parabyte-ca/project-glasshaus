@@ -6,7 +6,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class Schema(BaseModel):
-    model_config = ConfigDict(from_attributes=True, extra="forbid")
+    # Response schemas list defaulted fields as required (they are always present), so generated
+    # clients get accurate types; request schemas keep them optional.
+    model_config = ConfigDict(
+        from_attributes=True, extra="forbid", json_schema_serialization_defaults_required=True
+    )
 
 
 class Page[T](BaseModel):

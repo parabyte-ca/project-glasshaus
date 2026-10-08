@@ -1,57 +1,70 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
-import { useParams } from 'react-router';
+import { useCallback, useMemo, useState, type FormEvent } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router';
 
-import { api, unwrap, type Task } from '../api/client';
-import { Button, ErrorText, Input, Select } from '../components/ui';
+import { api, unwrap, type Task, type ViewConfig, type ViewKind } from '../api/client';
+import { TaskDrawer } from '../components/TaskDrawer';
+import { Button, ErrorText, GhostButton, Input, Select } from '../components/ui';
+import { PRIORITIES } from '../lib/grouping';
+import { defaultConfig, OPEN } from '../lib/views';
+import { useProject } from '../lib/useProject';
+import { BoardView } from '../views/BoardView';
+import { ListView } from '../views/ListView';
+import { TableView } from '../views/TableView';
+import type { TaskPatch } from '../views/types';
 
-const PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'] as const;
-
+const KINDS: { kind: ViewKind; label: string }[] = [
+  { kind: 'list', label: 'List' },
+  { kind: 'board', label: 'Board' },
+  { kind: 'table', label: 'Table' },
+];
 export function ProjectPage() {
   const { projectKey = '' } = useParams();
+  const [params, setParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [showDone, setShowDone] = useState(false);
+  const { project, fields, views, users } = useProject(projectKey);
+  const p = project.data;
 
-  const project = useQuery({
-    queryKey: ['project', projectKey],
-    queryFn: () =>
-      unwrap(api.GET('/api/v1/projects/by-key/{key}', { params: { path: { key: projectKey } } })),
-  });
-  const projectId = project.data?.id;
-  const categories = showDone
-    ? undefined
-    : (['backlog', 'todo', 'in_progress'] as ('backlog' | 'todo' | 'in_progress')[]);
-  const tasks = useQuery({
-    queryKey: ['tasks', projectId, showDone],
-    enabled: !!projectId,
+  const viewId = params.get('view');
+  const savedView = views.find((v) => v.id === viewId);
+  const [draft, setDraft] = useState<{ viewId: string | null; config: ViewConfig } | null>(null);
+  const kind = (params.get('kind') as ViewKind | null) ?? savedView?.kind ?? 'list';
+  const config = draft && draft.viewId === viewId ? draft.config : (savedView?.config ?? defaultConfig(kind));
+  const setConfig = (next: ViewConfig) => setDraft({ viewId, config: next });
+  const setParam = (key: string, value: string | null) =>
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value === null) next.delete(key);
+      else next.set(key, value);
+      return next;
+    });
+
+  const filters = config.filters ?? {};
+  const tasksQuery = useQuery({
+    queryKey: ['tasks', p?.id, config],
+    enabled: !!p,
     placeholderData: keepPreviousData,
     queryFn: () =>
       unwrap(
         api.GET('/api/v1/tasks', {
           params: {
             query: {
-              project_id: projectId,
-              status_categories: categories,
-              limit: 200,
-              top_level_only: false,
+              project_id: p!.id,
+              ...filters,
+              sort: config.sort,
+              descending: config.descending,
+              sort_field: config.sort_field ?? undefined,
+              limit: 500,
             },
           },
         }),
       ),
   });
-  const users = useQuery({ queryKey: ['users'], queryFn: () => unwrap(api.GET('/api/v1/users')) });
+  const tasks = useMemo(() => tasksQuery.data?.items ?? [], [tasksQuery.data]);
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['tasks', projectId] });
-  const create = useMutation({
-    mutationFn: () => unwrap(api.POST('/api/v1/tasks', { body: { project_id: projectId!, title } })),
-    onSuccess: () => {
-      setTitle('');
-      void invalidate();
-    },
-  });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['tasks', p?.id] });
   const update = useMutation({
-    mutationFn: ({ task, patch }: { task: Task; patch: Record<string, unknown> }) =>
+    mutationFn: ({ task, patch }: { task: Task; patch: TaskPatch }) =>
       unwrap(
         api.PATCH('/api/v1/tasks/{ref}', {
           params: { path: { ref: task.id } },
@@ -60,30 +73,215 @@ export function ProjectPage() {
       ),
     onSettled: () => void invalidate(),
   });
+  const [title, setTitle] = useState('');
+  const create = useMutation({
+    mutationFn: () => unwrap(api.POST('/api/v1/tasks', { body: { project_id: p!.id, title } })),
+    onSuccess: () => {
+      setTitle('');
+      void invalidate();
+    },
+  });
+  const [saveName, setSaveName] = useState<string | null>(null);
+  const [shareView, setShareView] = useState(false);
+  const saveView = useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.POST('/api/v1/projects/{project_id}/views', {
+          params: { path: { project_id: p!.id } },
+          body: { name: saveName!, kind, shared: shareView, config },
+        }),
+      ),
+    onSuccess: (view) => {
+      setSaveName(null);
+      void queryClient.invalidateQueries({ queryKey: ['views', p!.id] });
+      setParams({ view: view.id });
+    },
+  });
 
-  const onCreate = (e: FormEvent) => {
-    e.preventDefault();
-    if (title.trim()) create.mutate();
-  };
+  const openTask = useCallback((task: Task) => setParam('task', task.key), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const closeTask = useCallback(() => setParam('task', null), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (project.isError) return <ErrorText error={project.error} />;
-  if (!project.data) return <p role="status">Loading…</p>;
+  if (!p) return <p role="status">Loading…</p>;
 
-  const names = new Map(users.data?.map((u) => [u.id, u.name]));
+  const showCompleted = !filters.status_categories;
+  const selectFields = fields.filter((f) => f.type === 'select' || f.type === 'multi_select');
+  const props = {
+    tasks,
+    project: p,
+    fields,
+    users,
+    config,
+    onOpen: openTask,
+    onUpdate: (task: Task, patch: TaskPatch) => update.mutate({ task, patch }),
+  };
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">
-          {project.data.name}{' '}
-          <span className="font-mono text-sm text-slate-600 dark:text-slate-400">{project.data.key}</span>
+          {p.name} <span className="font-mono text-sm text-slate-600 dark:text-slate-400">{p.key}</span>
         </h1>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
-          Show completed
-        </label>
+        {p.my_role === 'admin' && (
+          <Link
+            to={`/projects/${p.key}/settings`}
+            className="text-sm text-sky-700 hover:underline dark:text-sky-400"
+          >
+            Project settings
+          </Link>
+        )}
       </div>
 
-      <form onSubmit={onCreate} className="flex gap-2">
+      <div className="flex flex-wrap items-end gap-3" role="toolbar" aria-label="View options">
+        <div
+          className="flex rounded-md border border-slate-300 dark:border-slate-600"
+          role="group"
+          aria-label="Layout"
+        >
+          {KINDS.map((k) => (
+            <button
+              key={k.kind}
+              type="button"
+              aria-pressed={kind === k.kind}
+              onClick={() => setParam('kind', k.kind)}
+              className={`px-3 py-1.5 text-sm first:rounded-l-md last:rounded-r-md ${kind === k.kind ? 'bg-sky-700 text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            >
+              {k.label}
+            </button>
+          ))}
+        </div>
+        <Select
+          aria-label="Saved view"
+          value={viewId ?? ''}
+          onChange={(e) => setParams(e.target.value ? { view: e.target.value } : {})}
+        >
+          <option value="">Default view</option>
+          {views.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+              {v.shared ? ' (shared)' : ''}
+            </option>
+          ))}
+        </Select>
+        <Input
+          aria-label="Search tasks"
+          placeholder="Search…"
+          value={filters.q ?? ''}
+          onChange={(e) => setConfig({ ...config, filters: { ...filters, q: e.target.value || null } })}
+        />
+        <Select
+          aria-label="Priority filter"
+          value={filters.priorities?.[0] ?? ''}
+          onChange={(e) =>
+            setConfig({
+              ...config,
+              filters: {
+                ...filters,
+                priorities: e.target.value ? [e.target.value as Task['priority']] : null,
+              },
+            })
+          }
+        >
+          <option value="">Any priority</option>
+          {PRIORITIES.map((pr) => (
+            <option key={pr} value={pr}>
+              {pr}
+            </option>
+          ))}
+        </Select>
+        <Select
+          aria-label="Group by"
+          value={config.group_by ?? ''}
+          onChange={(e) => setConfig({ ...config, group_by: e.target.value || null })}
+        >
+          <option value="">No grouping</option>
+          <option value="status">Group: status</option>
+          <option value="assignee">Group: assignee</option>
+          <option value="priority">Group: priority</option>
+          {selectFields.map((f) => (
+            <option key={f.id} value={`cf:${f.id}`}>
+              Group: {f.name}
+            </option>
+          ))}
+        </Select>
+        <Select
+          aria-label="Sort by"
+          value={config.sort_field ? `cf:${config.sort_field}` : config.sort}
+          onChange={(e) => {
+            const v = e.target.value;
+            setConfig(
+              v.startsWith('cf:')
+                ? { ...config, sort_field: v.slice(3) }
+                : { ...config, sort_field: null, sort: v as ViewConfig['sort'] },
+            );
+          }}
+        >
+          <option value="position">Sort: manual</option>
+          <option value="due_date">Sort: due date</option>
+          <option value="priority">Sort: priority</option>
+          <option value="updated_at">Sort: recently updated</option>
+          <option value="title">Sort: title</option>
+          {fields
+            .filter((f) => ['number', 'date', 'text'].includes(f.type))
+            .map((f) => (
+              <option key={f.id} value={`cf:${f.id}`}>
+                Sort: {f.name}
+              </option>
+            ))}
+        </Select>
+        <label className="flex items-center gap-2 pb-1.5 text-sm">
+          <input
+            type="checkbox"
+            checked={showCompleted}
+            onChange={(e) =>
+              setConfig({
+                ...config,
+                filters: { ...filters, status_categories: e.target.checked ? null : [...OPEN] },
+              })
+            }
+          />
+          Show completed
+        </label>
+        {saveName === null ? (
+          <GhostButton onClick={() => setSaveName(savedView ? `${savedView.name} copy` : 'My view')}>
+            Save view
+          </GhostButton>
+        ) : (
+          <form
+            className="flex items-end gap-2"
+            onSubmit={(e: FormEvent) => {
+              e.preventDefault();
+              saveView.mutate();
+            }}
+          >
+            <Input
+              aria-label="View name"
+              required
+              maxLength={100}
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+            />
+            {p.my_role === 'admin' && (
+              <label className="flex items-center gap-1 pb-1.5 text-sm">
+                <input type="checkbox" checked={shareView} onChange={(e) => setShareView(e.target.checked)} />
+                Shared
+              </label>
+            )}
+            <Button type="submit" disabled={saveView.isPending}>
+              Save
+            </Button>
+            <GhostButton onClick={() => setSaveName(null)}>Cancel</GhostButton>
+          </form>
+        )}
+      </div>
+
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (title.trim()) create.mutate();
+        }}
+      >
         <label htmlFor="new-task" className="sr-only">
           New task title
         </label>
@@ -99,76 +297,25 @@ export function ProjectPage() {
           Add
         </Button>
       </form>
-      <ErrorText error={create.error ?? update.error} />
+      <ErrorText error={create.error ?? update.error ?? saveView.error ?? tasksQuery.error} />
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <caption className="sr-only">Tasks in {project.data.name}</caption>
-          <thead className="border-b border-slate-200 text-xs text-slate-600 uppercase dark:border-slate-800 dark:text-slate-400">
-            <tr>
-              <th scope="col" className="py-2 pr-3">
-                Key
-              </th>
-              <th scope="col" className="py-2 pr-3">
-                Title
-              </th>
-              <th scope="col" className="py-2 pr-3">
-                Status
-              </th>
-              <th scope="col" className="py-2 pr-3">
-                Priority
-              </th>
-              <th scope="col" className="py-2 pr-3">
-                Assignee
-              </th>
-              <th scope="col" className="py-2 pr-3">
-                Due
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.data?.items.map((task) => (
-              <tr key={task.id} className="border-b border-slate-100 dark:border-slate-900">
-                <td className="py-2 pr-3 font-mono text-xs whitespace-nowrap">{task.key}</td>
-                <td className="py-2 pr-3">{task.title}</td>
-                <td className="py-2 pr-3">
-                  <Select
-                    aria-label={`Status of ${task.key}`}
-                    value={task.status.id}
-                    onChange={(e) => update.mutate({ task, patch: { status_id: e.target.value } })}
-                  >
-                    {project.data.statuses.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </Select>
-                </td>
-                <td className="py-2 pr-3">
-                  <Select
-                    aria-label={`Priority of ${task.key}`}
-                    value={task.priority}
-                    onChange={(e) => update.mutate({ task, patch: { priority: e.target.value } })}
-                  >
-                    {PRIORITIES.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </Select>
-                </td>
-                <td className="py-2 pr-3 whitespace-nowrap">
-                  {task.assignee_id ? names.get(task.assignee_id) : '—'}
-                </td>
-                <td className="py-2 pr-3 whitespace-nowrap">{task.due_date ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {tasks.data?.items.length === 0 && (
-          <p className="py-6 text-center text-slate-600 dark:text-slate-400">No open tasks.</p>
-        )}
-      </div>
+      {kind === 'board' ? (
+        <BoardView {...props} />
+      ) : kind === 'table' ? (
+        <TableView {...props} />
+      ) : (
+        <ListView {...props} />
+      )}
+
+      {params.get('task') && (
+        <TaskDrawer
+          taskRef={params.get('task')!}
+          project={p}
+          fields={fields}
+          users={users}
+          onClose={closeTask}
+        />
+      )}
     </div>
   );
 }

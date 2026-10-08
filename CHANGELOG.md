@@ -6,6 +6,43 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-08
+
+Phase 2 — views, custom fields, comments, activity feed.
+
+### Added
+- Typed custom fields per project (text, number, date, single/multi select, person, checkbox, URL) with
+  validation, required fields, filtering (`cf=`), sorting (`sort_field=`), and safe clean-up when options or
+  fields are removed.
+- Comments in markdown with @mentions (`@[Name](user:<id>)` or `@email`), editing by the author and moderation
+  by project admins.
+- In-app notifications for mentions, assignments and comments on your tasks, produced by idempotent event
+  consumers (Redis Streams consumer group with retry and dead-lettering) that later phases reuse.
+- Activity feed for tasks, projects or everything you can see, built from the domain-event log.
+- Saved views (list, board, table; personal or shared) holding filters, grouping, sorting and columns; run a view
+  through the API.
+- Live updates over WebSocket (`/api/v1/ws`): identifiers only, filtered by project visibility, origin-checked.
+- Web UI: list, board (drag and drop between and within columns) and virtualized table views; toolbar for search,
+  priority, grouping, sorting and completed tasks; saved-view picker and save; task drawer with field editing,
+  markdown description, comments with an @mention picker and activity; project settings for custom fields;
+  notifications menu.
+- Demo data includes custom fields, comments with mentions and shared views.
+
+### Changed
+- Domain events record their project (`project_id`); existing events are backfilled.
+- Response schemas in the OpenAPI document mark always-present fields as required, so generated clients are
+  accurate.
+
+## [0.2.1] - 2026-10-07
+
+### Security
+- Container images apply OS security updates at build time (`apk upgrade` / `apt-get upgrade`); the web image
+  had 42 fixable HIGH findings from its nginx base (curl, expat, libuuid, pcre2, OpenSSL, c-ares, libxml2).
+  `UPGRADE_OS_PACKAGES=false` exists only for networks that block the package mirrors.
+
+### Changed
+- CI scans both container images on every pull request with the same Trivy gate as the release workflow.
+
 ## [0.2.0] - 2026-10-07
 
 Phase 1 — data model, authentication, RBAC, core task and project API.
@@ -55,6 +92,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/parabyte-ca/project-glasshaus/releases/tag/v0.1.0

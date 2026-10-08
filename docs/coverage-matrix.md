@@ -26,3 +26,12 @@ will wrap each service function, and the Phase 6 conformance suite verifies this
 | Delete tasks (dry-run first) | `tasks.delete_tasks` | `POST /api/v1/tasks/bulk-delete?dry_run=`, `DELETE /api/v1/tasks/{ref}` | `task.deleted` | `delete_tasks` (confirm) | 0.2 |
 | Restore task | `tasks.restore_task` | `POST /api/v1/tasks/{ref}/restore` | `task.restored` | `restore_task` | 0.2 |
 | My permissions on a task | `tasks.can` | `GET /api/v1/tasks/{ref}/permissions` | — | `get_task` (included) | 0.2 |
+| Custom fields (define) | `fields.list_fields`, `create_field`, `update_field`, `delete_field` | `GET/POST /api/v1/projects/{id}/fields`, `PATCH/DELETE …/fields/{field_id}` | `field.created`, `field.updated`, `field.deleted` | `manage_custom_fields` | 0.3 |
+| Custom field values | `tasks.create_task` / `update_task` (`custom_fields`) | `POST /api/v1/tasks`, `PATCH /api/v1/tasks/{ref}` | `task.created`, `task.updated` | `create_task`, `update_task` | 0.3 |
+| Filter / sort by custom field | `tasks.list_tasks` (`cf`, `sort_field`) | `GET /api/v1/tasks?cf=<id>=<value>&sort_field=<id>` | — | `search_tasks` | 0.3 |
+| Comments with @mentions | `collab.list_comments`, `create_comment`, `update_comment`, `delete_comment` | `GET/POST /api/v1/tasks/{ref}/comments`, `PATCH/DELETE /api/v1/comments/{id}` | `comment.created`, `comment.updated`, `comment.deleted` | `post_comment`, `list_comments` | 0.3 |
+| Notifications (in-app) | `collab.list_notifications`, `unread_count`, `mark_read`; created by event consumers | `GET /api/v1/notifications`, `GET …/unread-count`, `POST …/read` | consumes `comment.*`, `task.created`, `task.updated` | `list_notifications` | 0.3 |
+| Activity feed | `collab.activity` | `GET /api/v1/activity?task=&project_id=` | (reads the event log) | `get_activity` | 0.3 |
+| Saved views | `views.list_views`, `create_view`, `get_view`, `update_view`, `delete_view` | `GET/POST /api/v1/projects/{id}/views`, `GET/PATCH/DELETE /api/v1/views/{id}` | `view.created`, `view.updated`, `view.deleted` (shared views) | `list_views`, resource `glasshaus://views/{id}` | 0.3 |
+| Run a saved view | `views.run_view` | `GET /api/v1/views/{id}/tasks` | — | `run_view` | 0.3 |
+| Live updates | `realtime.to_client` (ids only, visibility-filtered) | `WS /api/v1/ws` | all events | MCP resource subscriptions (Phase 6) | 0.3 |

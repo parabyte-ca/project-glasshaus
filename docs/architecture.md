@@ -46,6 +46,17 @@ PostgreSQL (RLS: tenant_id = app.tenant_id)  ──commit──▶  relay → Re
   `glasshaus:events` (consumers) and `glasshaus:events:<tenant>` pub/sub (realtime), and the worker sweeps any
   that were not relayed.
 
+## Event consumers and realtime
+
+- **Consumers** (`glasshaus/core/consumers.py`): handlers register with `@handles("comment.created", …)` and run in
+  the worker through the Redis Streams consumer group `glasshaus-workers`. Delivery is at-least-once, so handlers
+  are idempotent (notifications are unique per event and recipient). Failures are retried after 60 s and moved to
+  `glasshaus:events:dead` after 5 deliveries. Automations, webhooks and the audit log plug in the same way.
+- **Realtime** (`WS /api/v1/ws`): each connection subscribes to its tenant's pub/sub channel and forwards only
+  event identifiers for projects the user can read (visibility cached for 60 s, reset on membership changes).
+  Browsers refetch through the normal API, so no data bypasses authorization. Cookie-authenticated sockets must
+  come from the app's own origin.
+
 ## Authorization model
 
 | Level | Roles | Effect |
@@ -71,6 +82,10 @@ backend/src/glasshaus/
   identity/          users, sessions, API tokens, workspaces (models, schemas, service, security)
   projects/          projects, members, workflow statuses
   tasks/             tasks: search, CRUD, bulk, soft delete
+  fields/            custom field definitions and typed value validation
+  collab/            comments, @mentions, notifications (+ event handlers), activity feed
+  views/             saved views (filters, grouping, sorting, columns)
+  realtime.py        WebSocket fan-out filtering
   models/            aggregate import of every model (for Alembic)
   dbroles.py         least-privilege app role management
   api/               FastAPI routers (REST adapters), auth dependency, problem details

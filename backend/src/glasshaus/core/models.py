@@ -16,11 +16,14 @@ class DomainEventRecord(UUIDPk, TenantScoped, Base):
     __table_args__ = (
         Index("ix_domain_events_unpublished", "occurred_at", postgresql_where=text("published_at IS NULL")),
         Index("ix_domain_events_aggregate", "aggregate_type", "aggregate_id", "occurred_at"),
+        Index("ix_domain_events_project", "project_id", "occurred_at"),
     )
 
     type: Mapped[str] = mapped_column(String(100), nullable=False)
     aggregate_type: Mapped[str] = mapped_column(String(50), nullable=False)
     aggregate_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    # Project the event belongs to (if any): drives project activity feeds and realtime visibility.
+    project_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     actor_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     actor_method: Mapped[str] = mapped_column(String(20), nullable=False)
     actor_client: Mapped[str | None] = mapped_column(String(100))

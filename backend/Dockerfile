@@ -26,6 +26,12 @@ LABEL org.opencontainers.image.title="glasshaus" \
       org.opencontainers.image.revision="${BUILD_SHA}" \
       org.opencontainers.image.source="https://github.com/parabyte-ca/project-glasshaus" \
       org.opencontainers.image.licenses="AGPL-3.0-only"
+# Pick up Debian security fixes released after the base image was built
+# (UPGRADE_OS_PACKAGES=false only for networks that block the package mirrors).
+ARG UPGRADE_OS_PACKAGES=true
+RUN if [ "$UPGRADE_OS_PACKAGES" = "true" ]; then \
+      apt-get update && apt-get -y upgrade && rm -rf /var/lib/apt/lists/*; \
+    fi
 RUN groupadd --gid 10001 glasshaus \
  && useradd --uid 10001 --gid glasshaus --no-create-home --home-dir /app --shell /usr/sbin/nologin glasshaus
 COPY --from=build --chown=root:root /opt/venv /opt/venv

@@ -59,4 +59,8 @@ RLS_TABLES = (
     "project_statuses",
     "tasks",
     "domain_events",
+    "custom_fields",
+    "comments",
+    "notifications",
+    "saved_views",
 )

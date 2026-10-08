@@ -94,3 +94,28 @@ async def create_task(client: AsyncClient, world: World, **fields: object) -> di
     assert r.status_code == 201, r.text
     data: dict = r.json()  # type: ignore[type-arg]
     return data
+
+
+async def add_member(client: AsyncClient, world: World, user: User, role: str) -> None:
+    r = await client.put(
+        f"/api/v1/projects/{world.project.id}/members",
+        json={"user_id": str(user.id), "role": role},
+        headers=world.headers,
+    )
+    assert r.status_code == 200, r.text
+
+
+async def events_for(aggregate_id: str, type_: str) -> list[dict]:  # type: ignore[type-arg]
+    """Domain-event envelopes as consumers receive them."""
+    from sqlalchemy import select
+
+    from glasshaus.core.events import envelope
+    from glasshaus.core.models import DomainEventRecord
+
+    async with system_session() as session:
+        rows = await session.scalars(
+            select(DomainEventRecord)
+            .where(DomainEventRecord.aggregate_id == uuid.UUID(aggregate_id), DomainEventRecord.type == type_)
+            .order_by(DomainEventRecord.occurred_at)
+        )
+        return [envelope(r) for r in rows.all()]

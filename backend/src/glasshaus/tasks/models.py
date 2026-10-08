@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime
 from enum import StrEnum
+from typing import Any
 
 from sqlalchemy import (
     Date,
@@ -15,7 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from glasshaus.core.orm import Base, TenantScoped, TimestampMixin, UUIDPk
@@ -39,6 +40,7 @@ class Task(UUIDPk, TenantScoped, TimestampMixin, Base):
         Index("ix_tasks_project_position", "project_id", "position"),
         Index("ix_tasks_assignee_open", "assignee_id", postgresql_where=text("deleted_at IS NULL")),
         Index("ix_tasks_tags", "tags", postgresql_using="gin"),
+        Index("ix_tasks_custom_fields", "custom_fields", postgresql_using="gin"),
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(
@@ -67,6 +69,10 @@ class Task(UUIDPk, TenantScoped, TimestampMixin, Base):
         ARRAY(String(50)), nullable=False, default=list, server_default="{}"
     )
     position: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    # Custom field values keyed by field id (validated by glasshaus.fields.service).
+    custom_fields: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")

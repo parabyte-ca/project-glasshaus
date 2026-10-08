@@ -167,8 +167,29 @@ def _sort_clause(query: TaskQuery) -> list[Any]:
         TaskSort.NUMBER: Task.number,
         TaskSort.TITLE: func.lower(Task.title),
     }[query.sort]
+    if query.sort_field:
+        column = Task.custom_fields[str(query.sort_field)].astext
     primary = column.desc() if query.descending else column.asc()
     return [nulls_last(primary), Task.id]
+
+
+def _custom_field_condition(spec: str) -> Any:
+    key, sep, raw = spec.partition("=")
+    try:
+        field_id = str(uuid.UUID(key))
+    except ValueError:
+        raise InvalidInput(f"invalid custom field filter {spec!r}; expected <field_id>=<value>") from None
+    if not sep:
+        return Task.custom_fields.has_key(field_id)
+    candidates: list[Any] = [raw, [raw]]
+    if raw in ("true", "false"):
+        candidates.append(raw == "true")
+    try:
+        number = float(raw)
+        candidates.append(int(number) if number.is_integer() else number)
+    except ValueError:
+        pass
+    return or_(*(Task.custom_fields.contains({field_id: c}) for c in candidates))
 
 
 def _filtered(ctx: ServiceContext, query: TaskQuery) -> Select[Task]:
@@ -207,6 +228,8 @@ def _filtered(ctx: ServiceContext, query: TaskQuery) -> Select[Task]:
         conds.append(Task.due_date <= query.due_before)
     if query.due_after:
         conds.append(Task.due_date >= query.due_after)
+    for spec in query.cf or []:
+        conds.append(_custom_field_condition(spec))
     if query.updated_since:
         conds.append(Task.updated_at >= query.updated_since)
     if query.q:
@@ -282,20 +305,31 @@ async def create_task(ctx: ServiceContext, data: TaskCreate) -> TaskRead:
     if position is None:
         last = await ctx.session.scalar(select(func.max(Task.position)).where(Task.project_id == project.id))
         position = (last or 0) + POSITION_STEP
+    from glasshaus.fields.service import merge_values
+
+    custom = await merge_values(ctx, project.id, {}, data.custom_fields, creating=True)
     task = Task(
         id=uuid.uuid4(),
         tenant_id=ctx.tenant_id,
         number=number,
         reporter_id=ctx.actor.user_id,
         position=position,
-        **data.model_dump(exclude={"status_id", "position"}),
+        custom_fields=custom,
+        **data.model_dump(exclude={"status_id", "position", "custom_fields"}),
     )
     _apply_status(task, status)
     ctx.session.add(task)
     await ctx.session.flush()
     await ctx.session.refresh(task)
     result = (await _to_read(ctx, [task]))[0]
-    events.emit(ctx, "task.created", "task", task.id, {"task": result.model_dump(mode="json")})
+    events.emit(
+        ctx,
+        "task.created",
+        "task",
+        task.id,
+        {"task": result.model_dump(mode="json")},
+        project_id=task.project_id,
+    )
     return result
 
 
@@ -320,6 +354,12 @@ async def update_task(ctx: ServiceContext, task_id: uuid.UUID, data: TaskUpdate)
             raise InvalidInput(f"{field} cannot be null")
     if "tags" in changes and changes["tags"] is None:
         changes["tags"] = []
+    if "custom_fields" in changes:
+        from glasshaus.fields.service import merge_values
+
+        changes["custom_fields"] = await merge_values(
+            ctx, task.project_id, task.custom_fields, changes["custom_fields"] or {}
+        )
     for field, value in changes.items():
         setattr(task, field, value)
     start = task.start_date
@@ -334,7 +374,12 @@ async def update_task(ctx: ServiceContext, task_id: uuid.UUID, data: TaskUpdate)
     diff = {k: {"from": before[k], "to": getattr(task, k)} for k in before if before[k] != getattr(task, k)}
     if diff:
         events.emit(
-            ctx, "task.updated", "task", task.id, {"changes": diff, "task": result.model_dump(mode="json")}
+            ctx,
+            "task.updated",
+            "task",
+            task.id,
+            {"changes": diff, "task": result.model_dump(mode="json")},
+            project_id=task.project_id,
         )
     return result
 
@@ -388,7 +433,14 @@ async def delete_tasks(
                 .values(deleted_at=now, version=Task.version + 1)
                 .execution_options(synchronize_session=False)
             )
-            events.emit(ctx, "task.deleted", "task", task.id, {"title": task.title, "subtasks": len(sub_ids)})
+            events.emit(
+                ctx,
+                "task.deleted",
+                "task",
+                task.id,
+                {"title": task.title, "subtasks": len(sub_ids)},
+                project_id=task.project_id,
+            )
     if not dry_run:
         ctx.session.expire_all()
     return previews
@@ -400,7 +452,7 @@ async def restore_task(ctx: ServiceContext, task_id: uuid.UUID) -> TaskRead:
         raise InvalidInput("task is not deleted")
     task.deleted_at = None
     await ctx.session.flush()
-    events.emit(ctx, "task.restored", "task", task.id, {"title": task.title})
+    events.emit(ctx, "task.restored", "task", task.id, {"title": task.title}, project_id=task.project_id)
     return await get_task(ctx, task.id)
 
 

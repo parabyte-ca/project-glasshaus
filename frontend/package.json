@@ -1,7 +1,7 @@
 {
   "name": "glasshaus-web",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "license": "AGPL-3.0-only",
   "scripts": {
@@ -18,11 +18,11 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.1",
-    "@tanstack/react-table": "^9.2.6",
     "@tanstack/react-virtual": "^3.14.13",
     "openapi-fetch": "^0.17.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "react-markdown": "^10.1.0",
     "react-router": "^8.4.0"
   },
   "devDependencies": {

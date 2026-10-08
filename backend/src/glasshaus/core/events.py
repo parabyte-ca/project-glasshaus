@@ -32,14 +32,19 @@ def emit(
     aggregate_type: str,
     aggregate_id: uuid.UUID,
     payload: BaseModel | dict[str, Any],
+    *,
+    project_id: uuid.UUID | None = None,
 ) -> None:
     data = payload.model_dump(mode="json") if isinstance(payload, BaseModel) else payload
+    if project_id is None and aggregate_type == "project":
+        project_id = aggregate_id
     record = DomainEventRecord(
         id=uuid.uuid4(),
         tenant_id=ctx.tenant_id,
         type=type_,
         aggregate_type=aggregate_type,
         aggregate_id=aggregate_id,
+        project_id=project_id,
         actor_id=ctx.actor.user_id,
         actor_method=ctx.actor.method,
         actor_client=ctx.actor.client,
@@ -56,6 +61,7 @@ def envelope(record: DomainEventRecord) -> dict[str, Any]:
         "tenant_id": str(record.tenant_id),
         "aggregate_type": record.aggregate_type,
         "aggregate_id": str(record.aggregate_id),
+        "project_id": str(record.project_id) if record.project_id else None,
         "actor": {
             "user_id": str(record.actor_id) if record.actor_id else None,
             "method": record.actor_method,

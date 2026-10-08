@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.2.0 — Phase 1 (data model, auth/RBAC, task and project API). See [CHANGELOG.md](CHANGELOG.md) and the [roadmap](#roadmap).
+> **Status:** v0.3.0 — Phase 2 (views, custom fields, comments, notifications, activity, live updates). See [CHANGELOG.md](CHANGELOG.md) and the [roadmap](#roadmap).
 
 ## Contents
 
@@ -136,6 +136,13 @@ Interactive docs: `http://localhost:8471/api/docs`. The OpenAPI 3.1 contract is 
 - **Destructive calls** (`DELETE /projects/{id}`, `POST /tasks/bulk-delete`) default to `dry_run=true` and
   return a preview of what would be removed.
 - Tasks accept a UUID or a reference such as `WEB-12` wherever `{ref}` appears.
+- **Custom fields** are defined per project; set values with `custom_fields: {"<field_id>": value}` (null clears),
+  filter with `cf=<field_id>=<value>` and sort with `sort_field=<field_id>`.
+- **Comments** are markdown; mention people with `@[Name](user:<id>)` or `@email`. Mentions, assignments and
+  comments on your tasks create in-app notifications (`GET /api/v1/notifications`).
+- **Activity** for a task or project: `GET /api/v1/activity?task=WEB-12`.
+- **Saved views** store filters, grouping, sorting and columns; `GET /api/v1/views/{id}/tasks` runs one.
+- **Live updates**: `WS /api/v1/ws` streams event identifiers for projects you can see.
 
 ```bash
 TOKEN=ghp_...   # from POST /api/v1/tokens
@@ -186,6 +193,8 @@ Version-specific upgrade notes:
 
 | Version | Notes |
 | --- | --- |
+| 0.3.0 | New tables (custom fields, comments, notifications, saved views); existing events are backfilled with their project. `./update.sh` as usual. |
+| 0.2.1 | Security patch for container base packages. `./update.sh` as usual. |
 | 0.2.0 | One-time, because the 0.1.0 `update.sh` cannot hand over to its successor: run `git pull --ff-only && ./update.sh --no-git --rollback-rev ORIG_HEAD`. It generates `POSTGRES_APP_PASSWORD` and `GLASSHAUS_ADMIN_PASSWORD`, and `migrate` creates the `glasshaus_app` database role. From 0.2.0 on, `./update.sh` re-runs its own new version after pulling. |
 | 0.1.0 | Initial release. |
 
@@ -210,7 +219,7 @@ builds, scans and publishes multi-arch (amd64/arm64) images to GHCR.
 | --- | --- | --- | --- |
 | 0 | 0.1.0 | Scaffold, CI, Compose, README, seed data | ✅ |
 | 1 | 0.2.0 | Data model, auth/RBAC, task/project CRUD, service layer, OpenAPI | ✅ |
-| 2 | 0.3.0 | List/board/table views, custom fields, comments, activity | |
+| 2 | 0.3.0 | List/board/table views, custom fields, comments, activity | ✅ |
 | 3 | 0.4.0 | Dependencies, timeline/Gantt, critical path, calendar | |
 | 4 | 0.5.0 | Automation engine and templates | |
 | 5 | 0.6.0 | Workload, time tracking, reporting, dashboards, portfolio/OKRs | |

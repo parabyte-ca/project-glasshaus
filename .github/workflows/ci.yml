@@ -121,6 +121,32 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
 
+  images:
+    name: Container image scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { name: glasshaus, context: backend }
+          - { name: glasshaus-web, context: frontend }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          load: true
+          tags: scan/${{ matrix.name }}:ci
+          cache-from: type=gha,scope=${{ matrix.name }}
+      - name: Trivy image scan (same gate as the release workflow)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: scan/${{ matrix.name }}:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
   smoke:
     name: Stack smoke test (setup.sh)
     runs-on: ubuntu-latest

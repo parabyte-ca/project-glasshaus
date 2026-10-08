@@ -9,6 +9,15 @@ export type ProjectDetail = Schemas['ProjectDetail'];
 export type User = Schemas['UserRead'];
 export type Workspace = Schemas['WorkspaceRead'];
 export type VersionInfo = Schemas['VersionInfo'];
+export type Status = Schemas['StatusRead'];
+export type CustomField = Schemas['FieldRead'];
+export type Comment = Schemas['CommentRead'];
+export type Notification = Schemas['NotificationRead'];
+export type ActivityItem = Schemas['ActivityItem'];
+export type SavedView = Schemas['ViewRead'];
+export type ViewConfig = Schemas['ViewConfig-Input'];
+export type ViewKind = Schemas['ViewKind'];
+export type Priority = Schemas['Priority'];
 
 export class ApiError extends Error {
   constructor(

@@ -4,6 +4,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { Layout } from './components/Layout';
 import { HomePage } from './pages/HomePage';
 import { ProjectPage } from './pages/ProjectPage';
+import { ProjectSettingsPage } from './pages/ProjectSettingsPage';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
           <Route element={<Layout />}>
             <Route index element={<HomePage />} />
             <Route path="projects/:projectKey" element={<ProjectPage />} />
+            <Route path="projects/:projectKey/settings" element={<ProjectSettingsPage />} />
           </Route>
         </Routes>
       </AuthProvider>
