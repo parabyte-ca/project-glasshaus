@@ -93,11 +93,16 @@ def _redirect(params: dict[str, Any], query: dict[str, str]) -> str:
     return f"{base}{'&' if '?' in base else '?'}{urlencode(query)}"
 
 
+def _offerable(ctx: ServiceContext, scopes: list[str]) -> list[str]:
+    """The admin scope is only offered to organization admins (as for API tokens)."""
+    return [s for s in scopes if s != Scope.ADMIN.value or ctx.actor.is_org_admin]
+
+
 async def get_consent(ctx: ServiceContext, request_id: str) -> ConsentRequest:
     if ctx.actor.user_id is None or ctx.actor.method != "session":
         raise PermissionDenied("sign in to the web app to approve access")
     req, client = await _pending(ctx.session, request_id)
-    scopes = req.params.get("scopes") or DEFAULT_SCOPES
+    scopes = _offerable(ctx, req.params.get("scopes") or DEFAULT_SCOPES)
     return ConsentRequest(
         id=req.id,
         client_name=client.client_name or client.client_id,
@@ -118,7 +123,7 @@ async def decide(ctx: ServiceContext, request_id: str, decision: ConsentDecision
     await ctx.session.delete(req)
     if not decision.approve:
         return ConsentResult(redirect_to=_redirect(params, {"error": "access_denied"}))
-    requested = params.get("scopes") or DEFAULT_SCOPES
+    requested = _offerable(ctx, params.get("scopes") or DEFAULT_SCOPES)
     granted = decision.scopes if decision.scopes is not None else requested
     if not granted or set(granted) - set(requested):
         raise InvalidInput("choose at least one of the requested permissions")

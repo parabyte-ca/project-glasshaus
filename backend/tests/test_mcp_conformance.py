@@ -24,7 +24,7 @@ from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 
 from glasshaus.config import get_settings
-from tests.factories import PASSWORD, World, make_world, token_for
+from tests.factories import PASSWORD, World, make_user, make_world, token_for
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 
@@ -341,3 +341,44 @@ async def test_example_agent_script(mcp_url: str) -> None:
     result = json.loads(out)
     assert [t["key"] for t in result["summary"]["completed"]] == [result["design"]]
     assert b"waits for it" in err
+
+
+async def test_registration_without_scope_and_admin_scope_offer(
+    mcp_url: str, client: httpx.AsyncClient
+) -> None:
+    """Clients that register without a scope may still ask for any scope; members never get admin."""
+    world = await make_world()
+    member = await make_user(world.tenant)
+    r = await client.post(
+        "/api/v1/auth/login",
+        json={"email": member.email, "password": PASSWORD, "organization": world.tenant.slug},
+    )
+    assert r.status_code == 200
+    csrf = {"X-CSRF-Token": client.cookies["gh_csrf"]}
+    async with httpx.AsyncClient() as http:
+        reg = await http.post(
+            f"{mcp_url}/register",
+            json={
+                "client_name": "No scope",
+                "redirect_uris": [REDIRECT],
+                "token_endpoint_auth_method": "none",
+            },
+        )
+        assert reg.status_code == 201, reg.text
+        _, challenge = pkce()
+        r = await http.get(
+            f"{mcp_url}/authorize",
+            params={
+                "response_type": "code", "client_id": reg.json()["client_id"], "redirect_uri": REDIRECT,
+                "code_challenge": challenge, "code_challenge_method": "S256",
+                "scope": "read tasks:write projects:write admin",
+            },
+        )  # fmt: skip
+        assert r.status_code == 302 and "/oauth/consent" in r.headers["location"], r.headers.get("location")
+        request_id = parse_qs(urlsplit(r.headers["location"]).query)["request"][0]
+    shown = (await client.get(f"/api/v1/oauth/requests/{request_id}")).json()
+    assert shown["scopes"] == ["read", "tasks:write", "projects:write"]
+    bad = await client.post(
+        f"/api/v1/oauth/requests/{request_id}", json={"approve": True, "scopes": ["admin"]}, headers=csrf
+    )
+    assert bad.status_code == 422

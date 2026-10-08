@@ -19,7 +19,7 @@ from glasshaus.config import get_settings
 from glasshaus.mcp_server import resources, tools_core, tools_plan
 from glasshaus.mcp_server.auth import GlasshausOAuthProvider, GlasshausTokenVerifier
 from glasshaus.mcp_server.runtime import UNTRUSTED
-from glasshaus.oauth.service import ALL_SCOPES, DEFAULT_SCOPES
+from glasshaus.oauth.service import ALL_SCOPES
 from glasshaus.version import BUILD_SHA, __version__
 
 INSTRUCTIONS = (
@@ -46,8 +46,9 @@ def build_server() -> MCPServer:
                 issuer_url=public,
                 resource_server_url=f"{public}/mcp",
                 service_documentation_url=f"{settings.public_url.rstrip('/')}/docs",
+                # Registration permits every scope; the user grants a subset on the consent page.
                 client_registration_options=ClientRegistrationOptions(
-                    enabled=True, valid_scopes=ALL_SCOPES, default_scopes=DEFAULT_SCOPES
+                    enabled=True, valid_scopes=ALL_SCOPES, default_scopes=ALL_SCOPES
                 ),
                 revocation_options=RevocationOptions(enabled=True),
                 required_scopes=[],

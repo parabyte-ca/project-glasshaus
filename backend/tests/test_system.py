@@ -94,5 +94,7 @@ def test_mcp_process_registers_every_model() -> None:
         "missing = {'tenants', 'oauth_grants', *RLS_TABLES} - set(Base.metadata.tables); assert not missing, missing"
     )
     env = {**os.environ, "GLASSHAUS_ENV": "test", "GLASSHAUS_SECRET_KEY": "x" * 40}
-    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False, env=env)
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=False, env=env
+    )
     assert result.returncode == 0, result.stderr
