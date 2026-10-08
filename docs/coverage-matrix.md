@@ -1,13 +1,19 @@
 # Feature → API → MCP coverage matrix
 
 Every capability is implemented once in the service layer and exposed through REST, domain events
-(the source for webhooks) and MCP. MCP tools land in Phase 6; the "MCP tool" column names the tool that
-will wrap each service function, and the Phase 6 conformance suite verifies this table.
+(the source for webhooks) and MCP. Each MCP tool is a thin adapter over the same service function, so
+RBAC, validation and events are identical. `tests/test_mcp_tools.py::test_coverage_matrix_matches_server`
+checks that every tool named here exists and that every registered tool is listed.
+
+MCP resources (read-only): `glasshaus://projects`, `glasshaus://projects/{key}`,
+`glasshaus://projects/{key}/report`, `glasshaus://projects/{key}/status`, `glasshaus://tasks/{ref}`,
+`glasshaus://views/{view_id}`, `glasshaus://dashboards/{dashboard_id}`.
+MCP prompts: `weekly_status`, `risk_review`, `sprint_planning`, `standup_digest`.
 
 | Capability | Service function | REST | Domain event(s) | MCP tool | Since |
 | --- | --- | --- | --- | --- | --- |
-| Server version / health | — | `GET /api/v1/version`, `/healthz`, `/readyz` | — | `server_info` ✅ | 0.1 |
-| Sign in / refresh / sign out | `identity.login`, `refresh`, `logout` | `POST /api/v1/auth/{login,refresh,logout}` | — | n/a (OAuth 2.1, Phase 6) | 0.2 |
+| Server version / health | — | `GET /api/v1/version`, `/healthz`, `/readyz` | — | `server_info` | 0.1 |
+| Sign in / refresh / sign out | `identity.login`, `refresh`, `logout` | `POST /api/v1/auth/{login,refresh,logout}` | — | n/a (MCP clients use OAuth 2.1 or an API token) | 0.2 |
 | Change password | `identity.change_password` | `POST /api/v1/auth/password` | `user.password_changed` | n/a (interactive only) | 0.2 |
 | Current user | `identity.get_me` | `GET /api/v1/users/me` | — | `whoami` | 0.2 |
 | List / create / update users | `identity.list_users`, `create_user`, `update_user` | `GET/POST /api/v1/users`, `PATCH /api/v1/users/{id}` | `user.created`, `user.updated` | `list_users` | 0.2 |
@@ -34,7 +40,7 @@ will wrap each service function, and the Phase 6 conformance suite verifies this
 | Activity feed | `collab.activity` | `GET /api/v1/activity?task=&project_id=` | (reads the event log) | `get_activity` | 0.3 |
 | Saved views | `views.list_views`, `create_view`, `get_view`, `update_view`, `delete_view` | `GET/POST /api/v1/projects/{id}/views`, `GET/PATCH/DELETE /api/v1/views/{id}` | `view.created`, `view.updated`, `view.deleted` (shared views) | `list_views`, resource `glasshaus://views/{id}` | 0.3 |
 | Run a saved view | `views.run_view` | `GET /api/v1/views/{id}/tasks` | — | `run_view` | 0.3 |
-| Live updates | `realtime.to_client` (ids only, visibility-filtered) | `WS /api/v1/ws` | all events | MCP resource subscriptions (Phase 6) | 0.3 |
+| Live updates | `realtime.to_client` (ids only, visibility-filtered) | `WS /api/v1/ws` | all events | n/a (poll `get_activity`; resource subscriptions are not yet offered) | 0.3 |
 | Task dependencies (FS/SS/FF/SF, lag/lead) | `scheduling.list_dependencies`, `task_dependencies`, `create_dependency`, `update_dependency`, `delete_dependency` | `GET /api/v1/projects/{id}/dependencies`, `GET /api/v1/tasks/{ref}/dependencies`, `POST /api/v1/dependencies`, `PATCH/DELETE /api/v1/dependencies/{id}` | `dependency.created`, `dependency.updated`, `dependency.deleted` | `manage_dependencies` | 0.4 |
 | Critical path | `scheduling.get_schedule` | `GET /api/v1/projects/{id}/schedule` | — | `get_schedule` | 0.4 |
 | Auto-rescheduling | `scheduling.propagate_from` (on date/dependency changes when `auto_schedule`), `reschedule` | `PATCH /api/v1/projects/{id}` (`auto_schedule`), `POST /api/v1/projects/{id}/reschedule?dry_run=` | `task.updated` (`reason: auto_schedule`/`reschedule`) | `reschedule_project` (confirm) | 0.4 |
@@ -43,7 +49,7 @@ will wrap each service function, and the Phase 6 conformance suite verifies this
 | Calendar window | `tasks.list_tasks` (`scheduled_from`, `scheduled_to`) | `GET /api/v1/tasks?scheduled_from=&scheduled_to=` | — | `search_tasks` | 0.4 |
 | Automation rules | `automation.list_rules`, `get_rule`, `create_rule`, `update_rule`, `delete_rule`, `rotate_secret` | `GET/POST /api/v1/projects/{id}/automation-rules`, `GET/PATCH/DELETE /api/v1/automation-rules/{id}`, `POST …/{id}/rotate-secret` | rules react to `task.created`, `task.updated`, `comment.created`; their changes emit normal events (`actor.method = automation`) | `manage_automations` | 0.5 |
 | Dry-run a rule | `automation.test_rule` | `POST /api/v1/projects/{id}/automation-rules/test` | — | `test_automation` | 0.5 |
-| Run log and retry | `automation.list_runs`, `retry_run` | `GET /api/v1/projects/{id}/automation-runs`, `POST /api/v1/automation-runs/{id}/retry` | — | `list_automation_runs` | 0.5 |
+| Run log and retry | `automation.list_runs`, `retry_run` | `GET /api/v1/projects/{id}/automation-runs`, `POST /api/v1/automation-runs/{id}/retry` | — | `list_automation_runs` (also retries) | 0.5 |
 | Due-soon and scheduled rules | `automation.handlers.run_due_soon_rules`, `run_scheduled_rules` (worker cron) | — | — | n/a (runs in the worker) | 0.5 |
 | Outbound webhooks (signed) | `automation.webhooks.send` (rule action) | — | — | n/a (rule action) | 0.5 |
 | Recurring tasks | `automation.list_recurring`, `create_recurring`, `update_recurring`, `delete_recurring`; `run_recurring_tasks` (cron) | `GET/POST /api/v1/projects/{id}/recurring-tasks`, `PATCH/DELETE /api/v1/recurring-tasks/{id}` | `task.created` (per occurrence) | `manage_recurring_tasks` | 0.5 |
@@ -59,3 +65,9 @@ will wrap each service function, and the Phase 6 conformance suite verifies this
 | Portfolios | `goals.list_portfolios`, `get_portfolio`, `create_portfolio`, `update_portfolio`, `delete_portfolio` | `GET/POST /api/v1/portfolios`, `GET/PATCH/DELETE /api/v1/portfolios/{id}` | — | `get_portfolio` | 0.6 |
 | OKRs | `goals.list_objectives`, `get_objective`, `create_objective`, `update_objective`, `delete_objective`, `add_key_result`, `update_key_result`, `delete_key_result` | `GET/POST /api/v1/objectives`, `GET/PATCH/DELETE /api/v1/objectives/{id}`, `POST …/{id}/key-results`, `PATCH/DELETE /api/v1/key-results/{id}` | — | `list_objectives`, `manage_objectives` | 0.6 |
 | OKR check-ins | `goals.check_in`, `list_check_ins` | `GET/POST /api/v1/key-results/{id}/check-ins` | — | `check_in_key_result` | 0.6 |
+| Run a rule now | `automation.run_rule_now` | `POST /api/v1/automation-rules/{id}/run` | the rule's actions' events | `run_automation` | 0.7 |
+| Status summary data | `insights.status_summary` | `GET /api/v1/projects/{id}/status-summary` | — | `status_summary`, resource `glasshaus://projects/{key}/status` | 0.7 |
+| Project templates (list) | `templates.list_templates` | `GET /api/v1/project-templates` | — | `list_project_templates` | 0.7 |
+| OAuth consent (MCP clients) | `oauth.get_consent`, `decide` | `GET/POST /api/v1/oauth/requests/{id}`; MCP server `/authorize`, `/token`, `/register`, `/revoke` | — | n/a (the OAuth flow itself) | 0.7 |
+| Connected apps | `oauth.list_connected_apps`, `revoke_app` | `GET /api/v1/oauth/apps`, `DELETE /api/v1/oauth/apps/{id}` | — | n/a (credentials) | 0.7 |
+| Audit log (every MCP call) | `audit.record`, `list_entries` | `GET /api/v1/audit-log` | — | `get_audit_log` | 0.7 |

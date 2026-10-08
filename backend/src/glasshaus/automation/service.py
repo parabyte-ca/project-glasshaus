@@ -370,3 +370,36 @@ async def delete_recurring(ctx: ServiceContext, recurring_id: uuid.UUID) -> None
     item, _ = await _recurring(ctx, recurring_id)
     await ctx.session.delete(item)
     await ctx.session.flush()
+
+
+async def run_rule_now(ctx: ServiceContext, rule_id: uuid.UUID, task_ref: str | None) -> RunRead | None:
+    """Fire a rule immediately (optionally against one task), ignoring its trigger. Conditions still
+    apply; returns the run, or None when the conditions did not match."""
+    from glasshaus.tasks import service as tasks
+
+    rule, _ = await _rule(ctx, rule_id, Permission.PROJECT_UPDATE)
+    task_id = None
+    if task_ref:
+        task = await tasks.get_task(ctx, await tasks.resolve_ref(ctx, task_ref))
+        if task.project_id != rule.project_id:
+            raise InvalidInput("the task must belong to the rule's project")
+        task_id = task.id
+    run_id = await runner.fire(
+        ctx.tenant_id,
+        rule.id,
+        task_id=task_id,
+        event=None,
+        dedupe_key=f"manual:{uuid.uuid4()}",
+        trigger_type="manual",
+    )
+    if run_id is None:
+        return None
+    row = (
+        await ctx.session.execute(
+            select(AutomationRun, AutomationRule.name)
+            .join(AutomationRule, AutomationRule.id == AutomationRun.rule_id)
+            .where(AutomationRun.id == run_id)
+            .execution_options(populate_existing=True)
+        )
+    ).one()
+    return _run_read(row[0], row[1])

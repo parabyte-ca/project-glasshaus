@@ -127,4 +127,6 @@ export const baseRoutes: Route[] = [
   { method: 'GET', path: '/api/v1/project-templates', body: [] },
   { method: 'GET', path: '/api/v1/timer', body: null },
   { method: 'GET', path: '/api/v1/time-entries', body: { items: [], next_cursor: null } },
+  { method: 'GET', path: '/api/v1/tokens', body: [] },
+  { method: 'GET', path: '/api/v1/oauth/apps', body: [] },
 ];

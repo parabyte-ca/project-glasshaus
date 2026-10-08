@@ -78,4 +78,5 @@ RLS_TABLES = (
     "objectives",
     "key_results",
     "kr_check_ins",
+    "audit_log",
 )

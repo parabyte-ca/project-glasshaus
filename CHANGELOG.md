@@ -6,6 +6,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-08
+
+Phase 6 — MCP server, OAuth 2.1 and AI assistant integrations.
+
+### Added
+- MCP server with 53 tools covering projects, tasks, bulk changes, statuses, custom fields, comments,
+  views, dependencies and schedules, baselines, automations (including run-now and retries), recurring
+  tasks, templates, time and timers, timesheets, workload, reports, status-summary data, dashboards,
+  portfolios, OKRs and the audit log. Destructive tools return a dry-run preview unless `confirm=true`.
+- MCP resources for projects, project reports and status, tasks, saved views and dashboards, and prompt
+  templates for a weekly status, risk review, sprint planning and a stand-up digest.
+- OAuth 2.1 for MCP clients: dynamic client registration, PKCE, RFC 8414/9728 discovery, a consent page
+  in the web app, rotating refresh tokens with reuse detection, revocation, and **Account → Connected
+  apps**. Personal API tokens also work, and can now be created under **Account → API tokens**.
+- Per-tool scope checks mirroring RBAC, a per-user rate limit and an audit log of every MCP call
+  (`GET /api/v1/audit-log`).
+- `GET /api/v1/projects/{id}/status-summary` and `POST /api/v1/automation-rules/{id}/run`.
+- Tested configuration examples for GitHub Copilot (VS Code), Copilot Studio, Microsoft 365 Copilot
+  (declarative agent with MCP plugin, plus an OpenAPI 3.0 API plugin fallback), Claude Desktop, Claude
+  Code and generic clients; an MCP conformance suite; and `examples/agent.py`.
+
+### Fixed
+- Read-only API tokens could create or change portfolios, objectives, key results, check-ins and
+  dashboards; those writes now require the matching token scope.
+
 ## [0.6.0] - 2026-10-08
 
 Phase 5 — time tracking, workload, reporting, dashboards, portfolios and OKRs.

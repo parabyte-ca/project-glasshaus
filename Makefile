@@ -66,6 +66,7 @@ migration: ## Autogenerate a migration: make migration MSG="add tasks"
 openapi: ## Regenerate docs/openapi.json and the frontend's typed client
 	$(BACKEND) GLASSHAUS_ENV=test uv run glasshaus openapi ../docs/openapi.json
 	$(FRONTEND) npm run gen:api
+	python3 scripts/copilot_openapi.py docs/openapi.json docs/integrations/m365/openapi.json
 seed: ## Seed the dev database with demo data
 	$(BACKEND) $(DEV_ENV) uv run glasshaus seed --demo
 

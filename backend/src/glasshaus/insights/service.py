@@ -9,7 +9,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import func, or_, select
 
-from glasshaus.core.authz import require_project, require_workspace, visible_projects_clause
+from glasshaus.core.authz import require_project, require_scope, require_workspace, visible_projects_clause
 from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import InvalidInput, NotFound, PermissionDenied
 from glasshaus.core.rbac import OrgRole, Permission
@@ -26,6 +26,8 @@ from glasshaus.insights.schemas import (
     ProjectHealth,
     ProjectReport,
     StatusCount,
+    StatusSummary,
+    SummaryTask,
     ThroughputPoint,
     TimeSummary,
     Workload,
@@ -452,6 +454,8 @@ async def list_dashboards(ctx: ServiceContext) -> list[DashboardRead]:
 
 
 async def _dashboard(ctx: ServiceContext, dashboard_id: uuid.UUID, *, edit: bool) -> Dashboard:
+    if edit:
+        require_scope(ctx, Permission.TASK_UPDATE)
     d = await ctx.session.get(Dashboard, dashboard_id)
     mine = d is not None and d.owner_id is not None and d.owner_id == ctx.actor.user_id
     visible = d is not None and (mine or (d.shared and ctx.actor.org_role != OrgRole.GUEST))
@@ -467,6 +471,7 @@ async def get_dashboard(ctx: ServiceContext, dashboard_id: uuid.UUID) -> Dashboa
 
 
 async def create_dashboard(ctx: ServiceContext, data: DashboardCreate) -> DashboardRead:
+    require_scope(ctx, Permission.TASK_UPDATE)
     if ctx.actor.user_id is None:
         raise PermissionDenied("dashboards belong to people")
     if data.shared and ctx.actor.org_role == OrgRole.GUEST:
@@ -512,3 +517,66 @@ def _unique_ids(widgets: list) -> None:  # type: ignore[type-arg]
     ids = [w.id for w in widgets]
     if len(ids) != len(set(ids)):
         raise InvalidInput("widget ids must be unique")
+
+
+async def status_summary(ctx: ServiceContext, project_id: uuid.UUID, *, days: int = 7) -> StatusSummary:
+    """What happened in the last ``days``, what is late, what is next: data for a status update."""
+    from glasshaus.scheduling import service as scheduling
+
+    if days < 1 or days > 90:
+        raise InvalidInput("days must be between 1 and 90")
+    project = await require_project(ctx, project_id, Permission.PROJECT_READ)
+    today = _today()
+    start = today - timedelta(days=days - 1)
+    rows = [(t, s) for t, s in await _project_rows(ctx, project_id) if t.deleted_at is None]
+
+    def item(t: Task, s: ProjectStatus) -> SummaryTask:
+        return SummaryTask(
+            key=f"{project.key}-{t.number}",
+            title=t.title,
+            status=s.name,
+            assignee_id=t.assignee_id,
+            due_date=t.due_date,
+            completed_at=t.completed_at,
+        )
+
+    open_rows = [(t, s) for t, s in rows if s.category not in CLOSED]
+    completed = sorted(
+        (
+            (t, s)
+            for t, s in rows
+            if s.category == StatusCategory.DONE and t.completed_at and t.completed_at.date() >= start
+        ),
+        key=lambda r: r[0].completed_at or datetime.min.replace(tzinfo=UTC),
+        reverse=True,
+    )
+    overdue = sorted(
+        ((t, s) for t, s in open_rows if t.due_date and t.due_date < today),
+        key=lambda r: r[0].due_date or today,
+    )
+    soon = sorted(
+        ((t, s) for t, s in open_rows if t.due_date and today <= t.due_date <= today + timedelta(days=days)),
+        key=lambda r: r[0].due_date or today,
+    )
+    logged = await ctx.session.scalar(
+        select(func.coalesce(func.sum(TimeEntry.minutes), 0)).where(
+            TimeEntry.project_id == project_id, TimeEntry.spent_on >= start, TimeEntry.spent_on <= today
+        )
+    )
+    return StatusSummary(
+        project_id=project.id,
+        key=project.key,
+        name=project.name,
+        date_from=start,
+        date_to=today,
+        health=await project_health(ctx, project),
+        open=len(open_rows),
+        done=sum(1 for _, s in rows if s.category == StatusCategory.DONE),
+        overdue=len(overdue),
+        completed=[item(t, s) for t, s in completed[:50]],
+        in_progress=[item(t, s) for t, s in open_rows if s.category == StatusCategory.IN_PROGRESS][:50],
+        overdue_tasks=[item(t, s) for t, s in overdue[:50]],
+        due_soon=[item(t, s) for t, s in soon[:50]],
+        warnings=[w.message for w in await scheduling.schedule_warnings(ctx, project_id)][:50],
+        logged_minutes=int(logged or 0),
+    )

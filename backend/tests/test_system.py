@@ -80,3 +80,21 @@ def test_worker_process_registers_every_model() -> None:
     )
     result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
+
+
+def test_mcp_process_registers_every_model() -> None:
+    """The MCP server runs without the web app; importing it must register all tables (FK targets)."""
+    import os
+    import subprocess
+    import sys
+
+    code = (
+        "import glasshaus.mcp_server.server;"
+        "from glasshaus.core.orm import RLS_TABLES, Base;"
+        "missing = {'tenants', 'oauth_grants', *RLS_TABLES} - set(Base.metadata.tables); assert not missing, missing"
+    )
+    env = {**os.environ, "GLASSHAUS_ENV": "test", "GLASSHAUS_SECRET_KEY": "x" * 40}
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, check=False, env=env
+    )
+    assert result.returncode == 0, result.stderr

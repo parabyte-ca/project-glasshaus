@@ -8,6 +8,7 @@ from glasshaus.api.v1 import (
     fields,
     goals,
     insights,
+    oauth,
     projects,
     scheduling,
     tasks,
@@ -32,5 +33,6 @@ for module in (
     timetracking,
     insights,
     goals,
+    oauth,
 ):
     api_router.include_router(module.router)

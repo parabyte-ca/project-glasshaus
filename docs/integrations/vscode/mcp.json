@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "glasshaus": {
+      "type": "http",
+      "url": "https://glasshaus.example.com:8472/mcp"
+    }
+  }
+}

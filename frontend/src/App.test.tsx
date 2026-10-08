@@ -433,6 +433,105 @@ describe('account', () => {
   });
 });
 
+describe('connected access', () => {
+  it('approves an MCP client with fewer permissions', async () => {
+    const { calls } = mockApi([
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/oauth/requests/req-1',
+        body: {
+          id: 'req-1',
+          client_name: 'Visual Studio Code',
+          client_id: 'c1',
+          redirect_host: '127.0.0.1:33418',
+          scopes: ['read', 'tasks:write'],
+          scope_labels: { read: 'Read things', 'tasks:write': 'Change tasks' },
+          expires_at: '2026-10-08T13:00:00Z',
+        },
+      },
+      {
+        method: 'POST',
+        path: '/api/v1/oauth/requests/req-1',
+        body: { redirect_to: 'http://127.0.0.1:33418/callback?code=abc' },
+      },
+    ]);
+    vi.spyOn(console, 'error').mockImplementation(() => {}); // jsdom cannot navigate away
+    renderAt('/oauth/consent?request=req-1');
+    expect(
+      await screen.findByRole('heading', { name: 'Allow Visual Studio Code to use your account?' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('127.0.0.1:33418')).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText(/tasks:write/));
+    await userEvent.click(screen.getByRole('button', { name: 'Allow' }));
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
+    const post = calls.find((c) => c.method === 'POST')!;
+    expect(post.headers.get('X-CSRF-Token')).toBe('csrf-123');
+    expect(await post.json()).toEqual({ approve: true, scopes: ['read'] });
+  });
+
+  it('creates an API token, shows it once and disconnects an app', async () => {
+    const created = {
+      id: 't1',
+      name: 'VS Code',
+      prefix: 'ghp_abcd',
+      scopes: ['read', 'tasks:write', 'projects:write'],
+      created_at: '2026-10-08T00:00:00Z',
+      expires_at: '2027-01-06T00:00:00Z',
+      last_used_at: null,
+      revoked_at: null,
+    };
+    let tokens: unknown[] = [];
+    let apps = [
+      {
+        id: 'a1',
+        client_id: 'c1',
+        client_name: 'Claude',
+        scopes: ['read'],
+        created_at: '2026-10-01T00:00:00Z',
+        last_used_at: null,
+      },
+    ];
+    const { calls } = mockApi([
+      ...baseRoutes.filter((r) => !['/api/v1/tokens', '/api/v1/oauth/apps'].includes(String(r.path))),
+      signedIn,
+      { method: 'GET', path: '/api/v1/tokens', handler: () => tokens },
+      {
+        method: 'POST',
+        path: '/api/v1/tokens',
+        status: 201,
+        handler: () => {
+          tokens = [created];
+          return { ...created, token: 'ghp_abcd_secret' };
+        },
+      },
+      { method: 'GET', path: '/api/v1/oauth/apps', handler: () => apps },
+      {
+        method: 'DELETE',
+        path: '/api/v1/oauth/apps/a1',
+        status: 204,
+        handler: () => {
+          apps = [];
+        },
+      },
+    ]);
+    renderAt('/account');
+    await userEvent.type(await screen.findByLabelText('Token name'), 'VS Code');
+    await userEvent.click(screen.getByRole('button', { name: 'Create token' }));
+    expect(await screen.findByText('ghp_abcd_secret')).toBeInTheDocument();
+    const post = calls.find((c) => c.method === 'POST')!;
+    expect(await post.json()).toEqual({
+      name: 'VS Code',
+      scopes: ['read', 'tasks:write', 'projects:write'],
+      expires_in_days: 90,
+    });
+    expect(await screen.findByRole('button', { name: 'Revoke VS Code' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Disconnect Claude' }));
+    expect(await screen.findByText(/No apps are connected/)).toBeInTheDocument();
+  });
+});
+
 describe('theme', () => {
   it('toggles dark mode', async () => {
     mockApi([...baseRoutes, signedIn]);
