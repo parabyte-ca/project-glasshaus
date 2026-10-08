@@ -8,6 +8,12 @@ x-backend: &backend
     # Least-privilege role (row-level security enforced); created by the migrate service.
     GLASSHAUS_DATABASE_URL: postgresql+asyncpg://glasshaus_app:${POSTGRES_APP_PASSWORD:?run ./setup.sh}@postgres:5432/glasshaus
     GLASSHAUS_REDIS_URL: redis://:${REDIS_PASSWORD:?run ./setup.sh}@redis:6379/0
+    # .env also holds infrastructure secrets the app never needs: blank them inside app containers so
+    # a leak or code-execution bug there does not reveal the database owner (superuser) password.
+    POSTGRES_PASSWORD: ""
+    POSTGRES_APP_PASSWORD: ""
+    REDIS_PASSWORD: ""
+    GLASSHAUS_ADMIN_PASSWORD: ""
   restart: unless-stopped
   read_only: true
   tmpfs: [/tmp]
@@ -60,6 +66,8 @@ services:
     environment:
       <<: *backend-env
       GLASSHAUS_MIGRATION_DATABASE_URL: postgresql+asyncpg://glasshaus:${POSTGRES_PASSWORD}@postgres:5432/glasshaus
+      # Only the one-shot migrate/seed job sees the first owner's password (to create the account).
+      GLASSHAUS_ADMIN_PASSWORD: ${GLASSHAUS_ADMIN_PASSWORD:-}
     restart: "no"
     healthcheck: { disable: true }
     depends_on:
