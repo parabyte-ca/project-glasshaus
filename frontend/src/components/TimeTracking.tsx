@@ -84,6 +84,10 @@ export function TaskTime({ taskId, taskKey, users }: { taskId: string; taskKey: 
     mutationFn: () => unwrap(api.POST('/api/v1/timer', { body: { task: taskId } })),
     onSettled: () => invalidateTime(queryClient),
   });
+  const stop = useMutation({
+    mutationFn: () => unwrap(api.POST('/api/v1/timer/stop', { body: {} })),
+    onSettled: () => invalidateTime(queryClient),
+  });
   const remove = useMutation({
     mutationFn: (entryId: string) =>
       unwrap(api.DELETE('/api/v1/time-entries/{entry_id}', { params: { path: { entry_id: entryId } } })),
@@ -115,7 +119,20 @@ export function TaskTime({ taskId, taskKey, users }: { taskId: string; taskKey: 
             ▶ Start timer
           </GhostButton>
         )}
-        {running && <span className="text-xs text-slate-600 dark:text-slate-400">Timer running</span>}
+        {running && (
+          <GhostButton
+            onClick={() => stop.mutate()}
+            disabled={stop.isPending}
+            aria-label={`Stop timer on ${taskKey}`}
+          >
+            ■ Stop timer
+          </GhostButton>
+        )}
+        {timer.data && !running && (
+          <span className="text-xs text-slate-600 dark:text-slate-400">
+            Timer running on {timer.data.task_key}
+          </span>
+        )}
       </div>
       <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1 text-xs" htmlFor="time-duration">
@@ -162,7 +179,7 @@ export function TaskTime({ taskId, taskKey, users }: { taskId: string; taskKey: 
           </li>
         ))}
       </ul>
-      <ErrorText error={log.error ?? start.error ?? remove.error} />
+      <ErrorText error={log.error ?? start.error ?? stop.error ?? remove.error} />
     </section>
   );
 }

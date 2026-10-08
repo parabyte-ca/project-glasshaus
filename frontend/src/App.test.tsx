@@ -601,6 +601,46 @@ describe('time tracking and goals', () => {
     await waitFor(() => expect(logged).toEqual({ task: 't1', minutes: 75, note: 'review' }));
   });
 
+  it('stops a running timer from the task drawer', async () => {
+    let running = true;
+    const { calls } = mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/timer'),
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/timer',
+        handler: () =>
+          running
+            ? {
+                task_id: 't1',
+                task_key: 'WEB-1',
+                task_title: 'Task 1',
+                started_at: new Date().toISOString(),
+                note: '',
+                elapsed_seconds: 5,
+              }
+            : null,
+      },
+      {
+        method: 'POST',
+        path: '/api/v1/timer/stop',
+        handler: () => {
+          running = false;
+          return {};
+        },
+      },
+      { method: 'GET', path: '/api/v1/tasks', body: { items: [task(1)], next_cursor: null } },
+      { method: 'GET', path: '/api/v1/tasks/WEB-1', body: task(1) },
+      { method: 'GET', path: '/api/v1/tasks/t1/comments', body: [] },
+      { method: 'GET', path: '/api/v1/activity', body: { items: [], next_cursor: null } },
+      { method: 'GET', path: '/api/v1/tasks/t1/dependencies', body: { predecessors: [], successors: [] } },
+    ]);
+    renderAt('/projects/WEB?task=WEB-1');
+    await userEvent.click(await screen.findByRole('button', { name: 'Stop timer on WEB-1' }));
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith('/api/v1/timer/stop'))).toBe(true));
+    expect(await screen.findByRole('button', { name: 'Start timer on WEB-1' })).toBeInTheDocument();
+  });
+
   it('shows a weekly timesheet with totals', async () => {
     mockApi([
       ...baseRoutes,
