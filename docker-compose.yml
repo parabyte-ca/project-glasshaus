@@ -72,7 +72,8 @@ services:
       <<: *backend-env
       # API worker processes (uvicorn reads WEB_CONCURRENCY); raise on hosts with spare cores.
       WEB_CONCURRENCY: ${GLASSHAUS_API_WORKERS:-2}
-    ports: ["${GLASSHAUS_BIND_ADDRESS:-0.0.0.0}:${GLASSHAUS_API_PORT:-8471}:8000"]
+    # Direct API access is for this host by default; browsers and API clients use the web port (/api).
+    ports: ["${GLASSHAUS_API_BIND_ADDRESS:-127.0.0.1}:${GLASSHAUS_API_PORT:-8471}:8000"]
     depends_on:
       migrate: { condition: service_completed_successfully }
     networks: [backend, frontend]
@@ -105,6 +106,8 @@ services:
         VERSION: ${GLASSHAUS_VERSION:-0.0.0}
         BUILD_SHA: ${GLASSHAUS_BUILD_SHA:-dev}
     ports: ["${GLASSHAUS_BIND_ADDRESS:-0.0.0.0}:${GLASSHAUS_WEB_PORT:-8470}:8080"]
+    environment:
+      GLASSHAUS_UPSTREAM_PROXY: ${GLASSHAUS_UPSTREAM_PROXY:-127.0.0.1/32}
     depends_on:
       api: { condition: service_healthy }
     restart: unless-stopped

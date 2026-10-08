@@ -82,22 +82,34 @@ class HardeningMiddleware:
         await self.app(scope, receive, send_wrapper)
 
 
+# Every request also counts against its client address, at a higher limit (offices share an
+# address), so inventing a new Authorization header per request does not escape the limit.
+PER_ADDRESS_FACTOR = 5
+
+
 async def _limited(scope: Scope) -> bool:
     limit = get_settings().api_rate_limit_per_minute
     if limit <= 0:
         return False
     from glasshaus.redis_client import get_redis
 
-    key = f"glasshaus:api:rl:{_principal(scope)}:{int(time.time() // 60)}"
+    minute = int(time.time() // 60)
+    client = scope.get("client")
+    keys = [
+        (f"glasshaus:api:rl:{_principal(scope)}:{minute}", limit),
+        (f"glasshaus:api:rl:addr:{client[0] if client else 'unknown'}:{minute}", limit * PER_ADDRESS_FACTOR),
+    ]
     try:
         redis = get_redis()
-        count = await redis.incr(key)
-        if count == 1:
-            await redis.expire(key, 90)
+        pipe = redis.pipeline()
+        for key, _ in keys:
+            pipe.incr(key)
+            pipe.expire(key, 90)
+        counts = (await pipe.execute())[::2]
     except Exception:
         log.warning("api.rate_limit_unavailable", exc_info=True)
         return False
-    return int(count) > limit
+    return any(int(count) > cap for count, (_, cap) in zip(counts, keys, strict=True))
 
 
 async def _reply(
