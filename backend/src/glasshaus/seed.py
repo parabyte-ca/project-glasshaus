@@ -7,9 +7,13 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from glasshaus.collab import service as collab
+from glasshaus.collab.schemas import CommentCreate
 from glasshaus.config import get_settings
 from glasshaus.core.context import Actor
 from glasshaus.db import apply_tenant, system_session, unit_of_work
+from glasshaus.fields import service as fields
+from glasshaus.fields.schemas import FieldCreate, SelectOption
 from glasshaus.identity import service as identity
 from glasshaus.identity.models import User, Workspace
 from glasshaus.identity.schemas import UserCreate, WorkspaceCreate, WorkspaceMemberSet
@@ -20,6 +24,8 @@ from glasshaus.projects.schemas import ProjectCreate
 from glasshaus.tasks import service as tasks
 from glasshaus.tasks.models import Priority
 from glasshaus.tasks.schemas import TaskCreate, TaskUpdate
+from glasshaus.views import service as views
+from glasshaus.views.schemas import ViewConfig, ViewCreate, ViewFilters
 
 log = get_logger(__name__)
 DEMO_WORKSPACE = "demo"
@@ -81,6 +87,41 @@ async def generate_demo_data(tenant: Tenant, owner: User, seed: int) -> None:
             project = await projects.create_project(
                 ctx, ProjectCreate(workspace_id=ws.id, key=key, name=name, description=fake.paragraph())
             )
+            severity = await fields.create_field(
+                ctx,
+                project.id,
+                FieldCreate(
+                    name="Severity",
+                    type="select",
+                    options=[SelectOption(id=f"s{i}", label=f"Sev {i}") for i in (1, 2, 3)],
+                ),
+            )
+            points = await fields.create_field(
+                ctx, project.id, FieldCreate(name="Story points", type="number")
+            )
+            await views.create_view(
+                ctx,
+                project.id,
+                ViewCreate(
+                    name="Team board",
+                    kind="board",
+                    shared=True,
+                    config=ViewConfig(group_by="status"),
+                ),
+            )
+            await views.create_view(
+                ctx,
+                project.id,
+                ViewCreate(
+                    name="Urgent work",
+                    kind="table",
+                    shared=True,
+                    config=ViewConfig(
+                        filters=ViewFilters(priorities=["urgent", "high"]),
+                        columns=["key", "title", "status", "assignee", "due_date", f"cf:{severity.id}"],
+                    ),
+                ),
+            )
             parents: list[uuid.UUID] = []
             for _ in range(rng.randint(18, 30)):
                 start = today + timedelta(days=rng.randint(-20, 30))
@@ -99,8 +140,16 @@ async def generate_demo_data(tenant: Tenant, owner: User, seed: int) -> None:
                         tags=rng.sample(
                             ["frontend", "backend", "infra", "design", "bug", "docs"], k=rng.randint(0, 2)
                         ),
+                        custom_fields={
+                            str(severity.id): rng.choice(["s1", "s2", "s3"]),
+                            str(points.id): rng.choice([1, 2, 3, 5, 8]),
+                        },
                     ),
                 )
+                if rng.random() < 0.3:
+                    who = rng.choice(people)
+                    body = f"{fake.sentence()} @[{fake.first_name()}](user:{who})"
+                    await collab.create_comment(ctx, task.id, CommentCreate(body=body))
                 if task.parent_id is None:
                     parents.append(task.id)
                 status = rng.choice(project.statuses)

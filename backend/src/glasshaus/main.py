@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
-from glasshaus.api import health
+from glasshaus.api import health, ws
 from glasshaus.api.errors import install_error_handlers
 from glasshaus.api.v1.router import api_router
 from glasshaus.config import get_settings
@@ -73,6 +73,7 @@ def create_app() -> FastAPI:
     install_error_handlers(app)
     app.include_router(health.router)
     app.include_router(api_router)
+    app.include_router(ws.router)
     return app
 
 

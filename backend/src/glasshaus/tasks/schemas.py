@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Self
+from typing import Any, Self
 
 from pydantic import Field, field_validator, model_validator
 
@@ -40,6 +40,7 @@ class TaskRead(Schema):
     due_date: date | None
     estimate_minutes: int | None
     tags: list[str]
+    custom_fields: dict[str, Any] = Field(description="Custom field values keyed by field id.")
     position: float
     completed_at: datetime | None
     deleted_at: datetime | None
@@ -69,6 +70,7 @@ class TaskCreate(_DateRange):
     parent_id: uuid.UUID | None = None
     estimate_minutes: int | None = Field(None, ge=0, le=1_000_000)
     tags: list[str] = Field(default_factory=list)
+    custom_fields: dict[str, Any] = Field(default_factory=dict, description="Field id -> value.")
     position: float | None = None
 
     @field_validator("tags")
@@ -86,6 +88,9 @@ class TaskUpdate(_DateRange):
     parent_id: uuid.UUID | None = None
     estimate_minutes: int | None = Field(None, ge=0, le=1_000_000)
     tags: list[str] | None = None
+    custom_fields: dict[str, Any] | None = Field(
+        None, description="Field id -> value; only listed fields change, null clears a value."
+    )
     position: float | None = None
     expected_version: int | None = Field(
         None, description="Optimistic concurrency: fail with 412 if changed."
@@ -147,6 +152,11 @@ class TaskQuery(Schema):
     top_level_only: bool = False
     tags: list[str] | None = Field(None, description="Tasks having all of these tags.")
     q: str | None = Field(None, max_length=200, description="Text search on key and title.")
+    cf: list[str] | None = Field(
+        None,
+        description="Custom field filters as `<field_id>=<value>` (all must match; multi-select: contains).",
+    )
+    sort_field: uuid.UUID | None = Field(None, description="Sort by this custom field instead of `sort`.")
     due_before: date | None = None
     due_after: date | None = None
     updated_since: datetime | None = None

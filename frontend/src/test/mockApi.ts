@@ -79,6 +79,7 @@ export function task(n: number, title = `Task ${n}`) {
     due_date: '2026-02-01',
     estimate_minutes: null,
     tags: [],
+    custom_fields: { f1: 's1' },
     position: n,
     completed_at: null,
     deleted_at: null,
@@ -88,7 +89,27 @@ export function task(n: number, title = `Task ${n}`) {
   };
 }
 
+export const fields = [
+  {
+    id: 'f1',
+    project_id: 'p1',
+    name: 'Severity',
+    type: 'select',
+    description: '',
+    required: false,
+    options: [
+      { id: 's1', label: 'Sev 1', color: '#ff0000' },
+      { id: 's2', label: 'Sev 2', color: '#00ff00' },
+    ],
+    position: 1,
+    created_at: '2026-01-01T00:00:00Z',
+  },
+];
+
 export const baseRoutes: Route[] = [
+  { method: 'GET', path: '/api/v1/projects/p1/fields', body: fields },
+  { method: 'GET', path: '/api/v1/projects/p1/views', body: [] },
+  { method: 'GET', path: '/api/v1/notifications/unread-count', body: { unread: 0 } },
   {
     method: 'GET',
     path: '/api/v1/version',

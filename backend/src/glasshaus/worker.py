@@ -32,9 +32,29 @@ async def relay_outbox(ctx: dict[str, Any]) -> int:
 
 
 async def startup(ctx: dict[str, Any]) -> None:
+    import asyncio
+
+    from glasshaus.core.consumers import consume
+
     configure_logging()
     await heartbeat(ctx)
+    ctx["consumer_stop"] = asyncio.Event()
+    ctx["consumer_task"] = asyncio.create_task(consume(ctx["consumer_stop"]))
     get_logger(__name__).info("worker.startup", version=__version__)
+
+
+async def shutdown(ctx: dict[str, Any]) -> None:
+    import asyncio
+    import contextlib
+
+    ctx["consumer_stop"].set()
+    task: asyncio.Task[None] = ctx["consumer_task"]
+    try:
+        await asyncio.wait_for(task, timeout=10)
+    except TimeoutError:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
 
 
 class WorkerSettings:
@@ -44,5 +64,6 @@ class WorkerSettings:
         cron(relay_outbox, second=set(range(0, 60, 10)), run_at_startup=True),
     ]
     on_startup = startup
+    on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     health_check_interval = 30
