@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "glasshaus": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://glasshaus.lan:8472/mcp",
+        "--allow-http",
+        "--header",
+        "Authorization:Bearer ${GLASSHAUS_TOKEN}"
+      ],
+      "env": {
+        "GLASSHAUS_TOKEN": "ghp_replace_with_your_token"
+      }
+    }
+  }
+}

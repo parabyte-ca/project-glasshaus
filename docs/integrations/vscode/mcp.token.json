@@ -1,0 +1,19 @@
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "glasshaus-token",
+      "description": "Glasshaus API token (Account > API tokens)",
+      "password": true
+    }
+  ],
+  "servers": {
+    "glasshaus": {
+      "type": "http",
+      "url": "http://glasshaus.lan:8472/mcp",
+      "headers": {
+        "Authorization": "Bearer ${input:glasshaus-token}"
+      }
+    }
+  }
+}

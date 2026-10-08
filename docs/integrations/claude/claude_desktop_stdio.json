@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "glasshaus": {
+      "command": "docker",
+      "args": [
+        "compose",
+        "--project-directory",
+        "/opt/glasshaus",
+        "run",
+        "--rm",
+        "-i",
+        "--no-deps",
+        "-T",
+        "-e",
+        "GLASSHAUS_MCP_TOKEN",
+        "mcp",
+        "glasshaus-mcp",
+        "--transport",
+        "stdio"
+      ],
+      "env": {
+        "GLASSHAUS_MCP_TOKEN": "ghp_replace_with_your_token"
+      }
+    }
+  }
+}

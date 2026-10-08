@@ -10,10 +10,10 @@ from collections import defaultdict
 
 from sqlalchemy import delete, func, select
 
-from glasshaus.core.authz import project_role, visible_projects_clause
+from glasshaus.core.authz import project_role, require_scope, visible_projects_clause
 from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import InvalidInput, NotFound, PermissionDenied
-from glasshaus.core.rbac import OrgRole
+from glasshaus.core.rbac import OrgRole, Permission
 from glasshaus.goals.models import CheckIn, KeyResult, Objective, Portfolio, PortfolioProject
 from glasshaus.goals.schemas import (
     CheckInCreate,
@@ -158,6 +158,7 @@ async def _set_projects(ctx: ServiceContext, portfolio: Portfolio, project_ids: 
 
 
 async def create_portfolio(ctx: ServiceContext, data: PortfolioCreate) -> PortfolioDetail:
+    require_scope(ctx, Permission.PROJECT_UPDATE)
     _no_guests(ctx)
     portfolio = Portfolio(
         id=uuid.uuid4(),
@@ -175,6 +176,7 @@ async def create_portfolio(ctx: ServiceContext, data: PortfolioCreate) -> Portfo
 async def update_portfolio(
     ctx: ServiceContext, portfolio_id: uuid.UUID, data: PortfolioUpdate
 ) -> PortfolioDetail:
+    require_scope(ctx, Permission.PROJECT_UPDATE)
     portfolio = await _portfolio(ctx, portfolio_id)
     _can_edit(ctx, portfolio.owner_id)
     if data.name is not None:
@@ -188,6 +190,7 @@ async def update_portfolio(
 
 
 async def delete_portfolio(ctx: ServiceContext, portfolio_id: uuid.UUID) -> None:
+    require_scope(ctx, Permission.PROJECT_UPDATE)
     portfolio = await _portfolio(ctx, portfolio_id)
     _can_edit(ctx, portfolio.owner_id)
     await ctx.session.delete(portfolio)
@@ -358,6 +361,7 @@ async def _new_kr(
 
 
 async def create_objective(ctx: ServiceContext, data: ObjectiveCreate) -> ObjectiveRead:
+    require_scope(ctx, Permission.PROJECT_UPDATE)
     _no_guests(ctx)
     owner_id = data.owner_id or ctx.actor.user_id
     await _check_owner(ctx, owner_id)
@@ -386,6 +390,7 @@ async def create_objective(ctx: ServiceContext, data: ObjectiveCreate) -> Object
 async def update_objective(
     ctx: ServiceContext, objective_id: uuid.UUID, data: ObjectiveUpdate
 ) -> ObjectiveRead:
+    require_scope(ctx, Permission.PROJECT_UPDATE)
     objective = await _objective(ctx, objective_id)
     _can_edit(ctx, objective.owner_id)
     changes = data.model_dump(exclude_unset=True)
@@ -405,6 +410,7 @@ async def update_objective(
 
 
 async def delete_objective(ctx: ServiceContext, objective_id: uuid.UUID) -> None:
+    require_scope(ctx, Permission.PROJECT_UPDATE)
     objective = await _objective(ctx, objective_id)
     _can_edit(ctx, objective.owner_id)
     await ctx.session.delete(objective)
@@ -414,6 +420,7 @@ async def delete_objective(ctx: ServiceContext, objective_id: uuid.UUID) -> None
 async def add_key_result(
     ctx: ServiceContext, objective_id: uuid.UUID, data: KeyResultCreate
 ) -> KeyResultRead:
+    require_scope(ctx, Permission.PROJECT_UPDATE)
     objective = await _objective(ctx, objective_id)
     _can_edit(ctx, objective.owner_id)
     count = await ctx.session.scalar(
@@ -437,6 +444,7 @@ async def _key_result(ctx: ServiceContext, kr_id: uuid.UUID) -> tuple[KeyResult,
 
 
 async def update_key_result(ctx: ServiceContext, kr_id: uuid.UUID, data: KeyResultUpdate) -> KeyResultRead:
+    require_scope(ctx, Permission.PROJECT_UPDATE)
     kr, objective = await _key_result(ctx, kr_id)
     _can_edit(ctx, objective.owner_id)
     changes = data.model_dump(exclude_unset=True)
@@ -454,6 +462,7 @@ async def update_key_result(ctx: ServiceContext, kr_id: uuid.UUID, data: KeyResu
 
 
 async def delete_key_result(ctx: ServiceContext, kr_id: uuid.UUID) -> None:
+    require_scope(ctx, Permission.PROJECT_UPDATE)
     kr, objective = await _key_result(ctx, kr_id)
     _can_edit(ctx, objective.owner_id)
     await ctx.session.delete(kr)
@@ -461,6 +470,7 @@ async def delete_key_result(ctx: ServiceContext, kr_id: uuid.UUID) -> None:
 
 
 async def check_in(ctx: ServiceContext, kr_id: uuid.UUID, data: CheckInCreate) -> CheckInRead:
+    require_scope(ctx, Permission.TASK_UPDATE)
     kr, objective = await _key_result(ctx, kr_id)
     _can_edit(ctx, objective.owner_id)
     if data.value is not None and kr.kind != KeyResultKind.METRIC:

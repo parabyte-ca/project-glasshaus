@@ -45,6 +45,13 @@ async def automation_due_soon(ctx: dict[str, Any]) -> int:
     return await run_due_soon_rules()
 
 
+async def oauth_housekeeping(ctx: dict[str, Any]) -> int:
+    """Remove expired OAuth authorization requests, codes and tokens (hourly)."""
+    from glasshaus.oauth.service import purge_expired
+
+    return await purge_expired()
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     import asyncio
 
@@ -72,7 +79,13 @@ async def shutdown(ctx: dict[str, Any]) -> None:
 
 
 class WorkerSettings:
-    functions: ClassVar[list[Any]] = [heartbeat, relay_outbox, automation_tick, automation_due_soon]
+    functions: ClassVar[list[Any]] = [
+        heartbeat,
+        relay_outbox,
+        automation_tick,
+        automation_due_soon,
+        oauth_housekeeping,
+    ]
     cron_jobs: ClassVar[list[Any]] = [
         cron(heartbeat, second={0, 30}, run_at_startup=False),
         cron(relay_outbox, second=set(range(0, 60, 10)), run_at_startup=True),
@@ -80,6 +93,7 @@ class WorkerSettings:
         cron(
             automation_due_soon, minute=set(range(0, 60, 10)), second={20}, run_at_startup=True, timeout=300
         ),
+        cron(oauth_housekeeping, minute={17}, second={40}, run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown

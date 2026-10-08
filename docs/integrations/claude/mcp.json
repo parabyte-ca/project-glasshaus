@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "glasshaus": {
+      "type": "http",
+      "url": "${GLASSHAUS_MCP_URL:-http://localhost:8472/mcp}",
+      "headers": {
+        "Authorization": "Bearer ${GLASSHAUS_TOKEN}"
+      }
+    }
+  }
+}

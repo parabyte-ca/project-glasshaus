@@ -13,6 +13,7 @@ from glasshaus.insights.schemas import (
     DashboardUpdate,
     ProjectHealth,
     ProjectReport,
+    StatusSummary,
     Workload,
 )
 
@@ -54,6 +55,16 @@ async def project_report(
     project_id: uuid.UUID, ctx: Ctx, date_from: date | None = None, date_to: date | None = None
 ) -> ProjectReport:
     return await insights.project_report(ctx, project_id, date_from=date_from, date_to=date_to)
+
+
+@router.get(
+    "/projects/{project_id}/status-summary",
+    response_model=StatusSummary,
+    tags=["reports"],
+    summary="Data for a status update: done, in progress, overdue, due soon, warnings (default: 7 days)",
+)
+async def status_summary(project_id: uuid.UUID, ctx: Ctx, days: int = 7) -> StatusSummary:
+    return await insights.status_summary(ctx, project_id, days=days)
 
 
 @router.get(

@@ -2,6 +2,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Query, status
+from pydantic import Field
 
 from glasshaus.api.deps import Ctx
 from glasshaus.automation import service as automation
@@ -21,6 +22,7 @@ from glasshaus.automation.schemas import (
     TemplateInstantiate,
     TemplateRead,
 )
+from glasshaus.core.schemas import Schema
 from glasshaus.projects.schemas import ProjectDetail
 
 router = APIRouter(tags=["automation"])
@@ -69,6 +71,19 @@ async def update_rule(rule_id: uuid.UUID, body: RuleUpdate, ctx: Ctx) -> RuleRea
 )
 async def rotate_secret(rule_id: uuid.UUID, ctx: Ctx) -> RuleRead:
     return await automation.rotate_secret(ctx, rule_id)
+
+
+class RuleRun(Schema):
+    task: str | None = Field(None, description="Task id or reference to run against.")
+
+
+@router.post(
+    "/automation-rules/{rule_id}/run",
+    response_model=RunRead | None,
+    summary="Run a rule now (conditions still apply; null when they did not match)",
+)
+async def run_rule(rule_id: uuid.UUID, body: RuleRun, ctx: Ctx) -> RunRead | None:
+    return await automation.run_rule_now(ctx, rule_id, body.task)
 
 
 @router.delete("/automation-rules/{rule_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a rule")

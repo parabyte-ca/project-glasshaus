@@ -1,5 +1,6 @@
 """ORM models. Every module's models are imported here so Alembic autogenerate sees them."""
 
+from glasshaus.audit.models import AuditEntry
 from glasshaus.automation.models import AutomationRule, AutomationRun, ProjectTemplate, RecurringTask
 from glasshaus.collab.models import Comment, Notification
 from glasshaus.core.models import DomainEventRecord
@@ -9,6 +10,7 @@ from glasshaus.goals.models import CheckIn, KeyResult, Objective, Portfolio, Por
 from glasshaus.identity.models import ApiToken, AuthSession, User, Workspace, WorkspaceMember
 from glasshaus.insights.models import Dashboard
 from glasshaus.models.tenant import Tenant
+from glasshaus.oauth.models import OAuthClient, OAuthGrant, OAuthRequest
 from glasshaus.projects.models import Project, ProjectMember, ProjectStatus
 from glasshaus.scheduling.models import Baseline, BaselineTask, TaskDependency
 from glasshaus.tasks.models import Task
@@ -18,6 +20,7 @@ from glasshaus.views.models import SavedView
 __all__ = [
     "RLS_TABLES",
     "ApiToken",
+    "AuditEntry",
     "AuthSession",
     "AutomationRule",
     "AutomationRun",
@@ -31,6 +34,9 @@ __all__ = [
     "DomainEventRecord",
     "KeyResult",
     "Notification",
+    "OAuthClient",
+    "OAuthGrant",
+    "OAuthRequest",
     "Objective",
     "Portfolio",
     "PortfolioProject",

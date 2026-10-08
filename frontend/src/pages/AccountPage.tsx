@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 
 import { api, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
+import { AccessSettings } from '../components/AccessSettings';
 import { Button, ErrorText, Field, Input } from '../components/ui';
 
 export const MIN_PASSWORD_LENGTH = 12;
@@ -44,7 +45,7 @@ export function AccountPage() {
   };
 
   return (
-    <div className="flex max-w-md flex-col gap-6">
+    <div className="flex max-w-2xl flex-col gap-6">
       <h1 className="text-2xl font-bold">Account</h1>
       <dl className="grid grid-cols-[6rem_1fr] gap-y-1 text-sm">
         <dt className="text-slate-600 dark:text-slate-400">Name</dt>
@@ -63,7 +64,7 @@ export function AccountPage() {
           At least {MIN_PASSWORD_LENGTH} characters. You will be signed out everywhere and asked to sign in
           again.
         </p>
-        <form onSubmit={submit} className="flex flex-col gap-3" noValidate>
+        <form onSubmit={submit} className="flex max-w-md flex-col gap-3" noValidate>
           <Field label="Current password" id="current-password">
             <Input
               id="current-password"
@@ -105,6 +106,8 @@ export function AccountPage() {
           </Button>
         </form>
       </section>
+
+      <AccessSettings />
     </div>
   );
 }

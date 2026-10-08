@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     webhook_allow_private: bool = False
     webhook_timeout_seconds: float = 10.0
 
+    # Public base URL of the MCP server (the OAuth issuer). OAuth needs HTTPS or localhost; on plain
+    # HTTP elsewhere only API tokens are accepted.
+    mcp_public_url: str = "http://localhost:8472"
+    mcp_rate_limit_per_minute: int = 120
+    # stdio transport only: the API token the local process acts as.
+    mcp_token: SecretStr | None = None
+
     mcp_allowed_hosts: CsvList = Field(default_factory=lambda: ["localhost:*", "127.0.0.1:*", "mcp:*"])
 
     @field_validator("cors_origins", "mcp_allowed_hosts", mode="before")

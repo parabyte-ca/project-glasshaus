@@ -1,6 +1,6 @@
 [project]
 name = "glasshaus"
-version = "0.6.0"
+version = "0.7.0"
 description = "Project Glasshaus — self-hosted project management platform (API, worker, MCP server)"
 authors = [
     { name = "Parabyte" }
@@ -40,7 +40,9 @@ dev = [
     "pip-audit>=2.10.1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "pyyaml>=6.0.3",
     "ruff>=0.16.10",
+    "types-pyyaml>=6.0.12.20260906",
 ]
 
 [project.scripts]
@@ -68,6 +70,11 @@ python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 exclude = ["src/glasshaus/migrations/versions/"]
+
+[[tool.mypy.overrides]]
+# Tool adapters return the JSON-ready result of runtime.invoke.
+module = ["glasshaus.mcp_server.tools_core", "glasshaus.mcp_server.tools_plan"]
+warn_return_any = false
 
 [[tool.mypy.overrides]]
 module = ["arq.*"]

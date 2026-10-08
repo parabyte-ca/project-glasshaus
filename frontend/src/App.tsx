@@ -21,6 +21,7 @@ const DashboardsPage = lazy(() =>
 const PortfoliosPage = lazy(() =>
   import('./pages/PortfoliosPage').then((m) => ({ default: m.PortfoliosPage })),
 );
+const ConsentPage = lazy(() => import('./pages/ConsentPage').then((m) => ({ default: m.ConsentPage })));
 const GoalsPage = lazy(() => import('./pages/GoalsPage').then((m) => ({ default: m.GoalsPage })));
 
 function Lazy({ children }: { children: ReactNode }) {
@@ -32,6 +33,14 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          <Route
+            path="oauth/consent"
+            element={
+              <Lazy>
+                <ConsentPage />
+              </Lazy>
+            }
+          />
           <Route element={<Layout />}>
             <Route index element={<HomePage />} />
             <Route

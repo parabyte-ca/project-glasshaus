@@ -129,6 +129,23 @@ PostgreSQL (RLS: tenant_id = app.tenant_id)  ──commit──▶  relay → Re
 Permissions are defined once in `glasshaus/core/rbac.py`; REST and MCP enforce the same checks because they
 call the same services.
 
+## MCP server and OAuth
+
+- `mcp_server/server.py` builds the server; `tools_core.py`, `tools_plan.py` and `resources.py` are thin
+  adapters. Each call goes through `runtime.invoke`: resolve the actor from the bearer token, check the
+  tool's scope, Redis rate limit per user, run the service call in one unit of work (RBAC, RLS, events as
+  for REST), then write an `audit_log` row (user, client, redacted arguments, outcome, duration).
+- The MCP server is its own OAuth 2.1 authorization server (MCP SDK routes: `/authorize`, `/token`,
+  `/register`, `/revoke`, RFC 8414/9728 metadata). `/authorize` stores the request and redirects to the
+  web app's `/oauth/consent`; approving there (session-authenticated REST call) issues a single-use code
+  bound to the PKCE challenge, user and tenant. Tokens are random strings stored as SHA-256 hashes in
+  `oauth_grants`, grouped by consent (`family_id`): refresh tokens rotate, reuse revokes the family,
+  and disconnecting an app revokes it. OAuth tables are global (clients register before sign-in);
+  `audit_log` is tenant-scoped under RLS.
+- OAuth requires an HTTPS issuer (or localhost); otherwise the server accepts personal API tokens only.
+- Untrusted content: tool and resource descriptions mark user-written text as data; destructive tools
+  return previews unless `confirm=true`; nothing calls tools on the server side.
+
 ## Backend layout
 
 ```
