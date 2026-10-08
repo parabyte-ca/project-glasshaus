@@ -1,6 +1,7 @@
 """HTTP hardening: headers, request size, rate limits, lockout and password policy."""
 
 import uuid
+from collections.abc import AsyncIterator
 
 import pytest
 from httpx import AsyncClient
@@ -35,6 +36,26 @@ async def test_security_headers_and_body_cap(client: AsyncClient) -> None:
         "/api/v1/tasks", content=b"x" * 32, headers={**world.headers, "content-length": str(11 * 1024 * 1024)}
     )
     assert big.status_code == 413
+
+    # A chunked body without Content-Length is counted as it streams (no buffering of huge uploads).
+    async def chunks(parts: list[bytes]) -> AsyncIterator[bytes]:
+        for part in parts:
+            yield part
+
+    streamed = await client.post(
+        "/api/v1/auth/login",
+        content=chunks([b"x" * (1024 * 1024)] * 11),
+        headers={"content-type": "application/json"},
+    )
+    assert streamed.status_code == 413 and streamed.json()["code"] == "payload_too_large"
+    # Small chunked bodies still reach the app intact.
+    body = b'{"email": "nobody@example.com", ' + b'"password": "wrong password here"}'
+    small = await client.post(
+        "/api/v1/auth/login",
+        content=chunks([body[:10], body[10:]]),
+        headers={"content-type": "application/json"},
+    )
+    assert small.status_code == 401
 
 
 async def test_api_rate_limit(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:

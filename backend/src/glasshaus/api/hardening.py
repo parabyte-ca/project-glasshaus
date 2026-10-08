@@ -35,6 +35,31 @@ def _principal(scope: Scope) -> str:
     return "ip:" + (client[0] if client else "unknown")
 
 
+TOO_LARGE = b'{"code":"payload_too_large","detail":"request body too large","status":413}'
+
+
+async def _buffered(receive: Receive) -> Receive | None:
+    """Read a body sent without Content-Length (chunked) up to the cap, then replay it to the app.
+    Returns None when it is too large. With Content-Length, the server enforces the framing."""
+    messages: list[Message] = []
+    size = 0
+    while True:
+        message = await receive()
+        messages.append(message)
+        if message["type"] != "http.request":
+            break
+        size += len(message.get("body", b""))
+        if size > MAX_BODY_BYTES:
+            return None
+        if not message.get("more_body", False):
+            break
+
+    async def replay() -> Message:
+        return messages.pop(0) if messages else await receive()
+
+    return replay
+
+
 class HardeningMiddleware:
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
@@ -47,10 +72,14 @@ class HardeningMiddleware:
         headers = dict(scope.get("headers") or [])
         length = headers.get(b"content-length")
         if length and length.isdigit() and int(length) > MAX_BODY_BYTES:
-            await _reply(
-                send, 413, b'{"code":"payload_too_large","detail":"request body too large","status":413}'
-            )
+            await _reply(send, 413, TOO_LARGE)
             return
+        if length is None and scope.get("method") in ("POST", "PUT", "PATCH", "DELETE"):
+            replay = await _buffered(receive)
+            if replay is None:
+                await _reply(send, 413, TOO_LARGE)
+                return
+            receive = replay
         if (
             path.startswith(("/api/", "/scim/"))
             and not path.startswith("/api/docs")
