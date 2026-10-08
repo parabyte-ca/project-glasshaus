@@ -16,3 +16,13 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// Installable app and offline shell (static files only; see public/sw.js). Production builds only,
+// so the dev server's hot reload is never served from a cache.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      /* not available (private mode, plain HTTP off localhost): the app works without it */
+    });
+  });
+}

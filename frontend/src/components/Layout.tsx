@@ -1,13 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
+import { lazy, Suspense, useCallback, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router';
 
 import { api, getVersion, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { useLiveUpdates } from '../lib/realtime';
+import { SHORTCUTS, useShortcuts } from '../lib/shortcuts';
 import { NotificationsBell } from './NotificationsBell';
 import { ThemeToggle } from './ThemeToggle';
 import { TimerIndicator } from './TimeTracking';
 import { GhostButton } from './ui';
+
+const CommandPalette = lazy(() => import('./CommandPalette').then((m) => ({ default: m.CommandPalette })));
+const ShortcutHelp = lazy(() => import('./CommandPalette').then((m) => ({ default: m.ShortcutHelp })));
 
 const SECTIONS = [
   ['/', 'Home'],
@@ -23,6 +28,12 @@ export function Layout() {
   useLiveUpdates();
   const version = useQuery({ queryKey: ['version'], queryFn: getVersion, staleTime: Infinity });
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => unwrap(api.GET('/api/v1/projects')) });
+  const [overlay, setOverlay] = useState<'palette' | 'help' | null>(null);
+  const openPalette = useCallback(() => setOverlay('palette'), []);
+  const openHelp = useCallback(() => setOverlay('help'), []);
+  const closeOverlay = useCallback(() => setOverlay(null), []);
+  useShortcuts({ palette: openPalette, help: openHelp });
+  const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
   return (
     <div className="flex min-h-screen flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
@@ -37,6 +48,9 @@ export function Layout() {
           Project Glasshaus
         </Link>
         <div className="flex items-center gap-2">
+          <GhostButton onClick={openPalette} aria-keyshortcuts={mac ? 'Meta+K' : 'Control+K'}>
+            Search <kbd className="ml-1 hidden font-mono text-xs sm:inline">{mac ? '⌘K' : 'Ctrl K'}</kbd>
+          </GhostButton>
           <Link
             to="/account"
             className="hidden text-sm text-slate-600 hover:underline sm:inline dark:text-slate-400"
@@ -98,7 +112,14 @@ export function Layout() {
           <Outlet />
         </main>
       </div>
-      <footer className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400" aria-live="polite">
+      <Suspense fallback={null}>
+        {overlay === 'palette' && <CommandPalette onClose={closeOverlay} onHelp={openHelp} />}
+        {overlay === 'help' && <ShortcutHelp onClose={closeOverlay} shortcuts={SHORTCUTS} />}
+      </Suspense>
+      <footer className="flex gap-3 px-4 py-3 text-xs text-slate-600 dark:text-slate-400" aria-live="polite">
+        <button type="button" onClick={openHelp} className="underline">
+          Keyboard shortcuts (?)
+        </button>
         {version.isSuccess && (
           <span data-testid="version">
             v{version.data.version} ({version.data.build})

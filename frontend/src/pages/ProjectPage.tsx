@@ -6,6 +6,7 @@ import { api, unwrap, type Task, type ViewConfig, type ViewKind } from '../api/c
 import { Button, ErrorText, GhostButton, Input, Select } from '../components/ui';
 import { PRIORITIES } from '../lib/grouping';
 import { defaultConfig, OPEN } from '../lib/views';
+import { useAiStatus } from '../lib/ai';
 import { useProject } from '../lib/useProject';
 import { ListView } from '../views/ListView';
 import type { TaskPatch } from '../views/types';
@@ -15,6 +16,7 @@ const TaskDrawer = lazy(() => import('../components/TaskDrawer').then((m) => ({ 
 const BoardView = lazy(() => import('../views/BoardView').then((m) => ({ default: m.BoardView })));
 const CalendarView = lazy(() => import('../views/CalendarView').then((m) => ({ default: m.CalendarView })));
 const TableView = lazy(() => import('../views/TableView').then((m) => ({ default: m.TableView })));
+const AiAssistant = lazy(() => import('../components/AiAssistant').then((m) => ({ default: m.AiAssistant })));
 const TimelineView = lazy(() => import('../views/TimelineView').then((m) => ({ default: m.TimelineView })));
 
 const KINDS: { kind: ViewKind; label: string }[] = [
@@ -30,6 +32,9 @@ export function ProjectPage() {
   const queryClient = useQueryClient();
   const { project, fields, views, users } = useProject(projectKey);
   const p = project.data;
+  const ai = useAiStatus();
+  const aiFeatures = (ai.data?.features ?? []).filter((f) => f !== 'search');
+  const [assistant, setAssistant] = useState(false);
 
   const viewId = params.get('view');
   const savedView = views.find((v) => v.id === viewId);
@@ -129,6 +134,11 @@ export function ProjectPage() {
           {p.name} <span className="font-mono text-sm text-slate-600 dark:text-slate-400">{p.key}</span>
         </h1>
         <div className="flex items-center gap-4">
+          {aiFeatures.length > 0 && (
+            <GhostButton aria-expanded={assistant} onClick={() => setAssistant((v) => !v)}>
+              Assistant
+            </GhostButton>
+          )}
           <Link
             to={`/projects/${p.key}/report`}
             className="text-sm text-sky-700 hover:underline dark:text-sky-400"
@@ -145,6 +155,12 @@ export function ProjectPage() {
           )}
         </div>
       </div>
+
+      {assistant && aiFeatures.length > 0 && (
+        <Suspense fallback={<p role="status">Loading assistant…</p>}>
+          <AiAssistant project={p} features={aiFeatures} />
+        </Suspense>
+      )}
 
       <div className="flex flex-wrap items-end gap-3" role="toolbar" aria-label="View options">
         <div
@@ -179,6 +195,8 @@ export function ProjectPage() {
         </Select>
         <Input
           aria-label="Search tasks"
+          data-shortcut="search"
+          aria-keyshortcuts="/"
           placeholder="Search…"
           value={filters.q ?? ''}
           onChange={(e) => setConfig({ ...config, filters: { ...filters, q: e.target.value || null } })}
@@ -301,6 +319,8 @@ export function ProjectPage() {
         </label>
         <Input
           id="new-task"
+          data-shortcut="new-task"
+          aria-keyshortcuts="c"
           placeholder="Add a task and press Enter"
           className="flex-1"
           value={title}

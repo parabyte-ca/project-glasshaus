@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
-import { baseRoutes, mockApi, project, task, user, type Route } from './test/mockApi';
+import { aiOn, baseRoutes, mockApi, project, task, user, type Route } from './test/mockApi';
 
 function renderAt(path: string) {
   window.history.pushState({}, '', path);
@@ -950,5 +950,187 @@ describe('time tracking and goals', () => {
       }),
     );
     expect((created as { period: string }).period).toMatch(/^\d{4}-Q[1-4]$/);
+  });
+});
+
+describe('keyboard and command palette', () => {
+  it('opens with Ctrl+K, finds a task and opens it', async () => {
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/tasks',
+        handler: (req) =>
+          new URL(req.url).searchParams.get('q') === 'docs'
+            ? { items: [task(2, 'Write docs')], next_cursor: null }
+            : { items: [], next_cursor: null },
+      },
+      { method: 'GET', path: '/api/v1/tasks/WEB-2', body: task(2, 'Write docs') },
+    ]);
+    renderAt('/');
+    await screen.findByRole('heading', { name: 'Projects', level: 1 });
+    await userEvent.keyboard('{Control>}k{/Control}');
+    const dialog = await screen.findByRole('dialog', { name: 'Command palette' });
+    const input = within(dialog).getByRole('combobox');
+    expect(input).toHaveFocus();
+    await userEvent.type(input, 'docs');
+    expect(await within(dialog).findByRole('option', { name: /WEB-2 Write docs/ })).toBeInTheDocument();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(window.location.search).toBe('?task=WEB-2'));
+    expect(window.location.pathname).toBe('/projects/WEB');
+    expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument();
+  });
+
+  it('navigates with g-sequences, lists shortcuts with ? and focuses project search with /', async () => {
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/tasks', body: { items: [], next_cursor: null } },
+    ]);
+    renderAt('/projects/WEB');
+    const search = await screen.findByLabelText('Search tasks');
+    await userEvent.keyboard('/');
+    expect(search).toHaveFocus();
+    search.blur();
+    await userEvent.keyboard('?');
+    const help = await screen.findByRole('dialog', { name: 'Keyboard shortcuts' });
+    expect(within(help).getByText('Go to Workload')).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await userEvent.keyboard('gw');
+    await waitFor(() => expect(window.location.pathname).toBe('/workload'));
+  });
+
+  it('asks the assistant in plain words', async () => {
+    const { calls } = mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/ai/status'),
+      aiOn,
+      signedIn,
+      { method: 'GET', path: '/api/v1/tasks', body: { items: [], next_cursor: null } },
+      {
+        method: 'POST',
+        path: '/api/v1/ai/search',
+        body: {
+          query: 'my late work',
+          filters: { explanation: 'Your overdue tasks' },
+          task_query: {},
+          items: [task(7, 'Renew certificate')],
+          usage: { provider: 'fake', model: 'fake', input_tokens: 0, output_tokens: 0, duration_ms: 1 },
+        },
+      },
+    ]);
+    renderAt('/');
+    await screen.findByRole('heading', { name: 'Projects', level: 1 });
+    await userEvent.click(screen.getByRole('button', { name: /Search/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Command palette' });
+    await userEvent.type(within(dialog).getByRole('combobox'), 'my late work');
+    await userEvent.click(within(dialog).getByRole('option', { name: /Ask: “my late work”/ }));
+    expect(await within(dialog).findByText(/Your overdue tasks · 1 found/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('option', { name: /WEB-7 Renew certificate/ })).toBeInTheDocument();
+    const post = calls.find((c) => c.url.endsWith('/api/v1/ai/search'))!;
+    expect(await post.json()).toEqual({ query: 'my late work', limit: 20 });
+  });
+});
+
+describe('AI assistant', () => {
+  it('stays hidden when the assistant is off', async () => {
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/tasks', body: { items: [], next_cursor: null } },
+    ]);
+    renderAt('/projects/WEB');
+    await screen.findByLabelText('New task title');
+    expect(screen.queryByRole('button', { name: 'Assistant' })).not.toBeInTheDocument();
+  });
+
+  it('drafts tasks and adds the chosen ones', async () => {
+    const { calls } = mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/ai/status'),
+      aiOn,
+      signedIn,
+      { method: 'GET', path: '/api/v1/tasks', body: { items: [], next_cursor: null } },
+      {
+        method: 'POST',
+        path: '/api/v1/ai/projects/p1/draft-tasks',
+        body: {
+          project_key: 'WEB',
+          drafts: [
+            {
+              title: 'Pick a host',
+              description: 'Compare two',
+              priority: 'high',
+              estimate_minutes: 120,
+              tags: ['infra'],
+            },
+            { title: 'Move DNS', description: '', priority: 'none', estimate_minutes: null, tags: [] },
+          ],
+          usage: { provider: 'fake', model: 'fake', input_tokens: 0, output_tokens: 0, duration_ms: 1 },
+        },
+      },
+      { method: 'POST', path: '/api/v1/tasks', status: 201, body: task(9) },
+    ]);
+    renderAt('/projects/WEB');
+    await userEvent.click(await screen.findByRole('button', { name: 'Assistant' }));
+    await userEvent.click(await screen.findByRole('tab', { name: 'Draft tasks' }));
+    await userEvent.type(screen.getByLabelText('What needs doing?'), 'Move hosting');
+    await userEvent.click(screen.getByRole('button', { name: 'Draft tasks' }));
+    expect(await screen.findByText('Pick a host')).toBeInTheDocument();
+    expect(screen.getByText(/Written by AI/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Add task: Pick a host' }));
+    expect(await screen.findByText('Added')).toBeInTheDocument();
+    const created = calls.filter((c) => c.method === 'POST' && c.url.endsWith('/api/v1/tasks'));
+    expect(created).toHaveLength(1);
+    expect(await created[0]!.json()).toEqual({
+      project_id: 'p1',
+      title: 'Pick a host',
+      description: 'Compare two',
+      priority: 'high',
+      estimate_minutes: 120,
+      tags: ['infra'],
+    });
+  });
+
+  it('lets admins turn it on', async () => {
+    const settings = {
+      audit_retention_days: 365,
+      activity_retention_days: 0,
+      notification_retention_days: 90,
+      deleted_task_retention_days: 30,
+      ai_enabled: false,
+      ai_features: ['summaries', 'drafting', 'risks', 'search'],
+    };
+    const { calls } = mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/ai/status'),
+      {
+        ...aiOn,
+        body: {
+          available: true,
+          enabled: false,
+          provider: 'anthropic',
+          model: 'claude-opus-5-5',
+          features: [],
+        },
+      },
+      signedIn,
+      { method: 'GET', path: '/api/v1/admin/settings', body: settings },
+      {
+        method: 'PATCH',
+        path: '/api/v1/admin/settings',
+        handler: async (req) => ({ ...settings, ...((await req.json()) as object) }),
+      },
+    ]);
+    renderAt('/admin?tab=ai');
+    expect(await screen.findByText('claude-opus-5-5')).toBeInTheDocument();
+    await userEvent.click(await screen.findByLabelText('Turn on the AI assistant for this organization'));
+    await userEvent.click(screen.getByLabelText(/Risk flags/));
+    await userEvent.click(screen.getByRole('button', { name: 'Save AI settings' }));
+    expect(await screen.findByText('Saved')).toBeInTheDocument();
+    const patch = calls.find((c) => c.method === 'PATCH')!;
+    expect(await patch.json()).toEqual({
+      ai_enabled: true,
+      ai_features: ['summaries', 'drafting', 'search'],
+    });
   });
 });
