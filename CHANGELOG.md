@@ -6,6 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-09
+
+Custom reports and dashboards.
+
+### Added
+- **Report builder** (Reports in the navigation, `g` then `r`): build reports from tasks or logged
+  time. Group by up to two fields (project, status, priority, people, tags, weeks or months, and a
+  project's single-select custom fields), pick up to six measures (counts, overdue, estimate, average
+  age, average time to complete, % on time, hours, billable hours, people), filter by project,
+  people, dates, status, priority, tags or billable, and show it as a table, bar chart, line chart
+  or a single number. Live preview, CSV download, four templates.
+- **Saved and shared reports.** Each run uses the viewer's own access, so a shared report shows
+  everyone only the projects they can see. Guests can keep private reports.
+- **Report tiles on dashboards**, including single numbers with a target ("On target" / "Off
+  target", shown with an icon and words). **Dashboard filters** (date range, project) apply to all
+  report tiles at once and stay in the address.
+- Dashboard editing: drag tiles to reorder, set each tile's width, and give tiles their own titles.
+- API: `POST /api/v1/reports/run`, `/api/v1/reports` (CRUD), `POST /api/v1/reports/{id}/run` (with
+  dashboard filters), `GET /api/v1/reports/{id}/export` (CSV). See [docs/reports.md](docs/reports.md).
+
+
 ## [0.11.1] - 2026-10-09
 
 ### Fixed

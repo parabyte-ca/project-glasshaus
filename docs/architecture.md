@@ -184,6 +184,7 @@ backend/src/glasshaus/
   scheduling/        dependencies, critical path (cpm.py), auto-rescheduling, baselines, slip warnings
   realtime.py        WebSocket fan-out filtering
   onboarding/        first-run tour, checklist and tip state per person (milestones derived from work)
+  reports/           custom report definitions, the query engine (one grouped query, viewer's access)
   ai/                optional assistant: provider interface (Claude, OpenAI-compatible, fake) and features
   models/            aggregate import of every model (for Alembic)
   dbroles.py         least-privilege app role management

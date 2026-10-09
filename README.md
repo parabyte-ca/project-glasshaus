@@ -219,6 +219,10 @@ refused.
 - **Reports:** every project has a **Report** (burn-up, throughput, status mix, lead time, estimate vs
   actual, CSV export of tasks). **Portfolios** roll project health up; **Goals** tracks OKRs with
   number-based or task-based key results and check-ins; **Dashboards** combine widgets and can be shared.
+- **Custom reports:** build your own from tasks or time (group by up to two fields, up to six measures,
+  filters, table / bar / line / single number), save and share them, export CSV, and put them on
+  dashboards as tiles or target numbers with dashboard-wide filters. Everyone sees only data they can
+  access. See [docs/reports.md](docs/reports.md).
 
 ```bash
 # Hours per person and project for September, as CSV
