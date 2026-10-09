@@ -63,6 +63,25 @@ test('custom report on a dashboard', async ({ page }) => {
   await page.evaluate(() => localStorage.setItem('glasshaus.theme', 'light'));
   await call('DELETE', `/api/v1/reports/${reportId}`);
 
+  // A Teams channel with a scheduled post of this kind of report (the panel is checked with axe).
+  const teams = await call<{ id: string }>('POST', '/api/v1/integrations', {
+    kind: 'teams',
+    name: `Teams ${name}`,
+    url: 'https://example.webhook.office.com/hook',
+  });
+  await page.goto('/admin?tab=integrations');
+  await page
+    .getByRole('row', { name: new RegExp(`Teams ${name}`) })
+    .getByRole('button', { name: 'Scheduled posts' })
+    .click();
+  const posts = page.locator('section', { has: page.getByRole('heading', { name: `Scheduled posts to Teams ${name}` }) });
+  await posts.getByLabel('Post', { exact: true }).selectOption({ label: 'A project’s status' });
+  await posts.getByLabel('Project').selectOption({ label: `${project.key} Reporting` });
+  await posts.getByRole('button', { name: 'Add post' }).click();
+  await expect(posts.getByText(`Status: ${project.key} Reporting`)).toBeVisible();
+  await expectAccessible(page, 'scheduled channel posts');
+  await call('DELETE', `/api/v1/integrations/${teams.id}`);
+
   await page.goto('/admin?tab=backups');
   await expect(page.getByRole('heading', { name: 'Backups', level: 2 })).toBeVisible();
   await expectAccessible(page, 'admin backups');

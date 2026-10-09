@@ -6,6 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-09
+
+Slack and Microsoft Teams.
+
+### Added
+- **Scheduled channel posts.** On a Slack or Teams integration, **Scheduled posts** sends a saved
+  report (its table with totals) or a project's status (health, numbers, overdue, due-soon and
+  recently completed tasks) daily, weekly or monthly; **Post now** sends one straight away. Posts run
+  with the access of the person who set them up, a project's channel only gets that project, and
+  they go through the usual delivery log and retries.
+- **`/glasshaus` in Slack.** Your open tasks (`my`), a task (`WEB-12`), a saved report
+  (`report <name>`), or a question answered by the AI assistant when it is on. Answers are private
+  to the person asking and use their access (read-only); people are matched by their Slack email.
+  Requests are checked against the Slack app's signing secret. Set-up in
+  [docs/connectors.md](docs/connectors.md#slack-command-glasshaus).
+- API: `/api/v1/integrations/{id}/posts` (list, create, delete, send now) and
+  `POST /api/v1/integrations/{id}/slack`; new integration kind `slack_command`.
+
 ## [0.15.0] - 2026-10-09
 
 Report alerts, backup health and safer upgrades.
@@ -480,7 +498,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.12.0...v0.13.0

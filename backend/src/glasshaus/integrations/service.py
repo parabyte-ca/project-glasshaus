@@ -28,7 +28,7 @@ from glasshaus.core.schemas import Schema
 from glasshaus.identity import security
 from glasshaus.integrations.models import CalendarFeed, Integration, IntegrationDelivery
 
-Kind = Literal["slack", "teams", "webhook", "github", "gitlab", "email"]
+Kind = Literal["slack", "teams", "webhook", "github", "gitlab", "email", "slack_command"]
 OUTBOUND: frozenset[str] = frozenset({"slack", "teams", "webhook"})
 INBOUND: frozenset[str] = frozenset({"github", "gitlab", "email"})
 EVENT_TYPES = [
@@ -86,7 +86,13 @@ class IntegrationCreate(Schema):
     secret: str | None = Field(
         None,
         max_length=500,
-        description="webhook/github/gitlab: signing secret (generated if empty). email: password.",
+        description=(
+            "webhook/github/gitlab: signing secret (generated if empty). email: password. "
+            "slack_command: the Slack app's signing secret."
+        ),
+    )
+    token: str | None = Field(
+        None, max_length=500, description="slack_command: the Slack app's bot token (xoxb-…)."
     )
     email: EmailConfig | None = None
 
@@ -101,6 +107,11 @@ class IntegrationCreate(Schema):
             raise ValueError(f"{self.kind} needs a project_id (where tasks and links go)")
         if self.kind == "email" and (self.email is None or not self.secret):
             raise ValueError("email needs mailbox settings and a password")
+        if self.kind == "slack_command":
+            if not self.secret or not self.token:
+                raise ValueError("slack_command needs the Slack app's signing secret and bot token")
+            if self.project_id is not None:
+                raise ValueError("slack_command covers the whole organization; leave project_id empty")
         return self
 
 
@@ -110,6 +121,7 @@ class IntegrationUpdate(Schema):
     events: list[str] | None = Field(None, max_length=50)
     url: HttpUrl | None = None
     secret: str | None = Field(None, max_length=500)
+    token: str | None = Field(None, max_length=500, description="slack_command: a new bot token.")
     email: EmailConfig | None = None
 
 
@@ -122,7 +134,9 @@ class IntegrationRead(Schema):
     events: list[str]
     url_host: str | None = Field(description="Host of the target URL (the URL itself is secret).")
     secret_set: bool
-    inbound_url: str | None = Field(description="github/gitlab: the payload URL to configure there.")
+    inbound_url: str | None = Field(
+        description="github/gitlab: the payload URL. slack_command: the slash command's Request URL."
+    )
     email: EmailConfig | None
     last_success_at: datetime | None
     last_error: str | None
@@ -160,8 +174,9 @@ def _base() -> str:
     return get_settings().public_url.rstrip("/")
 
 
-def inbound_url(integration_id: uuid.UUID) -> str:
-    return f"{_base()}/api/v1/integrations/{integration_id}/inbound"
+def inbound_url(integration_id: uuid.UUID, kind: str = "github") -> str:
+    tail = "slack" if kind == "slack_command" else "inbound"
+    return f"{_base()}/api/v1/integrations/{integration_id}/{tail}"
 
 
 def _read(i: Integration) -> IntegrationRead:
@@ -175,7 +190,7 @@ def _read(i: Integration) -> IntegrationRead:
         events=list(i.events),
         url_host=host,
         secret_set=bool(i.secret),
-        inbound_url=inbound_url(i.id) if i.kind in ("github", "gitlab") else None,
+        inbound_url=inbound_url(i.id, i.kind) if i.kind in ("github", "gitlab", "slack_command") else None,
         email=EmailConfig.model_validate(i.config["email"]) if i.kind == "email" else None,
         last_success_at=i.last_success_at,
         last_error=i.last_error,
@@ -241,8 +256,8 @@ async def get_integration(ctx: ServiceContext, integration_id: uuid.UUID) -> Int
 
 async def create_integration(ctx: ServiceContext, data: IntegrationCreate) -> IntegrationCreated:
     await _authorize(ctx, data.project_id)
-    if data.kind == "email":
-        # The server connects to the configured mail host, so only organization admins choose it.
+    if data.kind in ("email", "slack_command"):
+        # The server connects to the mail host / answers for the whole organization: org admins only.
         require_org(ctx, Permission.ORG_MANAGE)
     generated: str | None = None
     values: dict[str, str] = {}
@@ -258,6 +273,8 @@ async def create_integration(ctx: ServiceContext, data: IntegrationCreate) -> In
         assert data.email is not None
         config["email"] = data.email.model_dump(mode="json")
         values["password"] = data.secret or ""
+    if data.kind == "slack_command":
+        values["signing"], values["token"] = data.secret or "", data.token or ""
     integration = Integration(
         id=uuid.uuid4(),
         tenant_id=ctx.tenant_id,
@@ -311,6 +328,10 @@ async def update_integration(
         config["url_host"] = data.url.host
     if data.secret is not None:
         values["password" if i.kind == "email" else "signing"] = data.secret
+    if data.token is not None:
+        if i.kind != "slack_command":
+            raise InvalidInput("only Slack commands have a bot token")
+        values["token"] = data.token
     if data.email is not None and i.kind == "email":
         require_org(ctx, Permission.ORG_MANAGE)
         config["email"] = data.email.model_dump(mode="json")
@@ -356,6 +377,23 @@ async def test_integration(ctx: ServiceContext, integration_id: uuid.UUID) -> De
         from glasshaus.integrations.email import check_login
 
         error = await check_login(i)
+        now = datetime.now(UTC)
+        return DeliveryRead(
+            id=uuid.uuid4(),
+            event_id=uuid.uuid4(),
+            event_type="test",
+            status="failed" if error else "success",
+            attempts=1,
+            response_status=None,
+            error=error,
+            created_at=now,
+            delivered_at=None if error else now,
+            next_attempt_at=None,
+        )
+    if i.kind == "slack_command":
+        from glasshaus.integrations.slack_command import check_token
+
+        error = await check_token(_secrets_of(i).get("token", ""))
         now = datetime.now(UTC)
         return DeliveryRead(
             id=uuid.uuid4(),

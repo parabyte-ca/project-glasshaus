@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 
 import { api, fieldError, type Schemas, unwrap } from '../../api/client';
 import { Button, ErrorText, Field, GhostButton, Input, ScrollArea, Select } from '../ui';
+import { ChannelPosts } from './ChannelPosts';
 import { Copyable, SecretOnce, Section } from './common';
 import { dateTime, table, td, th } from './format';
 import { useConfirm } from '../../lib/confirm';
@@ -32,6 +33,11 @@ const KINDS: { kind: Kind; label: string; help: string }[] = [
     kind: 'email',
     label: 'Email to task',
     help: 'Polls an IMAP mailbox every two minutes; each new email becomes a task.',
+  },
+  {
+    kind: 'slack_command',
+    label: 'Slack command (/glasshaus)',
+    help: 'Create a Slack app with a /glasshaus slash command and the users:read and users:read.email scopes. Paste its signing secret and bot token here, then set the command’s Request URL to the address shown after connecting. Answers are private to the person asking and use their access.',
   },
 ];
 const OUTBOUND: Kind[] = ['slack', 'teams', 'webhook'];
@@ -78,6 +84,7 @@ function Row({ i, projects }: { i: Integration; projects: Map<string, string> })
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [postsOpen, setPostsOpen] = useState(false);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['integrations'] });
   const path = { params: { path: { integration_id: i.id } } };
   const toggle = useMutation({
@@ -111,20 +118,25 @@ function Row({ i, projects }: { i: Integration; projects: Map<string, string> })
           )}
           {i.inbound_url && (
             <div className="mt-1 text-xs">
-              Payload URL: <Copyable value={i.inbound_url} />
+              {i.kind === 'slack_command' ? 'Request URL' : 'Payload URL'}: <Copyable value={i.inbound_url} />
             </div>
           )}
         </td>
         <td className={`${td} whitespace-nowrap`}>
           <div className="flex flex-wrap gap-1">
             <GhostButton onClick={() => toggle.mutate()}>{i.enabled ? 'Turn off' : 'Turn on'}</GhostButton>
-            {(OUTBOUND.includes(i.kind) || i.kind === 'email') && (
+            {(OUTBOUND.includes(i.kind) || i.kind === 'email' || i.kind === 'slack_command') && (
               <GhostButton
                 aria-label={`Test ${i.name}`}
                 onClick={() => test.mutate()}
                 disabled={test.isPending}
               >
                 Test
+              </GhostButton>
+            )}
+            {(i.kind === 'slack' || i.kind === 'teams') && (
+              <GhostButton aria-expanded={postsOpen} onClick={() => setPostsOpen(!postsOpen)}>
+                Scheduled posts
               </GhostButton>
             )}
             {OUTBOUND.includes(i.kind) && (
@@ -155,6 +167,13 @@ function Row({ i, projects }: { i: Integration; projects: Map<string, string> })
           <ErrorText error={toggle.error ?? test.error ?? remove.error} />
         </td>
       </tr>
+      {postsOpen && (
+        <tr>
+          <td colSpan={5} className={td}>
+            <ChannelPosts integration={i} />
+          </td>
+        </tr>
+      )}
       {open && (
         <tr>
           <td colSpan={5} className={td}>
@@ -188,6 +207,7 @@ export function Integrations() {
     host: '',
     username: '',
     senders: '',
+    token: '',
   });
   const [events, setEvents] = useState<string[]>(['task.created', 'task.completed', 'comment.created']);
   const [secret, setSecret] = useState<string | null>(null);
@@ -204,6 +224,7 @@ export function Integrations() {
             events: OUTBOUND.includes(kind) ? events : [],
             url: OUTBOUND.includes(kind) ? form.url : null,
             secret: form.secret || null,
+            token: kind === 'slack_command' ? form.token : null,
             email:
               kind === 'email'
                 ? {
@@ -220,7 +241,16 @@ export function Integrations() {
       ),
     onSuccess: async (created) => {
       setSecret(created.signing_secret ?? null);
-      setForm({ name: '', project_id: '', url: '', secret: '', host: '', username: '', senders: '' });
+      setForm({
+        name: '',
+        project_id: '',
+        url: '',
+        secret: '',
+        host: '',
+        username: '',
+        senders: '',
+        token: '',
+      });
       await queryClient.invalidateQueries({ queryKey: ['integrations'] });
     },
   });
@@ -229,7 +259,8 @@ export function Integrations() {
     setSecret(null);
     create.mutate();
   };
-  const needsProject = !OUTBOUND.includes(kind);
+  const needsProject = !OUTBOUND.includes(kind) && kind !== 'slack_command';
+  const orgWide = kind === 'slack_command';
 
   return (
     <div className="flex flex-col gap-8">
@@ -285,21 +316,23 @@ export function Integrations() {
           <p className="text-sm text-slate-600 sm:col-span-2 dark:text-slate-400">
             {KINDS.find((k) => k.kind === kind)?.help}
           </p>
-          <Field label={needsProject ? 'Project' : 'Project (optional)'} id="int-project">
-            <Select
-              id="int-project"
-              required={needsProject}
-              value={form.project_id}
-              onChange={set('project_id')}
-            >
-              <option value="">{needsProject ? 'Choose…' : 'All projects'}</option>
-              {(projects.data ?? []).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.key} {p.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          {!orgWide && (
+            <Field label={needsProject ? 'Project' : 'Project (optional)'} id="int-project">
+              <Select
+                id="int-project"
+                required={needsProject}
+                value={form.project_id}
+                onChange={set('project_id')}
+              >
+                <option value="">{needsProject ? 'Choose…' : 'All projects'}</option>
+                {(projects.data ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.key} {p.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
           {OUTBOUND.includes(kind) && (
             <Field label="Webhook URL" id="int-url" error={fieldError(create.error, 'url')}>
               <Input id="int-url" type="url" required value={form.url} onChange={set('url')} />
@@ -320,16 +353,34 @@ export function Integrations() {
           )}
           {kind !== 'slack' && kind !== 'teams' && (
             <Field
-              label={kind === 'email' ? 'Password' : 'Signing secret (empty: generate one)'}
+              label={
+                kind === 'email'
+                  ? 'Password'
+                  : kind === 'slack_command'
+                    ? 'Signing secret'
+                    : 'Signing secret (empty: generate one)'
+              }
               id="int-secret"
             >
               <Input
                 id="int-secret"
                 type="password"
                 autoComplete="off"
-                required={kind === 'email'}
+                required={kind === 'email' || kind === 'slack_command'}
                 value={form.secret}
                 onChange={set('secret')}
+              />
+            </Field>
+          )}
+          {kind === 'slack_command' && (
+            <Field label="Bot token (xoxb-…)" id="int-token">
+              <Input
+                id="int-token"
+                type="password"
+                autoComplete="off"
+                required
+                value={form.token}
+                onChange={set('token')}
               />
             </Field>
           )}

@@ -10,7 +10,7 @@ from glasshaus.goals.models import CheckIn, KeyResult, Objective, Portfolio, Por
 from glasshaus.governance.models import OrgSettings
 from glasshaus.identity.models import ApiToken, AuthSession, User, Workspace, WorkspaceMember
 from glasshaus.insights.models import Dashboard
-from glasshaus.integrations.models import CalendarFeed, Integration, IntegrationDelivery
+from glasshaus.integrations.models import CalendarFeed, ChannelPost, Integration, IntegrationDelivery
 from glasshaus.models.tenant import Tenant
 from glasshaus.oauth.models import OAuthClient, OAuthGrant, OAuthRequest
 from glasshaus.projects.models import Project, ProjectMember, ProjectStatus
@@ -33,6 +33,7 @@ __all__ = [
     "Baseline",
     "BaselineTask",
     "CalendarFeed",
+    "ChannelPost",
     "CheckIn",
     "Comment",
     "CustomField",

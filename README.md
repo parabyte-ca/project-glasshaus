@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.15.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
+> **Status:** v0.16.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -381,7 +381,7 @@ builds, scans and publishes multi-arch (amd64/arm64) images to GHCR.
 | 9 | 0.10.0–0.13.0 | Onboarding, usability and accessibility pass, refreshed theme, custom reports and dashboards, AI questions about reports | ✅ |
 | 10 | 0.14.0 | Release automation, scheduled report emails | ✅ |
 | 11 | 0.15.0 | Report alerts, backup restore drill and backup health, upgrade pre-flight check | ✅ |
-| 12 | 0.16.0 | Teams and Slack: post reports and status updates, ask the assistant from chat | Planned |
+| 12 | 0.16.0 | Slack and Teams: scheduled report and status posts; `/glasshaus` Slack command | ✅ |
 | 13 | 0.17.0 | Phone: offline "My tasks", push notifications | Planned |
 | 14 | 0.18.0 | Virtual project manager (AI): daily stand-up digest, follow-ups and weekly status, with approval | Proposed |
 | — | — | Azure AD manager hierarchy and "My team" dashboard | On hold |
