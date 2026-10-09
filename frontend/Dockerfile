@@ -9,7 +9,10 @@ WORKDIR /src
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY . .
-RUN npm run build
+RUN npm run build \
+ && find dist -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.svg' \
+      -o -name '*.json' -o -name '*.webmanifest' -o -name '*.map' \) -size +1k \
+      -exec gzip -9 -k {} +
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 ARG VERSION=0.0.0
