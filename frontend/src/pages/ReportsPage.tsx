@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import {
   api,
@@ -12,9 +12,11 @@ import {
   type Widget,
 } from '../api/client';
 import { useAuth } from '../auth/useAuth';
+import { AskReports } from '../components/AskReports';
 import { LoadError } from '../components/PageState';
 import { ReportView } from '../components/ReportView';
 import { Button, ErrorText, Field, GhostButton, Input, linkClass, Select } from '../components/ui';
+import { useAiStatus } from '../lib/ai';
 import { useConfirm } from '../lib/confirm';
 import { usePageTitle } from '../lib/pageTitle';
 import {
@@ -106,6 +108,8 @@ function useDebounced<T>(value: T, ms: number): T {
 function ReportList() {
   usePageTitle('Reports');
   const { user } = useAuth();
+  const [params] = useSearchParams();
+  const canAsk = useAiStatus().data?.features.includes('reports') ?? false;
   const reports = useQuery({ queryKey: ['reports'], queryFn: () => unwrap(api.GET('/api/v1/reports')) });
   const mine = reports.data?.filter((r) => r.owner_id === user.id) ?? [];
   const shared = reports.data?.filter((r) => r.owner_id !== user.id) ?? [];
@@ -141,6 +145,7 @@ function ReportList() {
         </Link>
       </div>
       <ErrorText error={reports.error} />
+      {canAsk && <AskReports key={params.get('ask') ?? ''} initial={params.get('ask') ?? ''} />}
       <section aria-labelledby="mine-h" className="flex flex-col gap-2">
         <h2 id="mine-h" className="text-lg font-semibold">
           Your reports
@@ -302,10 +307,16 @@ function ReportBuilder({ report }: { report?: SavedReport }) {
   const queryClient = useQueryClient();
   const [params] = useSearchParams();
   const template = TEMPLATES.find((t) => t.id === params.get('template'));
+  // A definition handed over by "Open in the report builder" after an AI answer.
+  const handed = useLocation().state as { definition?: ReportDefinition; name?: string } | null;
   const [definition, setDefinition] = useState<ReportDefinition>(
-    () => (report?.definition as ReportDefinition | undefined) ?? template?.definition ?? defaultDefinition(),
+    () =>
+      (report?.definition as ReportDefinition | undefined) ??
+      template?.definition ??
+      handed?.definition ??
+      defaultDefinition(),
   );
-  const [name, setName] = useState(report?.name ?? template?.name ?? '');
+  const [name, setName] = useState(report?.name ?? template?.name ?? handed?.name ?? '');
   const [description, setDescription] = useState(report?.description ?? template?.description ?? '');
   const [shared, setShared] = useState(report?.shared ?? false);
   usePageTitle(report ? report.name : 'New report');
@@ -730,6 +741,7 @@ function ReportBuilder({ report }: { report?: SavedReport }) {
 }
 
 function SavedReportBuilder({ id }: { id: string }) {
+  const canAsk = useAiStatus().data?.features.includes('reports') ?? false;
   const report = useQuery({
     queryKey: ['report', id],
     queryFn: () => unwrap(api.GET('/api/v1/reports/{report_id}', { params: { path: { report_id: id } } })),
@@ -737,7 +749,16 @@ function SavedReportBuilder({ id }: { id: string }) {
   if (report.error)
     return <LoadError error={report.error} what="report" onRetry={() => void report.refetch()} />;
   if (!report.data) return <p role="status">Loading…</p>;
-  return <ReportBuilder key={report.data.id} report={report.data} />;
+  return (
+    <div className="flex flex-col gap-8">
+      <ReportBuilder key={report.data.id} report={report.data} />
+      {canAsk && (
+        <div className="max-w-5xl">
+          <AskReports key={report.data.id} reportId={report.data.id} />
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function ReportsPage() {

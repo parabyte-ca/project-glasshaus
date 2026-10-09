@@ -14,6 +14,11 @@ const AI_FEATURES: [Feature, string, string][] = [
     'Ask in plain words',
     'Turn a question into task filters (only the question, project keys and names are sent).',
   ],
+  [
+    'reports',
+    'Questions about reports',
+    'Answer a question from a report run with the asker’s access. The question, project keys, people’s names and saved report names are sent, then the report table (group names such as projects, people and tags, and the numbers); never task titles or descriptions.',
+  ],
 ];
 
 /** Organization switch and per-feature settings for the optional AI assistant. */
@@ -38,10 +43,10 @@ export function AiSettings() {
       title="AI assistant"
       intro={
         <>
-          Optional help with status updates, task drafting, risk flags and plain-language search. It only
-          reads: drafts and suggestions change nothing until someone applies them. Project data is sent to the
-          configured model provider, every request is recorded in the audit log (without the content), and
-          people are limited to a few requests a minute.
+          Optional help with status updates, task drafting, risk flags, plain-language search and questions
+          about reports. It only reads: drafts and suggestions change nothing until someone applies them.
+          Project data is sent to the configured model provider, every request is recorded in the audit log
+          (without the content), and people are limited to a few requests a minute.
         </>
       }
     >

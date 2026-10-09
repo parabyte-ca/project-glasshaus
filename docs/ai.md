@@ -17,13 +17,14 @@ External AI tools (Claude, GitHub Copilot, any MCP client) do not need this: the
 | Task drafting | Project → **Assistant → Draft tasks** | The brief you type, the project name and description, and up to 100 open task titles (to avoid duplicates) | Proposed tasks (title, description, priority, estimate, tags). **Nothing is created** until you press **Add** |
 | Risk flags | Project → **Assistant → Risks** | The status summary plus up to 200 open tasks (key, title, status, priority, assignee name, dates, estimate) | Up to 10 risks with severity, evidence and a next step; task keys not in the data are dropped |
 | Ask in plain words | **Ctrl K / ⌘ K** → *Ask: …* | Only your question, today's date, visible project keys and names, and people's names. **No task content** | The filters it chose (shown in plain words) and the matching tasks, found with your permissions |
+| Questions about reports (off until an admin ticks it) | **Reports → Ask a question**, a saved report's **Ask about this report**, or **Ctrl K / ⌘ K** → *Ask reports: …* | Step 1: your question, today's date, visible project keys and names, people's names, and the names and descriptions of saved reports you can see. Step 2: the report table (group names such as projects, people and tags, and the numbers, up to 50 rows) and totals. **No task titles or descriptions** | The answer, the report it used (shown as a table or chart so the numbers can be checked), and **Open in the report builder** to adjust or save it |
 
 Everything is read-only. The assistant has no tools and cannot change data; drafts and suggestions are
 applied by a person (or an MCP client) through the normal task API. Email addresses and credentials are
 never sent.
 
 The same features are available through the REST API (`/api/v1/ai/...`) and MCP (`ai_status`,
-`ai_status_report`, `ai_draft_tasks`, `ai_flag_risks`, `ai_search_tasks`); see the
+`ai_status_report`, `ai_draft_tasks`, `ai_flag_risks`, `ai_search_tasks`, `ai_ask_reports`); see the
 [coverage matrix](coverage-matrix.md).
 
 ## Providers
@@ -101,9 +102,13 @@ try a larger model.
   is untrusted data, never instructions. Because the assistant has no tools and its output is only shown
   or proposed, injected text cannot cause actions.
 - **Least data:** each feature sends only the fields listed above. Search sends no task content at all.
+- **Reports are run by Glasshaus, not the model:** the model only picks a saved report or fills in a
+  report definition from fixed lists (unknown projects, people and groupings are dropped); the report
+  then runs with the asker's access, exactly as in the report builder. The answer is shown as plain
+  text (no links or images) next to the table it was written from.
 - **Permissions:** every request runs as the person asking, so the assistant only sees what they can see
   (projects they cannot read return 404).
-- **Audit:** each request is recorded as `ai.summaries`, `ai.drafting`, `ai.risks` or `ai.search` with the
+- **Audit:** each request is recorded as `ai.summaries`, `ai.drafting`, `ai.risks`, `ai.search` or `ai.reports` with the
   outcome, provider, model, token counts and duration — **not** the prompt or the answer.
 - **Limits:** per-person rate limit, input caps (brief 4,000 characters, question 500) and output caps
   (15 drafts, 10 risks).

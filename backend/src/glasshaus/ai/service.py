@@ -1,4 +1,5 @@
-"""Optional AI assistant: status summaries, task drafting, risk flags and natural-language search.
+"""Optional AI assistant: status summaries, task drafting, risk flags, natural-language search and
+questions answered from reports.
 
 Off by default: it needs a provider on the server (GLASSHAUS_AI_PROVIDER) and an organization admin
 to turn it on. Everything here is read-only. Drafts and risk flags are proposals a person applies
@@ -35,12 +36,13 @@ from glasshaus.insights import service as insights
 from glasshaus.insights.schemas import StatusSummary
 from glasshaus.logs import get_logger
 from glasshaus.projects.models import Project, ProjectStatus, StatusCategory
+from glasshaus.reports.schemas import ReportDefinition, ReportResult
 from glasshaus.tasks.models import Priority, Task
 from glasshaus.tasks.schemas import TaskQuery, TaskRead
 
 log = get_logger(__name__)
 
-ALL_FEATURES: list[AiFeature] = ["summaries", "drafting", "risks", "search"]
+ALL_FEATURES: list[AiFeature] = ["summaries", "drafting", "risks", "search", "reports"]
 OPEN = (StatusCategory.BACKLOG, StatusCategory.TODO, StatusCategory.IN_PROGRESS)
 
 GUARD = (
@@ -102,6 +104,52 @@ class SearchFilters(BaseModel):
     explanation: str = Field(description="One short sentence describing the filter in plain words.")
 
 
+class ReportPlan(BaseModel):
+    """A question turned into a report: one of the listed saved reports, or a new definition."""
+
+    saved_report: str | None = Field(
+        description="The exact name of a listed saved report that answers the question as it stands, or null."
+    )
+    source: Literal["tasks", "time"] = Field(description="tasks, or time for logged hours.")
+    group_by: list[str] = Field(description="Zero to two of the listed groupings for that source.")
+    measures: list[str] = Field(description="One to four of the listed measures for that source.")
+    project_keys: list[str] = Field(description="Listed project keys to limit to; empty for all.")
+    people: list[str] = Field(
+        description="Listed names (assignees, or who logged time), or 'me'; usually empty."
+    )
+    status_categories: list[StatusCategory] = Field(description="Tasks only; empty for any status.")
+    priorities: list[Priority] = Field(description="Tasks only; empty for any priority.")
+    date_field: Literal["created", "completed", "due", "spent"] | None = Field(
+        description="What the date range applies to (time: spent), or null for no date range."
+    )
+    date_preset: (
+        Literal[
+            "last_7_days",
+            "last_30_days",
+            "last_90_days",
+            "this_month",
+            "last_month",
+            "this_quarter",
+            "this_year",
+            "next_30_days",
+            "custom",
+        ]
+        | None
+    ) = Field(description="A listed preset, custom (with dates), or null.")
+    date_from: date | None = Field(description="With custom: first day (YYYY-MM-DD).")
+    date_to: date | None = Field(description="With custom: last day (YYYY-MM-DD).")
+    chart: Literal["table", "bar", "line", "kpi"] = Field(description="kpi for a single number.")
+    sort_by: str = Field(description="'label' or one of the chosen measures.")
+    descending: bool
+    explanation: str = Field(description="One short sentence describing the report in plain words.")
+
+
+class ReportAnswer(BaseModel):
+    answer: str = Field(
+        description="Two or three sentences answering the question from the report data, with key numbers."
+    )
+
+
 # --------------------------------------------------------------------------- API schemas
 
 
@@ -153,6 +201,24 @@ class AiSearchRequest(Schema):
     query: str = Field(min_length=2, max_length=500, examples=["my overdue high-priority tasks in WEB"])
     project_id: uuid.UUID | None = Field(None, description="Limit to this project.")
     limit: int = Field(50, ge=1, le=200)
+
+
+class AiReportQuestion(Schema):
+    question: str = Field(min_length=2, max_length=500, examples=["Who has the most overdue tasks?"])
+    report_id: uuid.UUID | None = Field(None, description="Answer from this saved report as it is.")
+
+
+class AiReportAnswer(Schema):
+    """An answer written from a report run with the asker's access. Check the numbers in `result`."""
+
+    question: str
+    answer: str
+    explanation: str
+    saved_report_id: uuid.UUID | None = Field(description="Set when a saved report was used.")
+    saved_report_name: str | None
+    definition: ReportDefinition = Field(description="Open it in the report builder to adjust or save.")
+    result: ReportResult
+    usage: AiUsage
 
 
 class AiSearchResult(Schema):
@@ -587,10 +653,197 @@ async def search(actor: Actor, data: AiSearchRequest) -> AiSearchResult:
     )
 
 
+def _plan_definition(
+    plan: ReportPlan,
+    *,
+    actor: Actor,
+    projects: dict[str, uuid.UUID],
+    people: list[tuple[uuid.UUID, str]],
+) -> ReportDefinition:
+    """Turn the model's plan into a definition, keeping only names and options that exist."""
+    from glasshaus.reports.schemas import TASK_DIMENSIONS, TASK_MEASURES, TIME_DIMENSIONS, TIME_MEASURES
+
+    tasks = plan.source == "tasks"
+    dims = TASK_DIMENSIONS if tasks else TIME_DIMENSIONS
+    allowed = TASK_MEASURES if tasks else TIME_MEASURES
+    group_by = list(dict.fromkeys(d for d in plan.group_by if d in dims))[:2]
+    measures = list(dict.fromkeys(m for m in plan.measures if m in allowed))[:4]
+    person_ids: list[uuid.UUID] = []
+    for name in plan.people:
+        if name.strip().lower() == "me" and actor.user_id:
+            person_ids.append(actor.user_id)
+        elif (uid := _match_person(name, people)) is not None:
+            person_ids.append(uid)
+    filters: dict[str, Any] = {
+        "project_ids": [projects[k.upper()] for k in plan.project_keys if k.upper() in projects],
+        "people": person_ids,
+    }
+    if tasks:
+        filters["status_categories"] = plan.status_categories
+        filters["priorities"] = plan.priorities
+    if plan.date_preset and (plan.date_preset != "custom" or (plan.date_from and plan.date_to)):
+        field = (
+            "spent" if not tasks else (plan.date_field if plan.date_field != "spent" else None) or "created"
+        )
+        filters["date"] = {
+            "field": field,
+            "preset": plan.date_preset,
+            "date_from": plan.date_from,
+            "date_to": plan.date_to,
+        }
+    sort_by = plan.sort_by if plan.sort_by in measures else "label"
+    try:
+        return ReportDefinition.model_validate(
+            {
+                "source": plan.source,
+                "group_by": group_by,
+                "measures": measures,
+                "filters": filters,
+                "chart": plan.chart if group_by or plan.chart == "kpi" else "kpi",
+                "sort": {"by": sort_by, "descending": plan.descending},
+                "limit": 25,
+            }
+        )
+    except ValueError as exc:
+        raise InvalidInput(f"could not build a report from that question: {exc}") from None
+
+
+async def ask_reports(actor: Actor, data: AiReportQuestion) -> AiReportAnswer:
+    """Answer a question with a report. The model first picks a saved report or describes a new one
+    (it sees only the question, today's date, project keys and names, people's names and report
+    names); the report then runs with the asker's access, and the model writes a short answer from
+    the resulting numbers and labels."""
+    from glasshaus.reports import engine
+    from glasshaus.reports import service as reports
+    from glasshaus.reports.schemas import TASK_DIMENSIONS, TASK_MEASURES, TIME_DIMENSIONS, TIME_MEASURES
+
+    async with unit_of_work(actor) as ctx:
+        await _require(ctx, "reports")
+        saved = await reports.list_reports(ctx)
+        if data.report_id is not None:
+            chosen = next((r for r in saved if r.id == data.report_id), None)
+            if chosen is None:
+                await reports.get_report(ctx, data.report_id)  # NotFound with the usual message
+        projects = (
+            await ctx.session.execute(
+                select(Project.id, Project.key, Project.name)
+                .where(visible_projects_clause(ctx), Project.archived_at.is_(None))
+                .order_by(Project.key)
+                .limit(200)
+            )
+        ).all()
+        people: list[tuple[uuid.UUID, str]] = []
+        if ctx.actor.org_role != OrgRole.GUEST:
+            people = [
+                (uid, name)
+                for uid, name in (
+                    await ctx.session.execute(
+                        select(User.id, User.name)
+                        .where(User.is_active.is_(True))
+                        .order_by(User.name)
+                        .limit(300)
+                    )
+                ).all()
+            ]
+    today = insights._today()
+    usages: list[AiUsage] = []
+    definition: ReportDefinition
+    used = None
+    if data.report_id is not None:
+        used = next(r for r in saved if r.id == data.report_id)
+        definition = used.definition
+        explanation = used.description or f"The saved report “{used.name}”."
+    else:
+        context = {
+            "today": today.isoformat(),
+            "weekday": today.strftime("%A"),
+            "projects": [{"key": p.key, "name": p.name} for p in projects],
+            "people": [n for _, n in people],
+            "saved_reports": [{"name": r.name, "description": r.description} for r in saved[:100]],
+            "tasks": {"groupings": list(TASK_DIMENSIONS), "measures": list(TASK_MEASURES)},
+            "time": {"groupings": list(TIME_DIMENSIONS), "measures": list(TIME_MEASURES)},
+            "date_presets": [
+                "last_7_days",
+                "last_30_days",
+                "last_90_days",
+                "this_month",
+                "last_month",
+                "this_quarter",
+                "this_year",
+                "next_30_days",
+            ],
+        }
+        plan, usage = await _run(
+            actor,
+            "reports",
+            "reports",
+            system=(
+                "You turn a question about projects, tasks or logged time into a report. Prefer a listed "
+                "saved report when it answers the question as it stands; otherwise describe a new report "
+                "using only the listed groupings, measures, project keys, people and presets. Overdue means "
+                "the 'overdue' measure; 'how many' with no grouping is a kpi. " + GUARD
+            ),
+            prompt=f"Question: {data.question}\n\n{_data(context)}",
+            output=ReportPlan,
+            max_tokens=2000,
+        )
+        usages.append(usage)
+        by_name = {r.name.strip().lower(): r for r in saved}
+        used = by_name.get(plan.saved_report.strip().lower()) if plan.saved_report else None
+        if used is not None:
+            definition, explanation = used.definition, plan.explanation
+        else:
+            definition = _plan_definition(
+                plan, actor=actor, projects={p.key.upper(): p.id for p in projects}, people=people
+            )
+            explanation = plan.explanation
+    async with unit_of_work(actor) as ctx:
+        result = await engine.run(ctx, definition)
+    table = {
+        "report": explanation,  # a saved report's description is people's text: keep it inside the data
+        "columns": [c.label for c in result.columns],
+        "rows": [r.labels + r.values for r in result.rows[:50]],
+        "totals": result.totals,
+        "groups": result.total_groups,
+        "date_range": [result.date_from, result.date_to],
+    }
+    answer, usage = await _run(
+        actor,
+        "reports",
+        "reports",
+        system=(
+            "Answer the question from the report data only. Quote the key numbers; if the data cannot "
+            "answer it, say so plainly. Two or three sentences. " + GUARD
+        ),
+        prompt=f"Question: {data.question}\n\n{_data(table)}",
+        output=ReportAnswer,
+        max_tokens=800,
+    )
+    usages.append(usage)
+    return AiReportAnswer(
+        question=data.question,
+        answer=answer.answer,
+        explanation=explanation,
+        saved_report_id=used.id if used else None,
+        saved_report_name=used.name if used else None,
+        definition=definition,
+        result=result,
+        usage=AiUsage(
+            provider=usages[-1].provider,
+            model=usages[-1].model,
+            input_tokens=sum(u.input_tokens for u in usages),
+            output_tokens=sum(u.output_tokens for u in usages),
+            duration_ms=sum(u.duration_ms for u in usages),
+        ),
+    )
+
+
 __all__ = [
     "ALL_FEATURES",
     "AiDraftRequest",
     "AiDrafts",
+    "AiReportAnswer",
+    "AiReportQuestion",
     "AiRisks",
     "AiSearchRequest",
     "AiSearchResult",

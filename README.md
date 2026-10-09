@@ -222,7 +222,8 @@ refused.
 - **Custom reports:** build your own from tasks or time (group by up to two fields, up to six measures,
   filters, table / bar / line / single number), save and share them, export CSV, and put them on
   dashboards as tiles or target numbers with dashboard-wide filters. Everyone sees only data they can
-  access. See [docs/reports.md](docs/reports.md).
+  access. See [docs/reports.md](docs/reports.md). With the optional AI assistant, ask a question on the
+  Reports page (or **Ctrl K** → *Ask reports*) and get an answer written from a report run with your access.
 
 ```bash
 # Hours per person and project for September, as CSV
@@ -288,7 +289,7 @@ command palette. Everything is remembered per account. See [docs/onboarding.md](
 ## MCP and Copilot setup
 
 The MCP server listens at `http://<host>:8472/mcp` (Streamable HTTP; `glasshaus-mcp --transport stdio`
-for local use). It offers 62 tools (tasks, projects, dependencies, time, workload, reports, automations,
+for local use). It offers 66 tools (tasks, projects, dependencies, time, workload, reports, automations,
 goals, status summaries, administration and the optional in-app assistant), read-only resources and four prompt templates, all over the same service layer
 and permissions as the REST API. Assistants sign in with OAuth 2.1 (PKCE, dynamic client registration,
 consent in the web app) when the server is reached over HTTPS or localhost, or with a personal API token

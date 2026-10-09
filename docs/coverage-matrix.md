@@ -62,6 +62,7 @@ MCP prompts: `weekly_status`, `risk_review`, `sprint_planning`, `standup_digest`
 | Project report and health | `insights.project_report`, `get_project_health` | `GET /api/v1/projects/{id}/report`, `GET /api/v1/projects/{id}/health` | — | `project_report` | 0.6 |
 | Task export (CSV) | `insights.export_tasks_csv` | `GET /api/v1/projects/{id}/tasks/export` | — | n/a (file download) | 0.6 |
 | Dashboards | `insights.list_dashboards`, `get_dashboard`, `create_dashboard`, `update_dashboard`, `delete_dashboard` | `GET/POST /api/v1/dashboards`, `GET/PATCH/DELETE /api/v1/dashboards/{id}` | — | `list_dashboards` | 0.6 |
+| Custom reports (saved, run, CSV) | `reports.list_reports`, `get_report`, `create_report`, `update_report`, `delete_report`, `engine.run` | `GET/POST /api/v1/reports`, `GET/PATCH/DELETE /api/v1/reports/{id}`, `POST /api/v1/reports/run`, `POST /api/v1/reports/{id}/run`, `GET /api/v1/reports/{id}/export` | — | `list_reports`; `run_report`; `manage_reports` (delete confirms) | 0.13 |
 | Portfolios | `goals.list_portfolios`, `get_portfolio`, `create_portfolio`, `update_portfolio`, `delete_portfolio` | `GET/POST /api/v1/portfolios`, `GET/PATCH/DELETE /api/v1/portfolios/{id}` | — | `get_portfolio` | 0.6 |
 | OKRs | `goals.list_objectives`, `get_objective`, `create_objective`, `update_objective`, `delete_objective`, `add_key_result`, `update_key_result`, `delete_key_result` | `GET/POST /api/v1/objectives`, `GET/PATCH/DELETE /api/v1/objectives/{id}`, `POST …/{id}/key-results`, `PATCH/DELETE /api/v1/key-results/{id}` | — | `list_objectives`, `manage_objectives` | 0.6 |
 | OKR check-ins | `goals.check_in`, `list_check_ins` | `GET/POST /api/v1/key-results/{id}/check-ins` | — | `check_in_key_result` | 0.6 |
@@ -87,3 +88,4 @@ MCP prompts: `weekly_status`, `risk_review`, `sprint_planning`, `standup_digest`
 | AI task drafting (proposals only) | `ai.draft_tasks` | `POST /api/v1/ai/projects/{id}/draft-tasks` | — (audited as `ai.drafting`) | `ai_draft_tasks` (then `create_task`) | 0.9 |
 | AI risk flags | `ai.flag_risks` | `POST /api/v1/ai/projects/{id}/risks` | — (audited as `ai.risks`) | `ai_flag_risks` | 0.9 |
 | Natural-language task search | `ai.search` (question → `TaskQuery` → `tasks.list_tasks`) | `POST /api/v1/ai/search` | — (audited as `ai.search`) | `ai_search_tasks` | 0.9 |
+| Questions about reports (question → report definition or saved report → run → answer) | `ai.ask_reports` | `POST /api/v1/ai/reports` | — (audited as `ai.reports`) | `ai_ask_reports` | 0.13 |

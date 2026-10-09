@@ -1824,6 +1824,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/ai/reports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Answer a question from a report (saved or built from the question), run with your access */
+    post: operations['ai_reports'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/sso/providers': {
     parameters: {
       query?: never;
@@ -2391,6 +2408,42 @@ export interface components {
       drafts: components['schemas']['DraftTask'][];
       usage: components['schemas']['AiUsage'];
     };
+    /**
+     * AiReportAnswer
+     * @description An answer written from a report run with the asker's access. Check the numbers in `result`.
+     */
+    AiReportAnswer: {
+      /** Question */
+      question: string;
+      /** Answer */
+      answer: string;
+      /** Explanation */
+      explanation: string;
+      /**
+       * Saved Report Id
+       * @description Set when a saved report was used.
+       */
+      saved_report_id: string | null;
+      /** Saved Report Name */
+      saved_report_name: string | null;
+      /** @description Open it in the report builder to adjust or save. */
+      definition: components['schemas']['ReportDefinition-Output'];
+      result: components['schemas']['ReportResult'];
+      usage: components['schemas']['AiUsage'];
+    };
+    /** AiReportQuestion */
+    AiReportQuestion: {
+      /**
+       * Question
+       * @example Who has the most overdue tasks?
+       */
+      question: string;
+      /**
+       * Report Id
+       * @description Answer from this saved report as it is.
+       */
+      report_id?: string | null;
+    };
     /** AiRisks */
     AiRisks: {
       /** Project Key */
@@ -2453,7 +2506,7 @@ export interface components {
        * Features
        * @description Features people can use now (empty when not enabled).
        */
-      features: ('summaries' | 'drafting' | 'risks' | 'search')[];
+      features: ('summaries' | 'drafting' | 'risks' | 'search' | 'reports')[];
     };
     /**
      * AiStatusReport
@@ -3815,7 +3868,7 @@ export interface components {
        * Ai Features
        * @description AI features people may use when the assistant is on.
        */
-      ai_features: ('summaries' | 'drafting' | 'risks' | 'search')[];
+      ai_features: ('summaries' | 'drafting' | 'risks' | 'search' | 'reports')[];
     };
     /** OrgSettingsUpdate */
     OrgSettingsUpdate: {
@@ -3830,7 +3883,7 @@ export interface components {
       /** Ai Enabled */
       ai_enabled?: boolean | null;
       /** Ai Features */
-      ai_features?: ('summaries' | 'drafting' | 'risks' | 'search')[] | null;
+      ai_features?: ('summaries' | 'drafting' | 'risks' | 'search' | 'reports')[] | null;
     };
     /** Page[ActivityItem] */
     Page_ActivityItem_: {
@@ -16299,6 +16352,77 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['AiSearchResult'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description AI is not configured, turned off, or the provider failed */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  ai_reports: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AiReportQuestion'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AiReportAnswer'];
         };
       };
       /** @description Not authenticated */
