@@ -65,8 +65,11 @@ export function Layout() {
           >
             Menu
           </GhostButton>
-          <Link to="/" className="truncate text-lg font-semibold">
-            <span className="hidden sm:inline">Project </span>Glasshaus
+          <Link
+            to="/"
+            className="truncate text-lg font-semibold tracking-tight text-sky-700 dark:text-sky-400"
+          >
+            <span className="hidden text-slate-600 sm:inline dark:text-slate-400">Project </span>Glasshaus
           </Link>
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
@@ -110,7 +113,7 @@ export function Layout() {
                   to={to}
                   end={to === '/'}
                   className={({ isActive }) =>
-                    `block rounded px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isActive ? 'bg-slate-100 font-medium dark:bg-slate-800' : ''}`
+                    `block rounded border-l-2 px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isActive ? 'border-accent-500 bg-slate-100 font-semibold dark:bg-slate-800' : 'border-transparent'}`
                   }
                 >
                   {label}
@@ -118,7 +121,7 @@ export function Layout() {
               </li>
             ))}
           </ul>
-          <h2 className="mb-2 text-xs font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-400">
+          <h2 className="mb-2 text-xs font-bold tracking-wide text-accent-700 uppercase dark:text-accent-400">
             Projects
           </h2>
           <ul className="flex flex-col gap-1">
@@ -127,7 +130,7 @@ export function Layout() {
                 <NavLink
                   to={`/projects/${p.key}`}
                   className={({ isActive }) =>
-                    `block rounded px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isActive ? 'bg-slate-100 font-medium dark:bg-slate-800' : ''}`
+                    `block rounded border-l-2 px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isActive ? 'border-accent-500 bg-slate-100 font-semibold dark:bg-slate-800' : 'border-transparent'}`
                   }
                 >
                   <span className="mr-2 font-mono text-xs text-slate-600 dark:text-slate-400">{p.key}</span>
