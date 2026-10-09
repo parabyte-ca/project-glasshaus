@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, SmallInteger, String, text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from glasshaus.core.orm import Base, TenantScoped, TimestampMixin, UUIDPk, utcnow
@@ -30,6 +30,11 @@ class ProjectAssistant(UUIDPk, TenantScoped, TimestampMixin, Base):
     stale_days: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     # Phase 2: put follow-ups, date changes and reassignments in the approval queue.
     suggest: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
+    # Phase 3: suggestion kinds it applies without approval (within the organization's ceiling).
+    trusted: Mapped[list[str]] = mapped_column(
+        ARRAY(String(20)), nullable=False, default=list, server_default="{}"
+    )
+    auto_daily_cap: Mapped[int] = mapped_column(Integer, nullable=False, default=10, server_default="10")
     notify_in_app: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notify_email: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     channel_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("integrations.id", ondelete="SET NULL"))

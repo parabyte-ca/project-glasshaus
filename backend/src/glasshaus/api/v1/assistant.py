@@ -117,3 +117,14 @@ async def dismiss_suggestion(ctx: Ctx, project_id: uuid.UUID, suggestion_id: uui
 )
 async def notes_to_tasks(actor: CurrentActor, project_id: uuid.UUID, data: NotesIn) -> list[SuggestionRead]:
     return await suggestions.from_notes(actor, project_id, data.text)
+
+
+@router.post(
+    "/projects/{project_id}/assistant/suggestions/{suggestion_id}/undo",
+    response_model=SuggestionRead,
+    summary="Undo a follow-up comment the assistant posted (within 7 days)",
+)
+async def undo_suggestion(
+    actor: CurrentActor, project_id: uuid.UUID, suggestion_id: uuid.UUID
+) -> SuggestionRead:
+    return await suggestions.undo(actor, project_id, suggestion_id)

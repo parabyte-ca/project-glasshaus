@@ -78,6 +78,7 @@ export function AiSettings() {
             save.mutate({
               ai_enabled: form.get('ai_enabled') === 'on',
               ai_features: AI_FEATURES.map(([key]) => key).filter((key) => form.get(`f-${key}`) === 'on'),
+              assistant_trusted: form.get('trust-comment') === 'on' ? ['comment'] : [],
             });
           }}
         >
@@ -104,8 +105,30 @@ export function AiSettings() {
               </div>
             ))}
           </fieldset>
+          <fieldset className="flex flex-col gap-2 rounded border border-slate-200 p-3 dark:border-slate-700">
+            <legend className="px-1 text-sm font-medium">
+              What the project assistant may do without approval
+            </legend>
+            <div className="flex items-start gap-2 text-sm">
+              <input
+                id="ai-trust-comment"
+                type="checkbox"
+                name="trust-comment"
+                className="mt-1"
+                defaultChecked={s.assistant_trusted.includes('comment')}
+              />
+              <label htmlFor="ai-trust-comment">
+                <span className="font-medium">Post follow-up comments</span>
+                <span className="block text-slate-600 dark:text-slate-400">
+                  Projects may then let the assistant post its follow-ups on overdue and stale work by itself,
+                  up to a daily limit they set. The task’s owner is mentioned, and project editors can undo a
+                  follow-up for 7 days. Everything else still waits for approval.
+                </span>
+              </label>
+            </div>
+          </fieldset>
           <div>
-            <Button type="submit" disabled={!available || save.isPending}>
+            <Button type="submit" disabled={save.isPending}>
               Save AI settings
             </Button>
             {save.isSuccess && (

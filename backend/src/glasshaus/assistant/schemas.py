@@ -43,6 +43,11 @@ class AssistantWrite(Schema):
     suggestions: bool = Field(
         True, description="Suggest follow-ups, date changes and owners for people to approve."
     )
+    trusted: list[Literal["comment"]] = Field(
+        default_factory=list,
+        description="Suggestion kinds it applies without approval (within the organization's limit).",
+    )
+    auto_daily_cap: int = Field(10, ge=1, le=50, description="Most automatic actions per project per day.")
 
     @field_validator("timezone")
     @classmethod
@@ -74,6 +79,10 @@ class AssistantStatus(Schema):
         description="You may approve or dismiss suggestions (project editors and admins)."
     )
     ai: bool = Field(description="The organization allows AI write-ups by the assistant (Admin > AI).")
+    trusted_allowed: list[Literal["comment"]] = Field(
+        default_factory=list,
+        description="What the organization lets projects trust the assistant with (Admin > AI assistant).",
+    )
     email_available: bool
     channels: list[ChannelOption] = Field(
         description="Slack/Teams integrations it may post to (managers only)."
@@ -139,7 +148,7 @@ class BriefRun(Schema):
 
 
 SuggestionKind = Literal["comment", "due_date", "assign", "task"]
-SuggestionStatus = Literal["open", "approved", "dismissed", "stale", "expired"]
+SuggestionStatus = Literal["open", "approved", "dismissed", "stale", "expired", "undone"]
 
 
 class SuggestionTask(Schema):
@@ -173,7 +182,9 @@ class SuggestionRead(Schema):
     new_task: NewTask | None = Field(None, description="kind=task: the task to create.")
     created_at: datetime
     decided_at: datetime | None = None
-    decided_by: str | None = Field(None, description="Who approved or dismissed it.")
+    decided_by: str | None = Field(None, description="Who approved or dismissed it (empty when automatic).")
+    automatic: bool = Field(False, description="Applied without approval (a trusted kind).")
+    can_undo: bool = Field(False, description="An applied follow-up comment that can still be undone.")
     result: str | None = Field(
         None, description="What happened (the task key, or why it could not be applied)."
     )

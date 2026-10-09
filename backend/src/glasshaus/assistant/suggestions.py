@@ -371,7 +371,7 @@ async def _store(
             await ctx.session.scalars(
                 select(AssistantSuggestion.dedupe_key).where(
                     AssistantSuggestion.project_id == project_id,
-                    AssistantSuggestion.status.in_(("approved", "dismissed")),
+                    AssistantSuggestion.status.in_(("approved", "dismissed", "undone")),
                     AssistantSuggestion.decided_at > now - timedelta(days=QUIET_DAYS),
                 )
             )
@@ -453,7 +453,100 @@ async def refresh(tenant_id: uuid.UUID, project_id: uuid.UUID, *, tz: str, stale
             log.exception("assistant.suggest_ai_failed", project=key)
     async with unit_of_work(Actor.system(tenant_id)) as ctx:
         await _store(ctx, project_id, drafts)
-        return await open_count(ctx, project_id)
+        applied = await _auto_apply(ctx, project_id, account, today=today, tz=tz)
+        waiting = await open_count(ctx, project_id)
+    for key_, suggestion_id in applied:
+        await audit.record(
+            actor,
+            "assistant.action_automatic",
+            outcome="ok",
+            target=key_,
+            detail={"suggestion": str(suggestion_id), "kind": "comment"},
+        )
+    return waiting
+
+
+AUTO_NOTE = (
+    "Posted automatically by the project assistant. Project editors and admins can undo it on the "
+    "project's Digests page."
+)
+UNDO_DAYS = 7
+
+
+async def trusted_kinds(ctx: ServiceContext, project_id: uuid.UUID) -> set[str]:
+    """What the project trusts the assistant with, within the organization's ceiling."""
+    from glasshaus.assistant.models import ProjectAssistant
+    from glasshaus.governance.models import OrgSettings
+
+    a = await ctx.session.scalar(select(ProjectAssistant).where(ProjectAssistant.project_id == project_id))
+    org = await ctx.session.get(OrgSettings, ctx.tenant_id)
+    if a is None or not a.enabled or org is None:
+        return set()
+    return set(a.trusted) & set(org.assistant_trusted)
+
+
+async def _auto_apply(
+    ctx: ServiceContext, project_id: uuid.UUID, account_id: uuid.UUID, *, today: date, tz: str
+) -> list[tuple[str, uuid.UUID]]:
+    """Post trusted follow-ups straight away, up to the project's daily cap. Returns (task key, id)."""
+    from glasshaus.assistant.models import ProjectAssistant
+    from glasshaus.collab import service as collab
+    from glasshaus.collab.schemas import CommentCreate
+
+    if "comment" not in await trusted_kinds(ctx, project_id):
+        return []
+    a = await ctx.session.scalar(select(ProjectAssistant).where(ProjectAssistant.project_id == project_id))
+    assert a is not None
+    project = await ctx.session.get(Project, project_id)
+    assert project is not None
+    midnight = datetime.combine(today, datetime.min.time(), ZoneInfo(tz))
+    done_today = [
+        r
+        for r in (
+            await ctx.session.scalars(
+                select(AssistantSuggestion).where(
+                    AssistantSuggestion.project_id == project_id,
+                    AssistantSuggestion.decided_at >= midnight,
+                    AssistantSuggestion.status.in_(("approved", "undone")),
+                )
+            )
+        ).all()
+        if r.data.get("auto")
+    ]
+    room = a.auto_daily_cap - len(done_today)
+    if room <= 0:
+        return []
+    rows = (
+        await ctx.session.scalars(
+            select(AssistantSuggestion)
+            .where(
+                AssistantSuggestion.project_id == project_id,
+                AssistantSuggestion.status == "open",
+                AssistantSuggestion.kind == "comment",
+            )
+            .order_by(AssistantSuggestion.created_at)
+            .limit(room)
+            .with_for_update(skip_locked=True)
+        )
+    ).all()
+    acting = _as_assistant(ctx, account_id, project_id)
+    applied: list[tuple[str, uuid.UUID]] = []
+    now = datetime.now(UTC)
+    for row in rows:
+        task = await ctx.session.get(Task, row.task_id) if row.task_id else None
+        status = await ctx.session.get(ProjectStatus, task.status_id) if task else None
+        if task is None or _stale(row, task, status):
+            continue  # left for a person to look at
+        body = row.data["comment"]
+        comment = await collab.create_comment(acting, task.id, CommentCreate(body=f"{body}\n\n_{AUTO_NOTE}_"))
+        key = f"{project.key}-{task.number}"
+        row.status, row.decided_at = "approved", now
+        row.result = f"Posted automatically on {key}"
+        row.data = {**row.data, "comment_id": str(comment.id), "auto": True}
+        applied.append((key, row.id))
+    ctx.pending_events.extend(acting.pending_events)
+    await ctx.session.flush()
+    return applied
 
 
 async def from_notes(actor: Actor, project_id: uuid.UUID, text: str) -> list[SuggestionRead]:
@@ -547,6 +640,7 @@ async def _reads(ctx: ServiceContext, rows: list[AssistantSuggestion], key: str)
         found = await ctx.session.execute(select(User.id, User.name).where(User.id.in_(people)))
         names = dict(found.all())
     out = []
+    undo_after = datetime.now(UTC) - timedelta(days=UNDO_DAYS)
     for r in rows:
         t = tasks.get(r.task_id) if r.task_id else None
         out.append(
@@ -574,6 +668,12 @@ async def _reads(ctx: ServiceContext, rows: list[AssistantSuggestion], key: str)
                 created_at=r.created_at,
                 decided_at=r.decided_at,
                 decided_by=names.get(r.decided_by) if r.decided_by else None,
+                automatic=bool(r.data.get("auto")),
+                can_undo=r.status == "approved"
+                and r.kind == "comment"
+                and "comment_id" in r.data
+                and r.decided_at is not None
+                and r.decided_at > undo_after,
                 result=r.result,
             )
         )
@@ -725,3 +825,42 @@ async def dismiss(ctx: ServiceContext, project_id: uuid.UUID, suggestion_id: uui
     row.status, row.decided_by, row.decided_at = "dismissed", ctx.actor.user_id, datetime.now(UTC)
     await ctx.session.flush()
     return (await _reads(ctx, [row], project.key))[0]
+
+
+async def undo(actor: Actor, project_id: uuid.UUID, suggestion_id: uuid.UUID) -> SuggestionRead:
+    """Take back a follow-up the assistant posted (within 7 days): the comment is deleted."""
+    from glasshaus.assistant import service as assistant
+    from glasshaus.collab import service as collab
+    from glasshaus.collab.models import Comment
+
+    async with unit_of_work(actor) as ctx:
+        project = await require_project(ctx, project_id, Permission.TASK_UPDATE)
+        if not await can_approve(ctx, project):
+            raise NotFound("suggestion not found")
+        row = await ctx.session.get(AssistantSuggestion, suggestion_id, with_for_update=True)
+        if row is None or row.project_id != project_id:
+            raise NotFound("suggestion not found")
+        if row.status != "approved" or row.kind != "comment" or "comment_id" not in row.data:
+            raise Conflict("only a follow-up comment the assistant posted can be undone")
+        if row.decided_at is None or row.decided_at < datetime.now(UTC) - timedelta(days=UNDO_DAYS):
+            raise Conflict(f"follow-ups can be undone for {UNDO_DAYS} days")
+        person = await ctx.session.get(User, actor.user_id)
+        assert person is not None
+        comment = await ctx.session.get(Comment, uuid.UUID(row.data["comment_id"]))
+        if comment is not None and comment.deleted_at is None:
+            account = await assistant.ensure_account(ctx)
+            acting = _as_assistant(ctx, account.id, project.id)
+            await collab.delete_comment(acting, comment.id)
+            ctx.pending_events.extend(acting.pending_events)
+        row.status, row.result = "undone", f"Undone by {person.name}"
+        row.data = {**row.data, "undone_by": str(actor.user_id)}
+        await ctx.session.flush()
+        result = (await _reads(ctx, [row], project.key))[0]
+    await audit.record(
+        actor,
+        "assistant.action_undone",
+        outcome="ok",
+        target=result.task.key if result.task else project.key,
+        detail={"suggestion": str(suggestion_id), "automatic": result.automatic},
+    )
+    return result

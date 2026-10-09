@@ -22,6 +22,7 @@ from glasshaus.identity import security
 from glasshaus.identity.models import ApiToken, AuthSession, User, is_assistant
 
 AiFeature = Literal["summaries", "drafting", "risks", "search", "reports", "assistant"]
+TrustedKind = Literal["comment"]
 
 # Columns never exported (credentials and secret hashes).
 EXPORT_EXCLUDED_COLUMNS = {
@@ -48,6 +49,9 @@ class OrgSettingsRead(Schema):
         description="AI assistant on for this organization (also needs a provider configured on the server)."
     )
     ai_features: list[AiFeature] = Field(description="AI features people may use when the assistant is on.")
+    assistant_trusted: list[TrustedKind] = Field(
+        description="Project-assistant suggestions projects may let it apply without approval (a ceiling)."
+    )
 
 
 class OrgSettingsUpdate(Schema):
@@ -57,8 +61,9 @@ class OrgSettingsUpdate(Schema):
     deleted_task_retention_days: int | None = Field(None, ge=0, le=3650)
     ai_enabled: bool | None = None
     ai_features: list[AiFeature] | None = None
+    assistant_trusted: list[TrustedKind] | None = None
 
-    @field_validator("ai_features")
+    @field_validator("ai_features", "assistant_trusted")
     @classmethod
     def _unique(cls, v: list[str] | None) -> list[str] | None:
         return None if v is None else sorted(set(v))

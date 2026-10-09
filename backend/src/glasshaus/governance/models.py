@@ -36,3 +36,7 @@ class OrgSettings(TimestampMixin, Base):
         default=lambda: ["summaries", "drafting", "risks", "search"],
         server_default="{summaries,drafting,risks,search}",
     )
+    # Kinds of project-assistant suggestion that projects may let it apply without approval (a ceiling).
+    assistant_trusted: Mapped[list[str]] = mapped_column(
+        ARRAY(String(20)), nullable=False, default=list, server_default="{}"
+    )

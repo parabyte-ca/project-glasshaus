@@ -1337,6 +1337,7 @@ describe('AI assistant', () => {
       deleted_task_retention_days: 30,
       ai_enabled: false,
       ai_features: ['summaries', 'drafting', 'risks', 'search'],
+      assistant_trusted: [],
     };
     const { calls } = mockApi([
       ...baseRoutes.filter((r) => r.path !== '/api/v1/ai/status'),
@@ -1368,6 +1369,7 @@ describe('AI assistant', () => {
     expect(await patch.json()).toEqual({
       ai_enabled: true,
       ai_features: ['summaries', 'drafting', 'search'],
+      assistant_trusted: [],
     });
   });
 });

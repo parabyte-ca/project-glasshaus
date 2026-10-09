@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.19.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
+> **Status:** v0.20.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -265,7 +265,8 @@ admin turns it on in **Admin → AI assistant**. People then get:
   (overdue, due, stale and unassigned work, with an AI summary and focus list when allowed) and a weekly
   status draft for its admins, by notification, email or Slack/Teams. It also suggests follow-up
   comments, new due dates and owners, and turns meeting notes into tasks; nothing changes until a project
-  editor or admin approves. It runs as a *Project assistant (AI)* viewer account. See
+  editor or admin approves, except follow-ups an organization and project choose to let it post itself
+  (daily limit, undo for 7 days). It runs as a *Project assistant (AI)* viewer account. See
   [docs/assistant.md](docs/assistant.md).
 
 It only reads, sends the least data each feature needs, treats project text as untrusted, and records
@@ -398,7 +399,7 @@ builds, scans and publishes multi-arch (amd64/arm64) images to GHCR.
 | 13 | 0.17.0 | Phone: offline "My tasks", push notifications | ✅ |
 | 14 | 0.18.0 | Project assistant (AI), phase 1: daily stand-up digest and weekly status draft (read-only) | ✅ |
 | 15 | 0.19.0 | Project assistant, phase 2: approval queue for follow-ups, due dates, owners and tasks from notes | ✅ |
-| 16 | 0.20.0 | Project assistant, phase 3: trusted actions chosen by admins | Proposed |
+| 16 | 0.20.0 | Project assistant, phase 3: trusted follow-ups (organization limit, project choice, daily cap, undo) | ✅ |
 | — | — | Azure AD manager hierarchy and "My team" dashboard | On hold |
 
 ## Licence
