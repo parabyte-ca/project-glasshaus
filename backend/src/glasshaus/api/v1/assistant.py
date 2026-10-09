@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, Response, status
 
 from glasshaus.api.deps import Ctx, CurrentActor
 from glasshaus.assistant import service as assistant
+from glasshaus.assistant import suggestions
 from glasshaus.assistant.schemas import (
     AssistantRead,
     AssistantStatus,
@@ -14,6 +15,9 @@ from glasshaus.assistant.schemas import (
     BriefRead,
     BriefRun,
     BriefSummary,
+    NotesIn,
+    SuggestionDecision,
+    SuggestionRead,
 )
 
 router = APIRouter(tags=["assistant"])
@@ -73,3 +77,43 @@ async def list_briefs(
 @router.get("/assistant/briefs/{brief_id}", response_model=BriefRead, summary="One digest or weekly draft")
 async def get_brief(ctx: Ctx, brief_id: uuid.UUID) -> BriefRead:
     return await assistant.get_brief(ctx, brief_id)
+
+
+@router.get(
+    "/projects/{project_id}/assistant/suggestions",
+    response_model=list[SuggestionRead],
+    summary="The approval queue (open), or recent decisions with decided=true",
+)
+async def list_suggestions(
+    ctx: Ctx, project_id: uuid.UUID, decided: bool = False, limit: int = Query(50, ge=1, le=100)
+) -> list[SuggestionRead]:
+    return await suggestions.list_suggestions(ctx, project_id, decided=decided, limit=limit)
+
+
+@router.post(
+    "/projects/{project_id}/assistant/suggestions/{suggestion_id}/approve",
+    response_model=SuggestionRead,
+    summary="Apply a suggestion, with optional edits (project editors and admins)",
+)
+async def approve_suggestion(
+    actor: CurrentActor, project_id: uuid.UUID, suggestion_id: uuid.UUID, data: SuggestionDecision
+) -> SuggestionRead:
+    return await suggestions.approve(actor, project_id, suggestion_id, data)
+
+
+@router.post(
+    "/projects/{project_id}/assistant/suggestions/{suggestion_id}/dismiss",
+    response_model=SuggestionRead,
+    summary="Dismiss a suggestion (project editors and admins)",
+)
+async def dismiss_suggestion(ctx: Ctx, project_id: uuid.UUID, suggestion_id: uuid.UUID) -> SuggestionRead:
+    return await suggestions.dismiss(ctx, project_id, suggestion_id)
+
+
+@router.post(
+    "/projects/{project_id}/assistant/notes",
+    response_model=list[SuggestionRead],
+    summary="Propose tasks from meeting notes or an email (they wait for approval)",
+)
+async def notes_to_tasks(actor: CurrentActor, project_id: uuid.UUID, data: NotesIn) -> list[SuggestionRead]:
+    return await suggestions.from_notes(actor, project_id, data.text)

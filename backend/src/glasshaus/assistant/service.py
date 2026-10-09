@@ -154,6 +154,7 @@ def _read(a: ProjectAssistant) -> AssistantRead:
         ),
         weekly=WeeklySettings(enabled=a.weekly_enabled, weekday=a.weekly_weekday, hour=a.weekly_hour),
         stale_days=a.stale_days,
+        suggestions=a.suggest,
         delivery=DeliverySettings(in_app=a.notify_in_app, email=a.notify_email, channel_id=a.channel_id),
         next_digest_at=a.next_digest_at,
         next_weekly_at=a.next_weekly_at,
@@ -196,10 +197,13 @@ async def get_status(ctx: ServiceContext, project_id: uuid.UUID) -> AssistantSta
     project = await require_project(ctx, project_id, Permission.PROJECT_READ)
     manage = await _can_manage(ctx, project)
     a = await _settings(ctx, project_id)
+    from glasshaus.assistant import suggestions
+
     return AssistantStatus(
         settings=_read(a) if a else None,
         account_name=ACCOUNT_NAME,
         can_manage=manage,
+        can_approve=await suggestions.can_approve(ctx, project),
         ai=await ai_allowed(ctx),
         email_available=mail.available(),
         channels=await _channels(ctx, project_id) if manage else [],
@@ -234,6 +238,7 @@ async def configure(ctx: ServiceContext, project_id: uuid.UUID, data: AssistantW
     )
     a.notify_in_app, a.notify_email = data.delivery.in_app, data.delivery.email
     a.channel_id = data.delivery.channel_id
+    a.suggest = data.suggestions
     a.configured_by = ctx.actor.user_id
     now = datetime.now(UTC)
     a.next_digest_at, a.next_weekly_at = next_digest(a, now), next_weekly(a, now)
@@ -341,7 +346,7 @@ async def _facts(
     names: dict[uuid.UUID, str] = {}
     if people:
         found = await ctx.session.execute(select(User.id, User.name).where(User.id.in_(people)))
-        names = dict(found.tuples().all())
+        names = dict(found.all())
 
     def item(t: Task, s: ProjectStatus, days: int | None = None) -> BriefTask:
         return BriefTask(
@@ -527,9 +532,18 @@ async def _account_for(tenant_id: uuid.UUID, project_id: uuid.UUID) -> uuid.UUID
 
 
 async def write_brief(
-    tenant_id: uuid.UUID, project_id: uuid.UUID, kind: BriefKind, *, tz: str, stale_days: int
+    tenant_id: uuid.UUID,
+    project_id: uuid.UUID,
+    kind: BriefKind,
+    *,
+    tz: str,
+    stale_days: int,
+    suggest: bool = False,
 ) -> BriefRead:
-    """Gather the facts as the assistant, add the AI write-up if allowed, and store the brief."""
+    """Gather the facts as the assistant, add the AI write-up if allowed, and store the brief. A
+    digest also refreshes the approval queue when the project asks for suggestions."""
+    from glasshaus.assistant import suggestions
+
     account = await _account_for(tenant_id, project_id)
     actor = _account_actor(tenant_id, account)
     async with unit_of_work(actor) as ctx:
@@ -540,6 +554,13 @@ async def write_brief(
         await _write_up(actor, kind, key, name, content)
     else:
         content.ai_note = "AI write-ups are off for this organization (Admin > AI assistant)"
+    if kind == "digest" and suggest:
+        try:
+            content.suggestions = await suggestions.refresh(
+                tenant_id, project_id, tz=tz, stale_days=stale_days
+            )
+        except Exception:  # the digest goes out even if suggesting fails
+            log.exception("assistant.suggest_failed", project=key)
     async with unit_of_work(Actor.system(tenant_id)) as ctx:
         brief = ProjectBrief(
             tenant_id=tenant_id,
@@ -584,9 +605,9 @@ async def run_now(actor: Actor, project_id: uuid.UUID, kind: BriefKind) -> Brief
         a = await _settings(ctx, project_id)
         if a is None or not a.enabled:
             raise InvalidInput("turn the assistant on for this project first")
-        tz, stale_days = a.timezone, a.stale_days
+        tz, stale_days, suggest = a.timezone, a.stale_days, a.suggest
     await _limit_run_now(actor)
-    return await write_brief(actor.tenant_id, project_id, kind, tz=tz, stale_days=stale_days)
+    return await write_brief(actor.tenant_id, project_id, kind, tz=tz, stale_days=stale_days, suggest=suggest)
 
 
 # --------------------------------------------------------------------------- delivery
@@ -648,6 +669,12 @@ def _sections(c: BriefContent, kind: BriefKind) -> list[tuple[str, list[str]]]:
         ("Unassigned and due soon", [line(t) for t in c.unassigned]),
         ("Completed" if kind == "weekly" else "Done since the last digest", [line(t) for t in c.completed]),
         ("Schedule warnings", list(c.warnings)),
+        (
+            "Waiting for approval",
+            [f"{c.suggestions} suggestion{'s' if c.suggestions != 1 else ''} on the Digests page"]
+            if c.suggestions and kind == "digest"
+            else [],
+        ),
     ]
     return [(h, items) for h, items in sections if items]
 
@@ -830,10 +857,10 @@ async def _run_scheduled(tenant_id: uuid.UUID, assistant_id: uuid.UUID, kind: Br
         project = await ctx.session.get(Project, a.project_id)
         if project is None or project.archived_at is not None:
             return False
-        project_id, tz, stale_days = a.project_id, a.timezone, a.stale_days
+        project_id, tz, stale_days, suggest = a.project_id, a.timezone, a.stale_days, a.suggest
     error: str | None = None
     try:
-        brief = await write_brief(tenant_id, project_id, kind, tz=tz, stale_days=stale_days)
+        brief = await write_brief(tenant_id, project_id, kind, tz=tz, stale_days=stale_days, suggest=suggest)
         problems = await deliver(tenant_id, assistant_id, brief)
         error = "; ".join(problems) or None
     except ServiceError as exc:

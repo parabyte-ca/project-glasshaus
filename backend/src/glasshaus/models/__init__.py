@@ -1,6 +1,6 @@
 """ORM models. Every module's models are imported here so Alembic autogenerate sees them."""
 
-from glasshaus.assistant.models import ProjectAssistant, ProjectBrief
+from glasshaus.assistant.models import AssistantSuggestion, ProjectAssistant, ProjectBrief
 from glasshaus.audit.models import AuditEntry
 from glasshaus.automation.models import AutomationRule, AutomationRun, ProjectTemplate, RecurringTask
 from glasshaus.collab.models import Comment, Notification
@@ -27,6 +27,7 @@ from glasshaus.views.models import SavedView
 __all__ = [
     "RLS_TABLES",
     "ApiToken",
+    "AssistantSuggestion",
     "AuditEntry",
     "AuthSession",
     "AutomationRule",

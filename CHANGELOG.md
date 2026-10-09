@@ -6,6 +6,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-09
+
+The project assistant, phase 2: an approval queue.
+
+### Added
+- **Suggestions** on the project's Digests page, refreshed with each digest:
+  - follow-up comments on overdue work and on in-progress work with no recent update;
+  - new due dates for long-overdue work that hasn't started;
+  - owners for unassigned work due soon, preferring the editor with the fewest open tasks.
+
+  Simple rules make them without AI. With the **Project assistant** AI feature on, the model proposes
+  better ones, checked against the project's tasks and people. The model can't mention anyone itself.
+- **Turn meeting notes or an email into tasks.** With AI, it finds the action items. Without AI, it
+  takes lines starting with `- [ ]`, `TODO:`, `Action:` or `AI:`.
+- **Approve, edit or dismiss.** Project editors and admins decide; viewers can see the queue.
+  - Approved changes are made by the *Project assistant (AI)* account and signed "approved by <name>".
+  - Each approval is audited under the approver's name.
+  - A suggestion whose task has changed since it was made is set aside, not applied.
+  - The same suggestion isn't repeated while one is waiting or within 7 days of a decision.
+  - Unapproved suggestions expire after 7 days.
+- The digest (in the app, email and Slack/Teams) says how many suggestions are waiting.
+- New project setting: **Suggest follow-ups, new dates and owners** (on by default).
+- API:
+  - `GET /api/v1/projects/{id}/assistant/suggestions`
+  - `POST …/suggestions/{sid}/approve` and `…/dismiss`
+  - `POST /api/v1/projects/{id}/assistant/notes`
+
 ## [0.18.0] - 2026-10-09
 
 The project assistant, phase 1.
@@ -545,7 +572,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.15.0...v0.16.0

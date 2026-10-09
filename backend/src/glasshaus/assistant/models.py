@@ -28,6 +28,8 @@ class ProjectAssistant(UUIDPk, TenantScoped, TimestampMixin, Base):
     weekly_weekday: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=4)  # Friday
     weekly_hour: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=14)
     stale_days: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    # Phase 2: put follow-ups, date changes and reassignments in the approval queue.
+    suggest: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
     notify_in_app: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notify_email: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     channel_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("integrations.id", ondelete="SET NULL"))
@@ -52,3 +54,38 @@ class ProjectBrief(UUIDPk, TenantScoped, Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, server_default=text("now()"), nullable=False
     )
+
+
+class AssistantSuggestion(UUIDPk, TenantScoped, Base):
+    """A change the assistant proposes. Nothing happens until someone who could make the change
+    approves it; the change is then made by the assistant account, naming who approved it."""
+
+    __tablename__ = "assistant_suggestions"
+    __table_args__ = (
+        Index("ix_assistant_suggestions_project_status", "project_id", "status", "created_at"),
+        Index(
+            "uq_assistant_suggestions_open",
+            "project_id",
+            "dedupe_key",
+            unique=True,
+            postgresql_where=text("status = 'open' AND dedupe_key IS NOT NULL"),
+        ),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    task_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(10), nullable=False)  # comment | due_date | assign | task
+    source: Mapped[str] = mapped_column(String(10), nullable=False)  # rules | ai | notes
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="open", server_default="open")
+    reason: Mapped[str] = mapped_column(String(500), nullable=False, default="", server_default="")
+    # The proposal and what it assumed (the task's due date or owner when it was made).
+    data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    dedupe_key: Mapped[str | None] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, server_default=text("now()"), nullable=False
+    )
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    result: Mapped[str | None] = mapped_column(String(200))
