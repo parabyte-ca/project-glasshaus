@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router';
 
 import { api, getVersion, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
+import { useOnline } from '../lib/offline';
 import { useLiveUpdates } from '../lib/realtime';
 import { SHORTCUTS, useShortcuts } from '../lib/shortcuts';
 import { NotificationsBell } from './NotificationsBell';
@@ -18,6 +19,7 @@ const ShortcutHelp = lazy(() => import('./CommandPalette').then((m) => ({ defaul
 
 const SECTIONS = [
   ['/', 'Home'],
+  ['/my', 'My tasks'],
   ['/dashboards', 'Dashboards'],
   ['/reports', 'Reports'],
   ['/time', 'Time'],
@@ -27,7 +29,8 @@ const SECTIONS = [
 ] as const;
 
 export function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, offline: serverUnreachable } = useAuth();
+  const offline = !useOnline() || !!serverUnreachable;
   useLiveUpdates();
   const version = useQuery({ queryKey: ['version'], queryFn: getVersion, staleTime: Infinity });
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => unwrap(api.GET('/api/v1/projects')) });
@@ -151,6 +154,15 @@ export function Layout() {
           </div>
         </nav>
         <main id="main" className="min-w-0 flex-1 p-4 md:p-6">
+          {offline && pathname !== '/my' && (
+            <p role="status" className="mb-4 rounded-lg border border-amber-400 p-3 text-sm">
+              <strong>You’re offline.</strong> This page needs a connection;{' '}
+              <Link to="/my" className="underline">
+                My tasks
+              </Link>{' '}
+              works offline.
+            </p>
+          )}
           <Outlet />
         </main>
       </div>

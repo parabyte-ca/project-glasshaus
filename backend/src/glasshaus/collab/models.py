@@ -39,6 +39,7 @@ class Notification(UUIDPk, TenantScoped, Base):
             "ix_notifications_user_unread", "user_id", "created_at", postgresql_where=text("read_at IS NULL")
         ),
         Index("ix_notifications_user_created", "user_id", "created_at"),
+        Index("ix_notifications_unpushed", "created_at", postgresql_where=text("pushed_at IS NULL")),
         UniqueConstraint("event_id", "user_id"),
     )
 
@@ -59,3 +60,5 @@ class Notification(UUIDPk, TenantScoped, Base):
         DateTime(timezone=True), default=utcnow, server_default=text("now()")
     )
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When it was pushed to the person's devices (null: not yet, or they have none).
+    pushed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

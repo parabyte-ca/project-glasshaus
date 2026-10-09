@@ -1,6 +1,6 @@
 [project]
 name = "glasshaus"
-version = "0.16.0"
+version = "0.17.0"
 description = "Project Glasshaus — self-hosted project management platform (API, worker, MCP server)"
 authors = [
     { name = "Parabyte" }
@@ -16,6 +16,7 @@ dependencies = [
     "email-validator>=2.3.0",
     "faker>=40.41.0",
     "fastapi>=0.142.4",
+    "http-ece>=1.2",
     "httpx>=0.28.1",
     "lxml>=6",
     "mcp>=2.3,<3",

@@ -6,6 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-09
+
+Glasshaus on your phone.
+
+### Added
+- **My tasks** (`/my`, shortcut **G** then **M**): your open tasks in every project, grouped Overdue, Today,
+  Next 7 days, Later and No due date, with a tick box to mark each done.
+- **Works offline.** My tasks keeps a copy on the device and opens without a connection; tasks ticked
+  offline are marked done when the app can reach the server again. The rest of the app opens with
+  your last-known profile and points you to My tasks while offline. Signing out removes the copy.
+- **Notifications on this device** (Account): Web Push to phones and desktops for your notifications,
+  with a test button; tapping one opens the right page. Needs HTTPS; on iPhone and iPad, add the app
+  to the Home Screen first. Details in [docs/mobile.md](docs/mobile.md).
+- API: `POST /api/v1/tasks/{ref}/complete` and `/reopen` (safe to repeat); `GET /api/v1/push`,
+  `POST /api/v1/push/subscriptions`, `POST /api/v1/push/subscriptions/remove`, `POST /api/v1/push/test`.
+
+### Changed
+- ESLint 10 for the frontend.
+- Signing out also turns off notifications on that device.
+
 ## [0.16.0] - 2026-10-09
 
 Slack and Microsoft Teams.
@@ -498,7 +518,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.13.0...v0.14.0

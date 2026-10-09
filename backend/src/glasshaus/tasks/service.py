@@ -396,6 +396,20 @@ async def update_task(ctx: ServiceContext, task_id: uuid.UUID, data: TaskUpdate)
     return result
 
 
+async def set_done(ctx: ServiceContext, task_id: uuid.UUID, done: bool) -> TaskRead:
+    """Move a task to its project's first done (or first to-do) status. Repeating it changes nothing,
+    so a phone can safely replay a "done" made while offline."""
+    task = await _load(ctx, task_id, Permission.TASK_UPDATE)
+    status = await ctx.session.get(ProjectStatus, task.status_id)
+    is_done = status is not None and status.category == StatusCategory.DONE
+    if is_done == done:
+        return (await _to_read(ctx, [task]))[0]
+    target = await _status_in_category(
+        ctx, task.project_id, StatusCategory.DONE if done else StatusCategory.TODO
+    )
+    return await update_task(ctx, task_id, TaskUpdate(status_id=target.id))
+
+
 async def bulk_update(ctx: ServiceContext, data: TaskBulkUpdate) -> BulkResult:
     result = BulkResult(updated=[])
     patch = data.patch

@@ -14,6 +14,7 @@ from glasshaus.integrations.models import CalendarFeed, ChannelPost, Integration
 from glasshaus.models.tenant import Tenant
 from glasshaus.oauth.models import OAuthClient, OAuthGrant, OAuthRequest
 from glasshaus.projects.models import Project, ProjectMember, ProjectStatus
+from glasshaus.push import PushSubscription
 from glasshaus.reports.models import ReportAlert, ReportSubscription, SavedReport
 from glasshaus.scheduling.models import Baseline, BaselineTask, TaskDependency
 from glasshaus.scim.models import ScimToken
@@ -55,6 +56,7 @@ __all__ = [
     "ProjectMember",
     "ProjectStatus",
     "ProjectTemplate",
+    "PushSubscription",
     "RecurringTask",
     "ReportAlert",
     "ReportSubscription",

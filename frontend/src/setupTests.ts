@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import { afterEach } from 'vitest';
 
 // Tests never open real sockets; FakeSocket.instances lets a test push live events.
 class FakeSocket {
@@ -21,3 +22,6 @@ class FakeSocket {
 }
 Object.defineProperty(globalThis, 'WebSocket', { value: FakeSocket, writable: true });
 export { FakeSocket };
+
+// Offline copies (signed-in user, My tasks) must not leak from one test into the next.
+afterEach(() => localStorage.clear());

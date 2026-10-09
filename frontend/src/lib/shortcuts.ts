@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 /** "g" then a key goes to a section (two-key sequences, as in GitHub and Gmail). */
 export const GO_TO: Record<string, [string, string]> = {
   h: ['/', 'Home'],
+  m: ['/my', 'My tasks'],
   d: ['/dashboards', 'Dashboards'],
   r: ['/reports', 'Reports'],
   t: ['/time', 'Time'],

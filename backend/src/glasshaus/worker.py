@@ -101,6 +101,13 @@ async def channel_posts(ctx: dict[str, Any]) -> int:
     return await send_due()
 
 
+async def push_notifications(ctx: dict[str, Any]) -> dict[str, int]:
+    """Push new in-app notifications to people's phones and desktops."""
+    from glasshaus.push import push_new_notifications
+
+    return await push_new_notifications()
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     import asyncio
 
@@ -148,6 +155,7 @@ class WorkerSettings:
         cron(report_emails, second={20}, run_at_startup=False, timeout=600),
         cron(report_alerts, second={25}, run_at_startup=False, timeout=600),
         cron(channel_posts, second={15}, run_at_startup=False, timeout=600),
+        cron(push_notifications, second=set(range(3, 60, 10)), run_at_startup=False, timeout=120),
         cron(backup_watch, minute={41}, second={0}, run_at_startup=False),
         cron(integrations_email, minute=set(range(1, 60, 2)), second={50}, run_at_startup=False, timeout=300),
     ]
