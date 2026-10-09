@@ -32,6 +32,10 @@ def upgrade() -> None:
         ),
     )
     # ### end Alembic commands ###
+    # People who already use Glasshaus skip the automatic tour (they get the checklist and feature
+    # tips, and can take the tour from Help). New accounts start fresh.
+    op.execute("SELECT set_config('app.bypass_rls', 'on', true)")
+    op.execute("""UPDATE users SET onboarding = '{"tour": "skipped"}'::jsonb""")
 
 
 def downgrade() -> None:
