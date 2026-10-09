@@ -1,4 +1,12 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react';
+import {
+  useState,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from 'react';
+
+import { isSaneDate } from '../lib/dates';
 
 const focus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600';
 const field =
@@ -27,6 +35,58 @@ export function GhostButton({ className = '', ...props }: ButtonHTMLAttributes<H
 
 export function Input({ className = '', ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`${field} ${className}`} {...props} />;
+}
+
+/**
+ * Date field that saves when you leave it or press Enter, not on every keystroke (typing a year
+ * otherwise saves 0002, 0020, 0202…). Escape puts the saved value back.
+ */
+export function DateInput({
+  value,
+  onCommit,
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'defaultValue' | 'onChange' | 'type'> & {
+  value: string | null | undefined;
+  onCommit: (value: string | null) => void;
+}) {
+  const saved = value ?? '';
+  const [text, setText] = useState(saved);
+  const [base, setBase] = useState(saved);
+  if (saved !== base) {
+    // The saved value changed elsewhere (another person, a reschedule): show it.
+    setBase(saved);
+    setText(saved);
+  }
+  const invalid = !isSaneDate(text);
+  const commit = () => {
+    if (text === saved) return;
+    if (invalid) {
+      setText(saved);
+      return;
+    }
+    onCommit(text || null);
+  };
+  return (
+    <Input
+      type="date"
+      min="1900-01-01"
+      max="2200-12-31"
+      aria-invalid={invalid || undefined}
+      {...props}
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commit();
+        } else if (e.key === 'Escape' && text !== saved) {
+          e.stopPropagation();
+          setText(saved);
+        }
+      }}
+    />
+  );
 }
 
 export function Select({ className = '', ...props }: SelectHTMLAttributes<HTMLSelectElement>) {

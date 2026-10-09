@@ -1,5 +1,5 @@
 import type { CustomField, User } from '../api/client';
-import { Input, Select } from './ui';
+import { DateInput, Input, Select } from './ui';
 
 interface Props {
   field: CustomField;
@@ -68,14 +68,7 @@ export function FieldEditor({ field, value, users, onChange }: Props) {
         />
       );
     case 'date':
-      return (
-        <Input
-          id={id}
-          type="date"
-          defaultValue={(value as string | undefined) ?? ''}
-          onChange={(e) => onChange(e.target.value || null)}
-        />
-      );
+      return <DateInput id={id} value={value as string | null | undefined} onCommit={onChange} />;
     default:
       return (
         <Input
