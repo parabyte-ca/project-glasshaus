@@ -22,6 +22,56 @@ Delivery is at-least-once with one attempt per event per integration, retried af
 cloud-metadata addresses are always refused; private networks only with `GLASSHAUS_WEBHOOK_ALLOW_PRIVATE=true`.
 **Test** sends a sample message; **Deliveries** shows the log.
 
+### Scheduled posts (Slack and Teams)
+
+On a Slack or Teams integration, **Scheduled posts** sends a **saved report** (its table, up to 15
+rows, with totals) or a **project's status** (health, open/done/overdue, and the overdue, due-soon
+and recently completed tasks) daily, weekly or monthly. **Post now** sends one straight away.
+
+- A post runs with the access of the person who set it up, at the time it is sent. Everyone in the
+  channel sees it, so only people who manage the integration can add posts.
+- A channel set up for one project only ever gets that project's numbers, even from a report that
+  covers more.
+- Posts end on their own when their report is deleted or no longer visible to that person, or the
+  person is deactivated. They use the same delivery log and retries as other messages.
+
+API: `GET/POST /api/v1/integrations/{id}/posts`, `DELETE /api/v1/integrations/{id}/posts/{post_id}`,
+`POST /api/v1/integrations/{id}/posts/{post_id}/send`.
+
+## Slack command: `/glasshaus`
+
+Ask Glasshaus from Slack. Answers are **private to the person asking** (ephemeral) and use **their**
+access, read-only.
+
+| Command | Answer |
+| --- | --- |
+| `/glasshaus my` | Your open tasks, soonest due first |
+| `/glasshaus WEB-12` | That task, with a link |
+| `/glasshaus report Open work` | Runs your saved report (or a shared one) |
+| `/glasshaus who has the most overdue work?` | With the AI assistant on: an answer from a report (*Questions about reports*) or the matching tasks (*Ask in plain words*) |
+| `/glasshaus help` | This list |
+
+Set-up (an organization admin):
+
+1. In Slack, **Create an app** → *From scratch*. Under **OAuth & Permissions** add the bot scopes
+   `commands`, `users:read` and `users:read.email`, then install it to the workspace and copy the
+   **Bot User OAuth Token** (`xoxb-…`). Copy the **Signing Secret** from *Basic Information*.
+2. In Glasshaus, **Admin → Integrations → Connect**, type *Slack command (/glasshaus)*, paste both.
+   **Test** checks the token.
+3. Back in Slack, **Slash Commands → Create New Command**: command `/glasshaus`, Request URL = the
+   integration's **Request URL** (`https://<your server>/api/v1/integrations/<id>/slack`).
+
+Glasshaus matches people by the email on their Slack profile; someone without an active Glasshaus
+account with that email gets a "not linked" reply and no data. Slack workspace admins can change
+profile emails, so only connect a workspace whose admins you trust as much as Glasshaus admins. Slack must be able to reach your server
+over HTTPS (for a homelab, a reverse proxy or tunnel such as Cloudflare Tunnel that exposes only
+`/api/v1/integrations/*/slack`). Every request is checked against the signing secret and must be less
+than five minutes old.
+
+For Microsoft Teams, ask through the Microsoft 365 Copilot agent or the Copilot Studio connector (see
+[integrations/README.md](integrations/README.md#microsoft-365-copilot-declarative-agent)); a Teams
+channel bot could not reply privately.
+
 ## Inbound: GitHub and GitLab
 
 Create the integration for a project, then add a webhook in the repository:

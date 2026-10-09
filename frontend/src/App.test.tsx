@@ -629,6 +629,90 @@ describe('administration', () => {
     expect(within(files).getByText('2.0 MB')).toBeInTheDocument();
   });
 
+  it('connects a Slack command and schedules a channel post', async () => {
+    const integration = (over: object) => ({
+      id: 'i1',
+      kind: 'slack',
+      name: '#web',
+      enabled: true,
+      project_id: null,
+      events: [],
+      url_host: 'hooks.slack.com',
+      secret_set: true,
+      inbound_url: null,
+      email: null,
+      last_success_at: null,
+      last_error: null,
+      last_error_at: null,
+      created_at: '2026-10-09T00:00:00Z',
+      ...over,
+    });
+    const { calls } = mockApi([
+      ...baseRoutes,
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/integrations',
+        body: [
+          integration({}),
+          integration({
+            id: 'i2',
+            kind: 'slack_command',
+            name: 'Slack',
+            inbound_url: 'https://pm.example.com/api/v1/integrations/i2/slack',
+          }),
+        ],
+      },
+      { method: 'GET', path: '/api/v1/integrations/event-types', body: ['task.created'] },
+      { method: 'POST', path: '/api/v1/integrations', status: 201, body: integration({ id: 'i3' }) },
+      { method: 'GET', path: '/api/v1/integrations/i1/posts', body: [] },
+      {
+        method: 'GET',
+        path: '/api/v1/reports',
+        body: [{ id: 'r1', name: 'Open work', owner_id: 'u1', description: '', shared: false }],
+      },
+      { method: 'POST', path: '/api/v1/integrations/i1/posts', status: 201, body: {} },
+    ]);
+    renderAt('/admin?tab=integrations');
+    expect(
+      await screen.findByText('https://pm.example.com/api/v1/integrations/i2/slack'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Request URL/)).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText('Type'), 'Slack command (/glasshaus)');
+    expect(screen.queryByLabelText('Project (optional)')).toBeNull(); // the whole organization
+    await userEvent.type(screen.getByLabelText('Name'), 'Slack');
+    await userEvent.type(screen.getByLabelText('Signing secret'), 'sig');
+    await userEvent.type(screen.getByLabelText('Bot token (xoxb-…)'), 'xoxb-1');
+    await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    await waitFor(() =>
+      expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/integrations'))).toBe(true),
+    );
+    const created = calls.find((c) => c.method === 'POST' && c.url.endsWith('/integrations'))!;
+    expect(await created.json()).toMatchObject({
+      kind: 'slack_command',
+      secret: 'sig',
+      token: 'xoxb-1',
+      project_id: null,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Scheduled posts' }));
+    const panel = (await screen.findByRole('heading', { name: 'Scheduled posts to #web' })).closest(
+      'section',
+    )!;
+    await userEvent.selectOptions(within(panel).getByLabelText('Report'), 'Open work');
+    await userEvent.click(within(panel).getByRole('button', { name: 'Add post' }));
+    await waitFor(() =>
+      expect(calls.some((c) => c.url.endsWith('/integrations/i1/posts') && c.method === 'POST')).toBe(true),
+    );
+    const post = calls.find((c) => c.url.endsWith('/integrations/i1/posts') && c.method === 'POST')!;
+    expect(await post.json()).toMatchObject({
+      kind: 'report',
+      report_id: 'r1',
+      schedule: { frequency: 'weekly', weekday: 0, hour: 9 },
+    });
+  });
+
   it('deactivates a person after confirming', async () => {
     let people = [user, member];
     const { calls } = mockApi([

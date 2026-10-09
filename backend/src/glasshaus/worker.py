@@ -94,6 +94,13 @@ async def backup_watch(ctx: dict[str, Any]) -> int:
     return await watch()
 
 
+async def channel_posts(ctx: dict[str, Any]) -> int:
+    """Send scheduled report and status posts to Slack and Teams."""
+    from glasshaus.integrations.posts import send_due
+
+    return await send_due()
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     import asyncio
 
@@ -140,6 +147,7 @@ class WorkerSettings:
         cron(integrations_retry, second={35}, run_at_startup=False, timeout=300),
         cron(report_emails, second={20}, run_at_startup=False, timeout=600),
         cron(report_alerts, second={25}, run_at_startup=False, timeout=600),
+        cron(channel_posts, second={15}, run_at_startup=False, timeout=600),
         cron(backup_watch, minute={41}, second={0}, run_at_startup=False),
         cron(integrations_email, minute=set(range(1, 60, 2)), second={50}, run_at_startup=False, timeout=300),
     ]

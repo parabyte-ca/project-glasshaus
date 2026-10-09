@@ -2207,6 +2207,75 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/integrations/{integration_id}/slack': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Request URL for the /glasshaus Slack command (Slack-signed) */
+    post: operations['slack'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/integrations/{integration_id}/posts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Scheduled report and status posts to this Slack or Teams channel */
+    get: operations['list_posts'];
+    put?: never;
+    /** Post a saved report or a project's status to this channel on a schedule */
+    post: operations['create_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/integrations/{integration_id}/posts/{post_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Stop a scheduled post */
+    delete: operations['delete_post'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/integrations/{integration_id}/posts/{post_id}/send': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Post it now */
+    post: operations['send_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/calendar-feed': {
     parameters: {
       query?: never;
@@ -2882,6 +2951,62 @@ export interface components {
       /** Last Used At */
       last_used_at: string | null;
     };
+    /** ChannelPostCreate */
+    ChannelPostCreate: {
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: 'report' | 'status';
+      /**
+       * Report Id
+       * @description kind=report: the saved report to post.
+       */
+      report_id?: string | null;
+      /**
+       * Project Id
+       * @description kind=status: the project (defaults to the integration's project).
+       */
+      project_id?: string | null;
+      schedule: components['schemas']['ScheduleSpec-Input'];
+    };
+    /** ChannelPostRead */
+    ChannelPostRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Integration Id
+       * Format: uuid
+       */
+      integration_id: string;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: 'report' | 'status';
+      /** Report Id */
+      report_id: string | null;
+      /** Project Id */
+      project_id: string | null;
+      /**
+       * Title
+       * @description The report's name or the project's key and name.
+       */
+      title: string;
+      schedule: components['schemas']['ScheduleSpec-Output'];
+      /**
+       * Next Run At
+       * Format: date-time
+       */
+      next_run_at: string;
+      /** Last Sent At */
+      last_sent_at: string | null;
+      /** Last Error */
+      last_error: string | null;
+    };
     /** CheckInCreate */
     CheckInCreate: {
       /**
@@ -3509,7 +3634,7 @@ export interface components {
        * Kind
        * @enum {string}
        */
-      kind: 'slack' | 'teams' | 'webhook' | 'github' | 'gitlab' | 'email';
+      kind: 'slack' | 'teams' | 'webhook' | 'github' | 'gitlab' | 'email' | 'slack_command';
       /** Name */
       name: string;
       /**
@@ -3534,9 +3659,14 @@ export interface components {
       url?: string | null;
       /**
        * Secret
-       * @description webhook/github/gitlab: signing secret (generated if empty). email: password.
+       * @description webhook/github/gitlab: signing secret (generated if empty). email: password. slack_command: the Slack app's signing secret.
        */
       secret?: string | null;
+      /**
+       * Token
+       * @description slack_command: the Slack app's bot token (xoxb-…).
+       */
+      token?: string | null;
       email?: components['schemas']['EmailConfig-Input'] | null;
     };
     /** IntegrationCreated */
@@ -3550,7 +3680,7 @@ export interface components {
        * Kind
        * @enum {string}
        */
-      kind: 'slack' | 'teams' | 'webhook' | 'github' | 'gitlab' | 'email';
+      kind: 'slack' | 'teams' | 'webhook' | 'github' | 'gitlab' | 'email' | 'slack_command';
       /** Name */
       name: string;
       /** Enabled */
@@ -3568,7 +3698,7 @@ export interface components {
       secret_set: boolean;
       /**
        * Inbound Url
-       * @description github/gitlab: the payload URL to configure there.
+       * @description github/gitlab: the payload URL. slack_command: the slash command's Request URL.
        */
       inbound_url: string | null;
       email: components['schemas']['EmailConfig-Output'] | null;
@@ -3600,7 +3730,7 @@ export interface components {
        * Kind
        * @enum {string}
        */
-      kind: 'slack' | 'teams' | 'webhook' | 'github' | 'gitlab' | 'email';
+      kind: 'slack' | 'teams' | 'webhook' | 'github' | 'gitlab' | 'email' | 'slack_command';
       /** Name */
       name: string;
       /** Enabled */
@@ -3618,7 +3748,7 @@ export interface components {
       secret_set: boolean;
       /**
        * Inbound Url
-       * @description github/gitlab: the payload URL to configure there.
+       * @description github/gitlab: the payload URL. slack_command: the slash command's Request URL.
        */
       inbound_url: string | null;
       email: components['schemas']['EmailConfig-Output'] | null;
@@ -3646,6 +3776,11 @@ export interface components {
       url?: string | null;
       /** Secret */
       secret?: string | null;
+      /**
+       * Token
+       * @description slack_command: a new bot token.
+       */
+      token?: string | null;
       email?: components['schemas']['EmailConfig-Input'] | null;
     };
     /** KeyResultCreate */
@@ -18650,6 +18785,322 @@ export interface operations {
           'application/json': {
             [key: string]: unknown;
           };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  slack: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        integration_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Acknowledged; the answer follows privately in Slack */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            [key: string]: unknown;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  list_posts: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        integration_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ChannelPostRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  create_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        integration_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ChannelPostCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ChannelPostRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  delete_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        integration_id: string;
+        post_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  send_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        integration_id: string;
+        post_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DeliveryRead'];
         };
       };
       /** @description Not authenticated */

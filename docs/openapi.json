@@ -3,7 +3,7 @@
   "info": {
     "title": "Project Glasshaus API",
     "description": "REST API for Project Glasshaus. Every capability is also available as an MCP tool. Authenticate with `Authorization: Bearer <api token>` or the browser session cookies (unsafe methods then need the `X-CSRF-Token` header). Errors use RFC 9457 problem details.",
-    "version": "0.15.0"
+    "version": "0.16.0"
   },
   "paths": {
     "/healthz": {
@@ -15423,6 +15423,418 @@
         }
       }
     },
+    "/api/v1/integrations/{integration_id}/slack": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Request URL for the /glasshaus Slack command (Slack-signed)",
+        "operationId": "slack",
+        "parameters": [
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Integration Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Acknowledged; the answer follows privately in Slack",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Slack"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/{integration_id}/posts": {
+      "get": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Scheduled report and status posts to this Slack or Teams channel",
+        "operationId": "list_posts",
+        "parameters": [
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Integration Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChannelPostRead"
+                  },
+                  "title": "Response List Posts"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Post a saved report or a project's status to this channel on a schedule",
+        "operationId": "create_post",
+        "parameters": [
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Integration Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChannelPostCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelPostRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/{integration_id}/posts/{post_id}": {
+      "delete": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Stop a scheduled post",
+        "operationId": "delete_post",
+        "parameters": [
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Integration Id"
+            }
+          },
+          {
+            "name": "post_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Post Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/integrations/{integration_id}/posts/{post_id}/send": {
+      "post": {
+        "tags": [
+          "integrations"
+        ],
+        "summary": "Post it now",
+        "operationId": "send_post",
+        "parameters": [
+          {
+            "name": "integration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Integration Id"
+            }
+          },
+          {
+            "name": "post_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Post Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
     "/api/v1/calendar-feed": {
       "get": {
         "tags": [
@@ -17672,6 +18084,151 @@
         ],
         "title": "CalendarFeedRead"
       },
+      "ChannelPostCreate": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "report",
+              "status"
+            ],
+            "title": "Kind"
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id",
+            "description": "kind=report: the saved report to post."
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id",
+            "description": "kind=status: the project (defaults to the integration's project)."
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/ScheduleSpec-Input"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "schedule"
+        ],
+        "title": "ChannelPostCreate"
+      },
+      "ChannelPostRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "integration_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Integration Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "report",
+              "status"
+            ],
+            "title": "Kind"
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "The report's name or the project's key and name."
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/ScheduleSpec-Output"
+          },
+          "next_run_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Next Run At"
+          },
+          "last_sent_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sent At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "integration_id",
+          "kind",
+          "report_id",
+          "project_id",
+          "title",
+          "schedule",
+          "next_run_at",
+          "last_sent_at",
+          "last_error"
+        ],
+        "title": "ChannelPostRead"
+      },
       "CheckInCreate": {
         "properties": {
           "value": {
@@ -19092,7 +19649,8 @@
               "webhook",
               "github",
               "gitlab",
-              "email"
+              "email",
+              "slack_command"
             ],
             "title": "Kind"
           },
@@ -19155,7 +19713,20 @@
               }
             ],
             "title": "Secret",
-            "description": "webhook/github/gitlab: signing secret (generated if empty). email: password."
+            "description": "webhook/github/gitlab: signing secret (generated if empty). email: password. slack_command: the Slack app's signing secret."
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token",
+            "description": "slack_command: the Slack app's bot token (xoxb-\u2026)."
           },
           "email": {
             "anyOf": [
@@ -19191,7 +19762,8 @@
               "webhook",
               "github",
               "gitlab",
-              "email"
+              "email",
+              "slack_command"
             ],
             "title": "Kind"
           },
@@ -19248,7 +19820,7 @@
               }
             ],
             "title": "Inbound Url",
-            "description": "github/gitlab: the payload URL to configure there."
+            "description": "github/gitlab: the payload URL. slack_command: the slash command's Request URL."
           },
           "email": {
             "anyOf": [
@@ -19349,7 +19921,8 @@
               "webhook",
               "github",
               "gitlab",
-              "email"
+              "email",
+              "slack_command"
             ],
             "title": "Kind"
           },
@@ -19406,7 +19979,7 @@
               }
             ],
             "title": "Inbound Url",
-            "description": "github/gitlab: the payload URL to configure there."
+            "description": "github/gitlab: the payload URL. slack_command: the slash command's Request URL."
           },
           "email": {
             "anyOf": [
@@ -19545,6 +20118,19 @@
               }
             ],
             "title": "Secret"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token",
+            "description": "slack_command: a new bot token."
           },
           "email": {
             "anyOf": [
