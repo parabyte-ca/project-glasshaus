@@ -73,6 +73,13 @@ async def integrations_email(ctx: dict[str, Any]) -> dict[str, Any]:
     return await poll_all()
 
 
+async def report_emails(ctx: dict[str, Any]) -> dict[str, int]:
+    """Send scheduled report emails that are due."""
+    from glasshaus.reports.subscriptions import send_due
+
+    return await send_due()
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     import asyncio
 
@@ -117,6 +124,7 @@ class WorkerSettings:
         cron(oauth_housekeeping, minute={17}, second={40}, run_at_startup=False),
         cron(governance_retention, hour={3}, minute={23}, second={0}, run_at_startup=False, timeout=900),
         cron(integrations_retry, second={35}, run_at_startup=False, timeout=300),
+        cron(report_emails, second={20}, run_at_startup=False, timeout=600),
         cron(integrations_email, minute=set(range(1, 60, 2)), second={50}, run_at_startup=False, timeout=300),
     ]
     on_startup = startup

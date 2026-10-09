@@ -37,6 +37,35 @@ organization admin can change or delete a report; anyone it is shared with can *
 - In **Edit** mode, drag tiles to reorder them (or use the arrow buttons), set each tile's width
   (narrow, wide, full) and give it a title.
 
+## Report emails
+
+On a saved report, **Email me this report** sends it to you daily, weekly or monthly at a time you
+choose (in your time zone), with the table in the email and, if you like, the full report (up to 500
+rows) as a CSV attachment. **Email me now** sends one straight away.
+
+- Each email is run **as you, when it is sent**, so it shows only what you could see in the app at
+  that moment. Subscribing to a shared report never shows you more than the owner's report would.
+- Emails stop on their own when you are deactivated or can no longer see the report (it was deleted
+  or unshared). If sending fails, the reason shows on the report and the next email is tried at its
+  usual time.
+- Emails go only to your own address; there is no way to send a report to someone else.
+
+### Setting up email (administrators)
+
+Email is off until the server has an SMTP server. Add these to `.env` and restart:
+
+```bash
+GLASSHAUS_SMTP_HOST=smtp.office365.com     # or smtp.gmail.com, or a relay on your network
+GLASSHAUS_SMTP_PORT=587
+GLASSHAUS_SMTP_SECURITY=starttls           # starttls (587), tls (465) or none (local relay)
+GLASSHAUS_SMTP_USERNAME=reports@example.com
+GLASSHAUS_SMTP_PASSWORD=…                  # an app password where the provider offers one
+GLASSHAUS_SMTP_FROM=Glasshaus <reports@example.com>
+```
+
+The worker sends due emails once a minute. Office 365 needs SMTP AUTH turned on for the sending
+mailbox; Gmail needs an app password.
+
 ## Asking questions (AI assistant)
 
 When the optional [AI assistant](ai.md) is on and an admin has ticked **Questions about reports**, the
@@ -60,6 +89,9 @@ delete with a preview) and `ai_ask_reports`.
 | `GET/POST /api/v1/reports`, `GET/PATCH/DELETE /api/v1/reports/{id}` | Saved reports |
 | `POST /api/v1/reports/{id}/run` | Run a saved report; optional body `{"date": {"preset": "last_7_days"}, "project_ids": [...]}` |
 | `GET /api/v1/reports/{id}/export` | CSV |
+| `GET/PUT/DELETE /api/v1/reports/{id}/email` | Your email schedule for a report |
+| `POST /api/v1/reports/{id}/email/send` | Email it to yourself now |
+| `GET /api/v1/reports/subscriptions` | All your report emails |
 | `POST /api/v1/ai/reports` | Ask a question, `{"question": "...", "report_id": null}`; needs the AI assistant's `reports` feature |
 
 ```bash

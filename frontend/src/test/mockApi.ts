@@ -136,6 +136,11 @@ export const baseRoutes: Route[] = [
   { method: 'GET', path: '/api/v1/users/me/onboarding', body: onboardingDone() },
   {
     method: 'GET',
+    path: /^\/api\/v1\/reports\/[^/]+\/email$/,
+    body: { available: false, subscription: null },
+  },
+  {
+    method: 'GET',
     path: '/api/v1/ai/status',
     body: { available: false, enabled: false, provider: 'none', model: '', features: [] },
   },

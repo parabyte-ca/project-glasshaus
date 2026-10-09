@@ -88,4 +88,5 @@ MCP prompts: `weekly_status`, `risk_review`, `sprint_planning`, `standup_digest`
 | AI task drafting (proposals only) | `ai.draft_tasks` | `POST /api/v1/ai/projects/{id}/draft-tasks` | — (audited as `ai.drafting`) | `ai_draft_tasks` (then `create_task`) | 0.9 |
 | AI risk flags | `ai.flag_risks` | `POST /api/v1/ai/projects/{id}/risks` | — (audited as `ai.risks`) | `ai_flag_risks` | 0.9 |
 | Natural-language task search | `ai.search` (question → `TaskQuery` → `tasks.list_tasks`) | `POST /api/v1/ai/search` | — (audited as `ai.search`) | `ai_search_tasks` | 0.9 |
+| Report emails (scheduled, send now) | `reports.subscriptions.subscribe`, `unsubscribe`, `send_now`, `send_due` (worker) | `GET/PUT/DELETE /api/v1/reports/{id}/email`, `POST /api/v1/reports/{id}/email/send`, `GET /api/v1/reports/subscriptions` | — | — (people subscribe themselves in the app) | 0.14 |
 | Questions about reports (question → report definition or saved report → run → answer) | `ai.ask_reports` | `POST /api/v1/ai/reports` | — (audited as `ai.reports`) | `ai_ask_reports` | 0.13 |

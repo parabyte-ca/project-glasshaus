@@ -12,4 +12,5 @@ sed -i.bak -E "s/^version = \".*\"/version = \"$new\"/" "$root/backend/pyproject
 (cd "$root/backend" && GLASSHAUS_ENV="test" uv run -q glasshaus openapi ../docs/openapi.json >/dev/null)
 python3 "$root/scripts/copilot_openapi.py" "$root/docs/openapi.json" "$root/docs/integrations/m365/openapi.json"
 sed -i.bak -E "s/^GLASSHAUS_VERSION=.*/GLASSHAUS_VERSION=$new/" "$root/.env.example" && rm "$root/.env.example.bak"
-echo "version set to $new — add a CHANGELOG.md entry, commit, then: git tag v$new"
+python3 "$root/scripts/release_docs.py"  # README status line (and changelog links)
+echo "version set to $new — add a CHANGELOG.md entry, run scripts/release_docs.py, commit, then: git tag v$new"

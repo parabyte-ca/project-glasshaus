@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.6.0 — Phase 5 (time tracking and timesheets, workload, reports, dashboards, portfolios, OKRs). See [CHANGELOG.md](CHANGELOG.md) and the [roadmap](#roadmap).
+> **Status:** v0.14.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -368,6 +368,13 @@ builds, scans and publishes multi-arch (amd64/arm64) images to GHCR.
 | 6 | 0.7.0 | MCP server, OAuth 2.1, Copilot/Claude integration docs and tests | ✅ |
 | 7 | 0.8.0 | Integrations, SSO/SCIM, audit, admin console (users, roles, deactivation), hardening, performance | ✅ |
 | 8 | 0.9.0 | In-app AI layer, polish, accessibility, E2E tests | ✅ |
+| 9 | 0.10.0–0.13.0 | Onboarding, usability and accessibility pass, refreshed theme, custom reports and dashboards, AI questions about reports | ✅ |
+| 10 | 0.14.0 | Release automation, scheduled report emails | ✅ |
+| 11 | 0.15.0 | Report alerts (off-target numbers notify their owner), backup restore drill, upgrade pre-flight check | Planned |
+| 12 | 0.16.0 | Teams and Slack: post reports and status updates, ask the assistant from chat | Planned |
+| 13 | 0.17.0 | Phone: offline "My tasks", push notifications | Planned |
+| 14 | 0.18.0 | Virtual project manager (AI): daily stand-up digest, follow-ups and weekly status, with approval | Proposed |
+| — | — | Azure AD manager hierarchy and "My team" dashboard | On hold |
 
 ## Licence
 

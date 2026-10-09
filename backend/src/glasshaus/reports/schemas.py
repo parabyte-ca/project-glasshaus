@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from glasshaus.automation.schemas import ScheduleSpec
 from glasshaus.core.schemas import Schema
 from glasshaus.projects.models import StatusCategory
 from glasshaus.tasks.models import Priority
@@ -211,3 +212,23 @@ class SavedReportRead(Schema):
     definition: ReportDefinition
     created_at: datetime
     updated_at: datetime
+
+
+class ReportSubscriptionWrite(Schema):
+    schedule: ScheduleSpec = Field(description="When to send, in your time zone.")
+    attach_csv: bool = Field(True, description="Attach the full report (up to 500 rows) as CSV.")
+
+
+class ReportSubscriptionRead(Schema):
+    report_id: uuid.UUID
+    report_name: str
+    schedule: ScheduleSpec
+    attach_csv: bool
+    next_run_at: datetime
+    last_sent_at: datetime | None
+    last_error: str | None = Field(description="Why the last send failed, if it did.")
+
+
+class ReportEmailStatus(Schema):
+    available: bool = Field(description="False when the server has no outgoing email configured.")
+    subscription: ReportSubscriptionRead | None

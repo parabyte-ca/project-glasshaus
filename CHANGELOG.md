@@ -6,6 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-09
+
+Report emails and release housekeeping.
+
+### Added
+- **Report emails.** On a saved report, **Email me this report** sends it daily, weekly or monthly
+  at your chosen time and time zone, with the table in the email and an optional CSV of the full
+  report. **Email me now** sends one straight away. Each email is run with your access at the time
+  it is sent; emails stop on their own if you are deactivated or lose access to the report, and a
+  failed send shows its reason on the report.
+- **Outgoing email** settings (`GLASSHAUS_SMTP_HOST`, `_PORT`, `_SECURITY`, `_USERNAME`,
+  `_PASSWORD`, `_FROM`). Email stays off until a host is set. See [docs/reports.md](docs/reports.md).
+- API: `GET/PUT/DELETE /api/v1/reports/{id}/email`, `POST /api/v1/reports/{id}/email/send`,
+  `GET /api/v1/reports/subscriptions`.
+
+### Changed
+- `scripts/bump-version.sh` now updates the README status line, and `scripts/release_docs.py`
+  rebuilds the changelog's compare links; `scripts/check-version.sh` fails when either is stale.
+- README roadmap brought up to date, with the planned phases.
+- A `release` skill (`.claude/skills/release`) records the release steps for AI assistants.
+
 ## [0.13.0] - 2026-10-09
 
 The AI assistant can answer questions from reports.
@@ -436,7 +457,12 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.13.0...v0.14.0
+[0.13.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.12.0...v0.13.0
+[0.12.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.11.1...v0.12.0
+[0.11.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.11.0...v0.11.1
+[0.11.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.3...v0.10.0
 [0.9.3]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.1...v0.9.2
