@@ -27,6 +27,10 @@ const TABS = {
     'AI assistant',
     lazy(() => import('../components/admin/AiSettings').then((m) => ({ default: m.AiSettings }))),
   ],
+  backups: [
+    'Backups',
+    lazy(() => import('../components/admin/Backups').then((m) => ({ default: m.Backups }))),
+  ],
   data: [
     'Data & retention',
     lazy(() => import('../components/admin/DataRetention').then((m) => ({ default: m.DataRetention }))),

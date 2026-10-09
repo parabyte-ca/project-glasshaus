@@ -28,6 +28,8 @@ class NotificationKind(StrEnum):
     ASSIGNED = "assigned"
     COMMENT = "comment"
     AUTOMATION = "automation"
+    REPORT_ALERT = "report_alert"
+    SYSTEM = "system"
 
 
 class Notification(UUIDPk, TenantScoped, Base):
@@ -51,6 +53,8 @@ class Notification(UUIDPk, TenantScoped, Base):
     # Source event: (event_id, user_id) is unique so redelivered events never notify twice.
     event_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     title: Mapped[str] = mapped_column(String(300), nullable=False)
+    # In-app path to open (reports, admin pages); task notifications use task_id/project_id instead.
+    link: Mapped[str | None] = mapped_column(String(300))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, server_default=text("now()")
     )

@@ -89,6 +89,12 @@ class Settings(BaseSettings):
     smtp_from: str = "Glasshaus <glasshaus@localhost>"
     smtp_timeout_seconds: float = 30.0
 
+    # Backup folder as seen inside the app containers (read-only), for Admin > Backups and the daily
+    # backup check. Blank turns both off. The interval and drill period match the backup service.
+    backup_status_dir: str = ""
+    backup_interval_hours: int = 24
+    backup_drill_days: int = 7
+
     @field_validator("cors_origins", "mcp_allowed_hosts", "trusted_proxies", mode="before")
     @classmethod
     def _split_csv(cls, value: object) -> object:

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -40,3 +40,29 @@ class ReportSubscription(UUIDPk, TenantScoped, TimestampMixin, Base):
     next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(String(300))
+
+
+class ReportAlert(UUIDPk, TenantScoped, TimestampMixin, Base):
+    """Tell one person when a report's total crosses a threshold. Checked with that person's access."""
+
+    __tablename__ = "report_alerts"
+    __table_args__ = (UniqueConstraint("report_id", "user_id"),)
+
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("saved_reports.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    measure: Mapped[str] = mapped_column(String(40), nullable=False)
+    direction: Mapped[str] = mapped_column(String(10), nullable=False)  # above | below
+    threshold: Mapped[float] = mapped_column(Float, nullable=False)
+    schedule: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    email: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    state: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="unknown", server_default="unknown"
+    )
+    last_value: Mapped[float | None] = mapped_column(Float)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(300))
+    next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)

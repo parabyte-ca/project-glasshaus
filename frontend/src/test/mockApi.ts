@@ -139,6 +139,22 @@ export const baseRoutes: Route[] = [
     path: /^\/api\/v1\/reports\/[^/]+\/email$/,
     body: { available: false, subscription: null },
   },
+  { method: 'GET', path: /^\/api\/v1\/reports\/[^/]+\/alert$/, body: null },
+  {
+    method: 'GET',
+    path: '/api/v1/admin/backups',
+    body: {
+      available: false,
+      folder: '',
+      interval_hours: 24,
+      drill_days: 7,
+      count: 0,
+      total_bytes: 0,
+      latest: [],
+      drill: null,
+      problems: [],
+    },
+  },
   {
     method: 'GET',
     path: '/api/v1/ai/status',

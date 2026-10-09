@@ -98,3 +98,47 @@ restore_dump() {
     -c "DROP DATABASE IF EXISTS glasshaus;" -c "CREATE DATABASE glasshaus OWNER glasshaus;" >/dev/null
   compose exec -T postgres pg_restore -U glasshaus -d glasshaus --no-owner --exit-on-error < "$dump"
 }
+
+# preflight_check DUMP -> 0 when the release in .env migrates a copy of DUMP and its API becomes ready.
+# Uses a scratch database and Redis database 15; the running services are not touched.
+preflight_check() {
+  local dump="$1" db=glasshaus_preflight name="glasshaus-preflight-$$" deadline status="" rc=1
+  local owner app redis
+  owner="postgresql+asyncpg://glasshaus:$(get_env POSTGRES_PASSWORD)@postgres:5432/${db}"
+  app="postgresql+asyncpg://glasshaus_app:$(get_env POSTGRES_APP_PASSWORD)@postgres:5432/${db}"
+  redis="redis://:$(get_env REDIS_PASSWORD)@redis:6379/15"
+  info "Pre-flight: trying the new release on a copy of the database"
+  _pf_cleanup() {
+    docker rm -f "$name" >/dev/null 2>&1 || true
+    compose exec -T postgres dropdb -U glasshaus --if-exists "$db" >/dev/null 2>&1 || true
+  }
+  _pf_cleanup
+  # Values reach the containers through the environment (-e NAME), never on the command line.
+  if compose exec -T postgres createdb -U glasshaus "$db" \
+    && compose exec -T postgres pg_restore -U glasshaus -d "$db" --no-owner --exit-on-error < "$dump" \
+    && GLASSHAUS_DATABASE_URL="$app" GLASSHAUS_MIGRATION_DATABASE_URL="$owner" \
+       compose run --rm --no-deps -T -e GLASSHAUS_DATABASE_URL -e GLASSHAUS_MIGRATION_DATABASE_URL \
+         migrate glasshaus migrate; then
+    GLASSHAUS_DATABASE_URL="$app" GLASSHAUS_REDIS_URL="$redis" \
+      compose run -d --no-deps --name "$name" -e GLASSHAUS_DATABASE_URL -e GLASSHAUS_REDIS_URL api >/dev/null || true
+    deadline=$((SECONDS + 120))
+    while (( SECONDS < deadline )); do
+      status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$name" 2>/dev/null)"
+      if [[ "$status" == "healthy" ]] && docker exec "$name" python -c \
+        "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=5).status == 200 else 1)" \
+        >/dev/null 2>&1; then
+        rc=0; break
+      fi
+      [[ "$status" == "exited" || "$status" == "dead" || "$status" == "unhealthy" || -z "$status" ]] && break
+      sleep 3
+    done
+    if (( rc != 0 )); then
+      warn "the new API did not become ready on the copy (state: ${status:-missing})"
+      docker logs --tail 40 "$name" >&2 2>&1 || true
+    fi
+  else
+    warn "the new release could not migrate a copy of the database"
+  fi
+  _pf_cleanup
+  return "$rc"
+}

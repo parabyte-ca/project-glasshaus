@@ -26,6 +26,13 @@ test('custom report on a dashboard', async ({ page }) => {
   await page.getByRole('button', { name: 'Save report' }).click();
   await expect(page).toHaveURL(/\/reports\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { name: 'Email me this report' })).toBeVisible();
+  // An alert on the report's Open total: 3 open tasks is above 2, so checking now turns it on.
+  const alertPanel = page.locator('section', { has: page.getByRole('heading', { name: 'Alert me' }) });
+  await alertPanel.getByLabel('When').selectOption({ label: 'Open' });
+  await alertPanel.getByLabel('Number').fill('2');
+  await alertPanel.getByRole('button', { name: 'Create alert' }).click();
+  await alertPanel.getByRole('button', { name: 'Check now' }).click();
+  await expect(alertPanel.getByText('Open is above 2')).toBeVisible();
   await expectAccessible(page, 'saved report with email settings');
 
   // A single-number version of it, with a target, on a new dashboard.
@@ -55,4 +62,8 @@ test('custom report on a dashboard', async ({ page }) => {
   }
   await page.evaluate(() => localStorage.setItem('glasshaus.theme', 'light'));
   await call('DELETE', `/api/v1/reports/${reportId}`);
+
+  await page.goto('/admin?tab=backups');
+  await expect(page.getByRole('heading', { name: 'Backups', level: 2 })).toBeVisible();
+  await expectAccessible(page, 'admin backups');
 });

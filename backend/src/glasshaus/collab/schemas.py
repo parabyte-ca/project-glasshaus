@@ -35,6 +35,7 @@ class NotificationRead(Schema):
     project_id: uuid.UUID | None
     actor_id: uuid.UUID | None
     title: str
+    link: str | None = Field(None, description="In-app path to open, e.g. /reports/<id>.")
     created_at: datetime
     read_at: datetime | None
 

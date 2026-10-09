@@ -80,6 +80,20 @@ async def report_emails(ctx: dict[str, Any]) -> dict[str, int]:
     return await send_due()
 
 
+async def report_alerts(ctx: dict[str, Any]) -> dict[str, int]:
+    """Check report alerts that are due."""
+    from glasshaus.reports.alerts import check_due
+
+    return await check_due()
+
+
+async def backup_watch(ctx: dict[str, Any]) -> int:
+    """Tell owners and admins about backup problems (once a day per problem)."""
+    from glasshaus.backups import watch
+
+    return await watch()
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     import asyncio
 
@@ -125,6 +139,8 @@ class WorkerSettings:
         cron(governance_retention, hour={3}, minute={23}, second={0}, run_at_startup=False, timeout=900),
         cron(integrations_retry, second={35}, run_at_startup=False, timeout=300),
         cron(report_emails, second={20}, run_at_startup=False, timeout=600),
+        cron(report_alerts, second={25}, run_at_startup=False, timeout=600),
+        cron(backup_watch, minute={41}, second={0}, run_at_startup=False),
         cron(integrations_email, minute=set(range(1, 60, 2)), second={50}, run_at_startup=False, timeout=300),
     ]
     on_startup = startup

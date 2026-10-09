@@ -6,6 +6,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-09
+
+Report alerts, backup health and safer upgrades.
+
+### Added
+- **Report alerts.** **Alert me** on a saved report: "tell me when Overdue goes above 5", checked
+  daily, weekly or monthly with your access. You get a notification (and optionally an email) when
+  it goes off and when it is back, never on every check. **Check now** checks straight away.
+- **Restore drill.** Every 7 days (`GLASSHAUS_BACKUP_DRILL_DAYS`) the backup service restores the
+  newest backup into a scratch database, checks it and drops it, so you know your backups work.
+- **Admin → Backups**: newest backups, sizes and the last restore drill. Owners and admins get a
+  notification (and an email, if set up) once a day while backups are late or a drill failed.
+- **Upgrade pre-flight check.** `update.sh` now tries the new release on a copy of your database
+  (migrations, then the new API must become ready) before touching the running stack. If it fails,
+  nothing changes. `--skip-preflight` skips it.
+- Notifications can open a page (report alerts open the report; backup notices open Admin → Backups).
+- API: `GET/PUT/DELETE /api/v1/reports/{id}/alert`, `POST /api/v1/reports/{id}/alert/check`,
+  `GET /api/v1/reports/alerts`, `GET /api/v1/admin/backups`.
+
+### Changed
+- The API and worker containers mount the backup folder read-only.
+- CI's stack smoke test runs a restore drill and an upgrade with the pre-flight check.
+
 ## [0.14.0] - 2026-10-09
 
 Report emails and release housekeeping.
@@ -457,7 +480,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.11.1...v0.12.0

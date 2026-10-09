@@ -75,6 +75,7 @@ RLS_TABLES = (
     "dashboards",
     "saved_reports",
     "report_subscriptions",
+    "report_alerts",
     "portfolios",
     "portfolio_projects",
     "objectives",

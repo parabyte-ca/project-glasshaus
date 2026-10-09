@@ -27,6 +27,8 @@ One release per PR. Minor version for features, patch for fixes.
    ```bash
    cd e2e && E2E_ADMIN_PASSWORD=… npx playwright test
    ```
+   Prefer upgrading the existing local stack with `./update.sh --no-git` over a bare `compose up`:
+   it exercises the pre-flight check and the migrations on real data, like a user's upgrade.
    The AI spec needs `GLASSHAUS_AI_PROVIDER=fake`. Use `{ exact: true }` for labels that are
    substrings of region names ("Question" vs "Ask a question").
 6. **Commit, push, draft PR**; after merge the owner tags: `git tag vX.Y.Z && git push origin --tags`,
@@ -39,6 +41,9 @@ One release per PR. Minor version for features, patch for fixes.
   data block, and are audited as `ai.<feature>`.
 - New tenant tables: add to `RLS_TABLES` in `core/orm.py` and call `enable_rls()` in the migration.
 - Network calls (AI, email, webhooks) happen outside database transactions.
+- Scheduled per-person features (report emails, alerts) run as that person, move `next_run_at`
+  before doing the work, and drop themselves when the person or their access is gone.
+- Ops scripts: `shellcheck` them; the backup container is POSIX `sh` (Alpine), the host scripts bash.
 
 ## Cloud sandbox notes
 

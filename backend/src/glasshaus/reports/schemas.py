@@ -232,3 +232,33 @@ class ReportSubscriptionRead(Schema):
 class ReportEmailStatus(Schema):
     available: bool = Field(description="False when the server has no outgoing email configured.")
     subscription: ReportSubscriptionRead | None
+
+
+AlertDirection = Literal["above", "below"]
+AlertState = Literal["unknown", "ok", "triggered"]
+
+
+class ReportAlertWrite(Schema):
+    measure: str = Field(description="One of the report's measures; its total is checked.")
+    direction: AlertDirection = Field(description="Alert when the total goes above or below the threshold.")
+    threshold: float
+    schedule: ScheduleSpec = Field(description="When to check, in your time zone.")
+    email: bool = Field(False, description="Also send an email (when the server has email).")
+
+
+class ReportAlertRead(Schema):
+    report_id: uuid.UUID
+    report_name: str
+    measure: str
+    measure_label: str
+    direction: AlertDirection
+    threshold: float
+    schedule: ScheduleSpec
+    email: bool
+    state: AlertState = Field(
+        description="unknown until the first check; triggered while past the threshold."
+    )
+    last_value: float | None
+    last_checked_at: datetime | None
+    last_error: str | None
+    next_run_at: datetime
