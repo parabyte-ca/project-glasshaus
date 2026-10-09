@@ -95,7 +95,7 @@ def register(server: MCPServer) -> None:
             bool | None, Field(description="Turn the in-app AI assistant on or off for the organization.")
         ] = None,
         ai_features: Annotated[
-            list[Literal["summaries", "drafting", "risks", "search"]] | None,
+            list[Literal["summaries", "drafting", "risks", "search", "reports"]] | None,
             Field(description="AI features people may use when the assistant is on."),
         ] = None,
         confirm: Confirm = False,

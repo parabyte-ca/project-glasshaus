@@ -21,7 +21,7 @@ from glasshaus.governance.models import OrgSettings
 from glasshaus.identity import security
 from glasshaus.identity.models import ApiToken, AuthSession, User
 
-AiFeature = Literal["summaries", "drafting", "risks", "search"]
+AiFeature = Literal["summaries", "drafting", "risks", "search", "reports"]
 
 # Columns never exported (credentials and secret hashes).
 EXPORT_EXCLUDED_COLUMNS = {

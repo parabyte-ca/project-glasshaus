@@ -6,6 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-09
+
+The AI assistant can answer questions from reports.
+
+### Added
+- **Questions about reports** (a new AI feature, off until an admin ticks it in **Admin → AI
+  assistant**). Ask on the Reports page, on a saved report (**Ask about this report**) or from
+  **Ctrl K** (*Ask reports: …*). The assistant picks a saved report or fills in a report definition,
+  Glasshaus runs it with your access, and the answer is written from that table and shown beside it.
+  **Open in the report builder** takes the definition to the builder to adjust or save. Only the
+  question, project keys and names, people's names, saved report names and the report table are sent;
+  never task titles or descriptions. Audited as `ai.reports`. `POST /api/v1/ai/reports`.
+- MCP tools for reports: `list_reports`, `run_report` (a saved report with date and project filters,
+  or a definition), `manage_reports` (create, update, delete with a preview) and `ai_ask_reports`.
+
 ## [0.12.0] - 2026-10-09
 
 Custom reports and dashboards.

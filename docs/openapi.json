@@ -3,7 +3,7 @@
   "info": {
     "title": "Project Glasshaus API",
     "description": "REST API for Project Glasshaus. Every capability is also available as an MCP tool. Authenticate with `Authorization: Bearer <api token>` or the browser session cookies (unsafe methods then need the `X-CSRF-Token` header). Errors use RFC 9457 problem details.",
-    "version": "0.12.0"
+    "version": "0.13.0"
   },
   "paths": {
     "/healthz": {
@@ -12950,6 +12950,84 @@
         }
       }
     },
+    "/api/v1/ai/reports": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Answer a question from a report (saved or built from the question), run with your access",
+        "operationId": "ai_reports",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiReportQuestion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiReportAnswer"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "AI is not configured, turned off, or the provider failed"
+          }
+        }
+      }
+    },
     "/api/v1/auth/sso/providers": {
       "get": {
         "tags": [
@@ -15778,6 +15856,102 @@
         "title": "AiDrafts",
         "description": "Proposed tasks. Nothing is created until someone creates them (POST /tasks)."
       },
+      "AiReportAnswer": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "saved_report_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved Report Id",
+            "description": "Set when a saved report was used."
+          },
+          "saved_report_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved Report Name"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/ReportDefinition-Output",
+            "description": "Open it in the report builder to adjust or save."
+          },
+          "result": {
+            "$ref": "#/components/schemas/ReportResult"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/AiUsage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question",
+          "answer",
+          "explanation",
+          "saved_report_id",
+          "saved_report_name",
+          "definition",
+          "result",
+          "usage"
+        ],
+        "title": "AiReportAnswer",
+        "description": "An answer written from a report run with the asker's access. Check the numbers in `result`."
+      },
+      "AiReportQuestion": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Question",
+            "examples": [
+              "Who has the most overdue tasks?"
+            ]
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id",
+            "description": "Answer from this saved report as it is."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "AiReportQuestion"
+      },
       "AiRisks": {
         "properties": {
           "project_key": {
@@ -15907,7 +16081,8 @@
                 "summaries",
                 "drafting",
                 "risks",
-                "search"
+                "search",
+                "reports"
               ]
             },
             "type": "array",
@@ -19502,7 +19677,8 @@
                 "summaries",
                 "drafting",
                 "risks",
-                "search"
+                "search",
+                "reports"
               ]
             },
             "type": "array",
@@ -19596,7 +19772,8 @@
                     "summaries",
                     "drafting",
                     "risks",
-                    "search"
+                    "search",
+                    "reports"
                   ]
                 },
                 "type": "array"

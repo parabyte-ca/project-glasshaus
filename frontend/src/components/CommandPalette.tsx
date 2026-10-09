@@ -31,6 +31,7 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
   const { user } = useAuth();
   const ai = useAiStatus();
   const canAsk = ai.data?.features.includes('search') ?? false;
+  const canAskReports = ai.data?.features.includes('reports') ?? false;
   const startTour = useStartTour();
   const onboarding = useOnboarding();
   const [text, setText] = useState('');
@@ -75,6 +76,15 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
         hint: 'AI turns your question into task filters',
         group: 'Assistant',
         run: () => ask.mutate(text.trim()),
+      });
+    }
+    if (canAskReports && needle.length >= 3) {
+      out.push({
+        id: 'ask-reports',
+        label: `Ask reports: “${text.trim()}”`,
+        hint: 'AI answers from a report run with your access',
+        group: 'Assistant',
+        run: go(`/reports?${new URLSearchParams({ ask: text.trim() }).toString()}`),
       });
     }
     for (const t of tasks.data?.items ?? []) {
@@ -139,7 +149,17 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
     out.push(...actions.filter((a) => match(a.label)));
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, ask.data, canAsk, tasks.data, projects.data, user.org_role, startTour, onboarding.state]);
+  }, [
+    text,
+    ask.data,
+    canAsk,
+    canAskReports,
+    tasks.data,
+    projects.data,
+    user.org_role,
+    startTour,
+    onboarding.state,
+  ]);
 
   const current = Math.min(active, Math.max(items.length - 1, 0));
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -166,7 +186,11 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
         aria-activedescendant={items[current] ? `${listId}-${items[current].id}` : undefined}
         aria-autocomplete="list"
         aria-label="Search or type a command"
-        placeholder={canAsk ? 'Search, go to, or ask a question…' : 'Search tasks and projects, or go to…'}
+        placeholder={
+          canAsk || canAskReports
+            ? 'Search, go to, or ask a question…'
+            : 'Search tasks and projects, or go to…'
+        }
         value={text}
         onChange={(e) => {
           setText(e.target.value);

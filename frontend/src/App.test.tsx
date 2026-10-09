@@ -1072,6 +1072,27 @@ describe('keyboard and command palette', () => {
     const post = calls.find((c) => c.url.endsWith('/api/v1/ai/search'))!;
     expect(await post.json()).toEqual({ query: 'my late work', limit: 20 });
   });
+
+  it('hands a report question to the Reports page', async () => {
+    mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/ai/status'),
+      { ...aiOn, body: { ...(aiOn.body as object), features: ['reports'] } },
+      signedIn,
+      { method: 'GET', path: '/api/v1/tasks', body: { items: [], next_cursor: null } },
+      { method: 'GET', path: '/api/v1/reports', body: [] },
+      { method: 'POST', path: '/api/v1/ai/reports', status: 503, body: { detail: 'busy' } },
+    ]);
+    renderAt('/');
+    await screen.findByRole('heading', { name: 'Projects', level: 1 });
+    await userEvent.click(screen.getByRole('button', { name: /Search/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Command palette' });
+    await userEvent.type(within(dialog).getByRole('combobox'), 'who is overdue');
+    expect(within(dialog).queryByRole('option', { name: /^Ask: / })).toBeNull();
+    await userEvent.click(within(dialog).getByRole('option', { name: /Ask reports: “who is overdue”/ }));
+    await waitFor(() => expect(window.location.pathname).toBe('/reports'));
+    expect(new URLSearchParams(window.location.search).get('ask')).toBe('who is overdue');
+    expect(await screen.findByLabelText('Question')).toHaveValue('who is overdue');
+  });
 });
 
 describe('AI assistant', () => {

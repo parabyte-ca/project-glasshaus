@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { api, makeProject } from './helpers';
+import { api, expectAccessible, makeProject } from './helpers';
 
 // Needs a stack with GLASSHAUS_AI_PROVIDER=fake (CI sets it); skipped otherwise.
 test.describe('AI assistant (fake provider)', () => {
@@ -21,7 +21,8 @@ test.describe('AI assistant (fake provider)', () => {
     await page.goto('/admin?tab=ai');
     const toggle = page.getByLabel('Turn on the AI assistant for this organization');
     await toggle.check();
-    for (const label of [/Status updates/, /Task drafting/, /Risk flags/, /Ask in plain words/]) {
+    const features = [/Status updates/, /Task drafting/, /Risk flags/, /Ask in plain words/, /Questions about reports/];
+    for (const label of features) {
       await page.getByLabel(label).check();
     }
     await page.getByRole('button', { name: 'Save AI settings' }).click();
@@ -52,6 +53,15 @@ test.describe('AI assistant (fake provider)', () => {
     await palette.getByRole('combobox').fill('what is overdue');
     await palette.getByRole('option', { name: /Ask: “what is overdue”/ }).click();
     await expect(palette.getByText(/found/)).toBeVisible();
+
+    await page.goto('/reports');
+    await page.getByLabel('Question', { exact: true }).fill('How many open tasks are there?');
+    await page.getByRole('button', { name: 'Ask', exact: true }).click();
+    await expect(page.getByText('Example answer')).toBeVisible();
+    await expectAccessible(page, 'report answer');
+    await page.getByRole('link', { name: 'Open in the report builder' }).click();
+    await expect(page.getByRole('heading', { name: 'New report', level: 1 })).toBeVisible();
+    await expect(page.getByLabel('Name', { exact: true })).toHaveValue('How many open tasks are there?');
 
     const audit = await (await api(page))<{ action: string }[]>('GET', '/api/v1/audit-log?action=ai.drafting');
     expect(audit.length).toBeGreaterThan(0);

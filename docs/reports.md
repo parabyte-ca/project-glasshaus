@@ -37,6 +37,21 @@ organization admin can change or delete a report; anyone it is shared with can *
 - In **Edit** mode, drag tiles to reorder them (or use the arrow buttons), set each tile's width
   (narrow, wide, full) and give it a title.
 
+## Asking questions (AI assistant)
+
+When the optional [AI assistant](ai.md) is on and an admin has ticked **Questions about reports**, the
+Reports page has an **Ask a question** box (also **Ctrl K** → *Ask reports: …*), and each saved report
+has **Ask about this report**.
+
+1. The assistant picks one of your saved reports by name, or fills in a report definition from the
+   same lists as the builder.
+2. Glasshaus runs it with your access.
+3. The assistant writes a short answer from that table. The table or chart is shown beside it, and
+   **Open in the report builder** lets you adjust and save it.
+
+MCP clients get the same through `list_reports`, `run_report`, `manage_reports` (create, update,
+delete with a preview) and `ai_ask_reports`.
+
 ## API
 
 | Call | Purpose |
@@ -45,6 +60,7 @@ organization admin can change or delete a report; anyone it is shared with can *
 | `GET/POST /api/v1/reports`, `GET/PATCH/DELETE /api/v1/reports/{id}` | Saved reports |
 | `POST /api/v1/reports/{id}/run` | Run a saved report; optional body `{"date": {"preset": "last_7_days"}, "project_ids": [...]}` |
 | `GET /api/v1/reports/{id}/export` | CSV |
+| `POST /api/v1/ai/reports` | Ask a question, `{"question": "...", "report_id": null}`; needs the AI assistant's `reports` feature |
 
 ```bash
 # Open and overdue tasks per assignee, as JSON
