@@ -3,6 +3,7 @@ import { useId, useState, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 
 import { api, unwrap, type Schemas } from '../api/client';
+import { AssistantSuggestions } from '../components/AssistantSuggestions';
 import { Markdown } from '../components/Markdown';
 import { LoadError } from '../components/PageState';
 import {
@@ -28,6 +29,7 @@ type Settings = {
   weekly: Schemas['WeeklySettings-Output'];
   stale_days: number;
   delivery: Schemas['DeliverySettings-Output'];
+  suggestions: boolean;
 };
 type Brief = Schemas['BriefRead'];
 type BriefTask = Schemas['BriefTask'];
@@ -49,6 +51,7 @@ function defaults(): Settings {
     weekly: { enabled: true, weekday: 4, hour: 14 },
     stale_days: 5,
     delivery: { in_app: true, email: false, channel_id: null },
+    suggestions: true,
   };
 }
 
@@ -61,7 +64,7 @@ function timezones(current: string): string[] {
 export function ProjectAssistantPage() {
   const { projectKey = '' } = useParams();
   const [params, setParams] = useSearchParams();
-  const { project } = useProject(projectKey);
+  const { project, users } = useProject(projectKey);
   const projectId = project.data?.id ?? '';
   usePageTitle(project.data ? `Digests · ${project.data.name}` : 'Digests');
   const path = { params: { path: { project_id: projectId } } };
@@ -142,6 +145,14 @@ export function ProjectAssistantPage() {
           </nav>
         )}
       </div>
+      {s.settings?.enabled && (
+        <AssistantSuggestions
+          projectId={projectId}
+          projectKey={projectKey}
+          canApprove={s.can_approve}
+          users={users}
+        />
+      )}
       {s.can_manage && (
         <AssistantSettings projectId={projectId} status={s} onWritten={(id) => setParams({ brief: id })} />
       )}
@@ -338,6 +349,7 @@ function AssistantSettings({
     await queryClient.invalidateQueries({ queryKey: ['assistant', projectId] });
     await queryClient.invalidateQueries({ queryKey: ['assistant-briefs', projectId] });
     await queryClient.invalidateQueries({ queryKey: ['members', projectId] });
+    await queryClient.invalidateQueries({ queryKey: ['suggestions', projectId] });
   };
   const save = useMutation({
     mutationFn: () => unwrap(api.PUT('/api/v1/projects/{project_id}/assistant', { ...path, body: v })),
@@ -497,6 +509,14 @@ function AssistantSettings({
             />
           </Field>
         </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={v.suggestions}
+            onChange={(e) => set({ suggestions: e.target.checked })}
+          />
+          Suggest follow-ups, new dates and owners with each digest (people approve them first)
+        </label>
         <fieldset className="flex flex-wrap items-end gap-3">
           <legend className="mb-1 text-sm font-semibold">Deliver by</legend>
           <label className="flex items-center gap-2 self-center text-sm">

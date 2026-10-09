@@ -62,6 +62,7 @@ const status = (settings: unknown = null) => ({
   settings,
   account_name: 'Project assistant (AI)',
   can_manage: true,
+  can_approve: true,
   ai: false,
   email_available: false,
   channels: [{ id: 'i1', name: '#web', kind: 'slack' }],
@@ -109,6 +110,7 @@ describe('project assistant', () => {
       signedIn,
       { method: 'GET', path: '/api/v1/projects/p1/assistant', handler: () => status(saved) },
       { method: 'GET', path: '/api/v1/projects/p1/assistant/briefs', body: [] },
+      { method: 'GET', path: '/api/v1/projects/p1/assistant/suggestions', body: [] },
       {
         method: 'PUT',
         path: '/api/v1/projects/p1/assistant',
@@ -145,5 +147,76 @@ describe('project assistant', () => {
     expect(body.delivery.channel_id).toBe('i1');
     expect(body.digest.weekdays_only).toBe(true);
     expect(await screen.findByRole('button', { name: 'Write a digest now' })).toBeInTheDocument();
+  });
+
+  it('shows the approval queue and approves an edited follow-up, keeping the mention', async () => {
+    const settings = {
+      enabled: true,
+      timezone: 'UTC',
+      digest: { enabled: true, hour: 8, minute: 0, weekdays_only: true },
+      weekly: { enabled: true, weekday: 4, hour: 14 },
+      stale_days: 5,
+      delivery: { in_app: true, email: false, channel_id: null },
+      suggestions: true,
+      project_id: 'p1',
+      next_digest_at: null,
+      next_weekly_at: null,
+      last_run_at: null,
+      last_error: null,
+    };
+    const suggestion = {
+      id: 's1',
+      project_id: 'p1',
+      kind: 'comment',
+      source: 'rules',
+      status: 'open',
+      reason: '3 days overdue',
+      task: {
+        id: 't1',
+        key: 'WEB-1',
+        title: 'Send invoice',
+        due_date: '2026-10-06',
+        assignee: 'Ada Lovelace',
+      },
+      comment: '@[Ada Lovelace](user:00000000-0000-0000-0000-000000000001) this was due Oct 6. New date?',
+      due_date: null,
+      assignee_id: null,
+      assignee: null,
+      new_task: null,
+      created_at: '2026-10-09T12:00:00Z',
+      decided_at: null,
+      decided_by: null,
+      result: null,
+    };
+    const { calls } = mockApi([
+      ...baseRoutes,
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/projects/p1/assistant',
+        body: { ...status(settings), can_manage: false, can_approve: true },
+      },
+      { method: 'GET', path: '/api/v1/projects/p1/assistant/briefs', body: [] },
+      { method: 'GET', path: '/api/v1/projects/p1/assistant/suggestions', body: [suggestion] },
+      {
+        method: 'POST',
+        path: '/api/v1/projects/p1/assistant/suggestions/s1/approve',
+        body: { ...suggestion, status: 'approved', result: 'Comment posted on WEB-1' },
+      },
+    ]);
+    renderAt('/projects/WEB/assistant');
+    const queue = await screen.findByRole('region', { name: /Suggestions/ });
+    const box = await within(queue).findByLabelText('Comment to @Ada Lovelace');
+    expect(box).toHaveValue('this was due Oct 6. New date?');
+    expect(within(queue).getByText('3 days overdue')).toBeInTheDocument();
+    await userEvent.clear(box);
+    await userEvent.type(box, 'Can you send it today?');
+    await userEvent.click(within(queue).getByRole('button', { name: 'Approve' }));
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith('/s1/approve'))).toBe(true));
+    const body = (await calls.find((c) => c.url.endsWith('/s1/approve'))!.json()) as { comment: string };
+    expect(body.comment).toBe(
+      '@[Ada Lovelace](user:00000000-0000-0000-0000-000000000001) Can you send it today?',
+    );
+    expect(await screen.findByText('Comment posted on WEB-1')).toBeInTheDocument();
   });
 });

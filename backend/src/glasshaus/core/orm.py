@@ -80,6 +80,7 @@ RLS_TABLES = (
     "push_subscriptions",
     "project_assistants",
     "project_briefs",
+    "assistant_suggestions",
     "portfolios",
     "portfolio_projects",
     "objectives",
