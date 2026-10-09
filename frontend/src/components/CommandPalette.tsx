@@ -5,9 +5,11 @@ import { useNavigate } from 'react-router';
 import { api, unwrap, type Task } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { useAiStatus } from '../lib/ai';
+import { useOnboarding } from '../lib/onboarding';
 import { GO_TO } from '../lib/shortcuts';
 import { toggleTheme } from '../lib/theme';
 import { Dialog } from './Dialog';
+import { useStartTour } from './onboarding/useStartTour';
 import { ErrorText } from './ui';
 
 type Item = { id: string; label: string; hint?: string; group: string; run: () => void };
@@ -29,6 +31,8 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
   const { user } = useAuth();
   const ai = useAiStatus();
   const canAsk = ai.data?.features.includes('search') ?? false;
+  const startTour = useStartTour();
+  const onboarding = useOnboarding();
   const [text, setText] = useState('');
   const [active, setActive] = useState(0);
   const listId = useId();
@@ -110,10 +114,32 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
         },
       },
     ];
+    if (startTour) {
+      actions.push({
+        id: 'tour',
+        label: 'Take the product tour',
+        group: 'Actions',
+        run: () => {
+          onClose();
+          startTour();
+        },
+      });
+    }
+    if (onboarding.state && onboarding.state.checklist !== 'open') {
+      actions.push({
+        id: 'checklist',
+        label: 'Show the getting-started checklist',
+        group: 'Actions',
+        run: () => {
+          onClose();
+          onboarding.update({ checklist: 'open' });
+        },
+      });
+    }
     out.push(...actions.filter((a) => match(a.label)));
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, ask.data, canAsk, tasks.data, projects.data, user.org_role]);
+  }, [text, ask.data, canAsk, tasks.data, projects.data, user.org_role, startTour, onboarding.state]);
 
   const current = Math.min(active, Math.max(items.length - 1, 0));
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {

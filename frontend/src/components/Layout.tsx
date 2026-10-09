@@ -7,6 +7,8 @@ import { useAuth } from '../auth/useAuth';
 import { useLiveUpdates } from '../lib/realtime';
 import { SHORTCUTS, useShortcuts } from '../lib/shortcuts';
 import { NotificationsBell } from './NotificationsBell';
+import { OnboardingChecklist } from './onboarding/OnboardingChecklist';
+import { useStartTour } from './onboarding/useStartTour';
 import { ThemeToggle } from './ThemeToggle';
 import { TimerIndicator } from './TimeTracking';
 import { GhostButton } from './ui';
@@ -33,6 +35,7 @@ export function Layout() {
   const openHelp = useCallback(() => setOverlay('help'), []);
   const closeOverlay = useCallback(() => setOverlay(null), []);
   useShortcuts({ palette: openPalette, help: openHelp });
+  const startTour = useStartTour();
   const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
   // Phones: the navigation is a menu behind a button instead of a list above every page.
   const [menuOpen, setMenuOpen] = useState(false);
@@ -150,10 +153,16 @@ export function Layout() {
         {overlay === 'palette' && <CommandPalette onClose={closeOverlay} onHelp={openHelp} />}
         {overlay === 'help' && <ShortcutHelp onClose={closeOverlay} shortcuts={SHORTCUTS} />}
       </Suspense>
+      <OnboardingChecklist />
       <footer className="flex gap-3 px-4 py-3 text-xs text-slate-600 dark:text-slate-400" aria-live="polite">
         <button type="button" onClick={openHelp} className="underline">
           Keyboard shortcuts (?)
         </button>
+        {startTour && (
+          <button type="button" onClick={startTour} className="underline">
+            Product tour
+          </button>
+        )}
         {version.isSuccess && (
           <span data-testid="version">
             v{version.data.version} ({version.data.build})

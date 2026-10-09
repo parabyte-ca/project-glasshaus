@@ -18,6 +18,7 @@ webhooks and an MCP server.
 - [Administration, SSO and integrations](#administration-sso-and-integrations)
 - [AI assistant](#ai-assistant)
 - [Keyboard, accessibility and mobile](#keyboard-accessibility-and-mobile)
+- [Onboarding](#onboarding)
 - [MCP and Copilot setup](#mcp-and-copilot-setup)
 - [Backup and restore](#backup-and-restore)
 - [Upgrading](#upgrading)
@@ -268,6 +269,13 @@ every request in the audit log (without content). Details, privacy notes and an 
   [docs/accessibility.md](docs/accessibility.md).
 - Installable as an app (PWA) on desktop and phones; the app shell opens offline. Only static files are
   cached, never project data.
+
+## Onboarding
+
+New people get a short **product tour** of the project page the first time they open a project, a
+**getting-started checklist** docked bottom-right that ticks itself as they work, and **feature tips**
+(pulsing dots) if they skip the tour. Restart the tour from **Product tour** in the footer or the
+command palette. Everything is remembered per account. See [docs/onboarding.md](docs/onboarding.md).
 
 ## MCP and Copilot setup
 

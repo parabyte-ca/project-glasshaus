@@ -6,6 +6,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-09
+
+First-run onboarding.
+
+### Added
+- **Product tour** of the project page (driver.js, MIT, loaded on demand). It covers creating a task, the
+  task views, the timeline switch, and the new People panel. It starts by itself the first time someone
+  opens a project. It has Next, Back, Skip tour and Done; arrow keys move between steps, Escape leaves,
+  focus stays in the card, and it follows *Reduce motion*. Restart it from **Product tour** in the
+  footer or the command palette.
+- **Getting-started checklist** docked bottom-right: create a project or task, assign a teammate or add
+  a collaborator, set a due date, take the tour. Items tick from real work; there is a progress bar; it
+  can be minimized or dismissed (restore it from the command palette).
+- **Feature tips**: pulsing dots next to Timeline and Project settings for people who skipped the tour;
+  each can be hidden for good.
+- **People panel** on every project: see members and their roles; project admins add or remove people.
+- `GET/PATCH /api/v1/users/me/onboarding`: tour, checklist and tip state stored on the account, with
+  derived milestones. See [docs/onboarding.md](docs/onboarding.md).
+
+### Changed
+- Accounts that existed before this release are treated as having skipped the tour (no automatic tour;
+  tips and the checklist appear).
+
 ## [0.9.3] - 2026-10-09
 
 Patch release: editing fixes from the code review (UX batch).
@@ -328,7 +351,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.3...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.3...v0.10.0
 [0.9.3]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.0...v0.9.1

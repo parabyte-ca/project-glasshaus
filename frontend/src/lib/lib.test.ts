@@ -65,6 +65,7 @@ describe('live update keys', () => {
       ['task', 't1'],
       ['comments', 't1'],
       ['activity', 'task', 't1'],
+      ['onboarding'],
     ]);
     expect(keysFor({ type: 'notification.created' })).toEqual([['notifications']]);
   });
@@ -80,8 +81,8 @@ describe('live update keys', () => {
       }
       expect(spy).not.toHaveBeenCalled();
       vi.advanceTimersByTime(400);
-      // tasks list once, plus task/comments/activity for each of the two tasks.
-      expect(spy).toHaveBeenCalledTimes(7);
+      // tasks list and onboarding once, plus task/comments/activity for each of the two tasks.
+      expect(spy).toHaveBeenCalledTimes(8);
       expect(spy).toHaveBeenCalledWith({ queryKey: ['tasks', 'p1'] }, { cancelRefetch: false });
       spy.mockClear();
       batcher.add([['projects']]);

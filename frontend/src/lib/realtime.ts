@@ -23,6 +23,8 @@ export function keysFor(event: LiveEvent): unknown[][] {
   if (kind === 'field') keys.push(['fields', event.project_id], ['tasks', event.project_id]);
   if (kind === 'view') keys.push(['views', event.project_id]);
   if (kind === 'project' || kind === 'status') keys.push(['projects'], ['project']);
+  // Getting-started milestones tick from new tasks, assignments, due dates and project members.
+  if (kind === 'task' || kind === 'project') keys.push(['onboarding']);
   return keys;
 }
 
