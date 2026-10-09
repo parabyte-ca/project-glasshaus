@@ -32,7 +32,7 @@ fail() {
 
 count() { psql -d "$db" -tAc "$1" 2>/dev/null | tr -d ' '; }
 
-[ -n "$dump" ] && [ -s "$dump" ] || fail "no backup file found"
+if [ -z "$dump" ] || [ ! -s "$dump" ]; then fail "no backup file found"; fi
 dropdb --if-exists "$db" >/dev/null 2>&1
 createdb "$db" || fail "could not create the scratch database"
 if ! pg_restore --no-owner --exit-on-error -d "$db" "$dump" 2>/tmp/drill.err; then
