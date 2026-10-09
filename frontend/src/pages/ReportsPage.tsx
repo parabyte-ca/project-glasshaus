@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../auth/useAuth';
 import { AskReports } from '../components/AskReports';
 import { LoadError } from '../components/PageState';
+import { ReportEmail } from '../components/ReportEmail';
 import { ReportView } from '../components/ReportView';
 import { Button, ErrorText, Field, GhostButton, Input, linkClass, Select } from '../components/ui';
 import { useAiStatus } from '../lib/ai';
@@ -752,6 +753,7 @@ function SavedReportBuilder({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-8">
       <ReportBuilder key={report.data.id} report={report.data} />
+      <ReportEmail key={`email-${report.data.id}`} reportId={report.data.id} />
       {canAsk && (
         <div className="max-w-5xl">
           <AskReports key={report.data.id} reportId={report.data.id} />

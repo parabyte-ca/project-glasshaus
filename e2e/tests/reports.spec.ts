@@ -25,6 +25,8 @@ test('custom report on a dashboard', async ({ page }) => {
   await expectAccessible(page, 'report builder');
   await page.getByRole('button', { name: 'Save report' }).click();
   await expect(page).toHaveURL(/\/reports\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole('heading', { name: 'Email me this report' })).toBeVisible();
+  await expectAccessible(page, 'saved report with email settings');
 
   // A single-number version of it, with a target, on a new dashboard.
   await page.getByLabel('Show as').selectOption({ label: 'Single number' });

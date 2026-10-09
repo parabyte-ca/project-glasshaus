@@ -1368,6 +1368,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/reports/subscriptions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Your report emails */
+    get: operations['list_report_emails'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/reports/{report_id}': {
     parameters: {
       query?: never;
@@ -1415,6 +1432,42 @@ export interface paths {
     get: operations['export_report'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/reports/{report_id}/email': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Whether email is available and your email schedule for this report */
+    get: operations['report_email_status'];
+    /** Email this report to yourself on a schedule (runs with your access each time) */
+    put: operations['subscribe_report'];
+    post?: never;
+    /** Stop emailing this report to you */
+    delete: operations['unsubscribe_report'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/reports/{report_id}/email/send': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Email this report to yourself now */
+    post: operations['send_report_now'];
     delete?: never;
     options?: never;
     head?: never;
@@ -4659,6 +4712,15 @@ export interface components {
        */
       limit: number;
     };
+    /** ReportEmailStatus */
+    ReportEmailStatus: {
+      /**
+       * Available
+       * @description False when the server has no outgoing email configured.
+       */
+      available: boolean;
+      subscription: components['schemas']['ReportSubscriptionRead'] | null;
+    };
     /** ReportFilters */
     'ReportFilters-Input': {
       /** Project Ids */
@@ -4755,6 +4817,42 @@ export interface components {
        * Format: date-time
        */
       generated_at: string;
+    };
+    /** ReportSubscriptionRead */
+    ReportSubscriptionRead: {
+      /**
+       * Report Id
+       * Format: uuid
+       */
+      report_id: string;
+      /** Report Name */
+      report_name: string;
+      schedule: components['schemas']['ScheduleSpec-Output'];
+      /** Attach Csv */
+      attach_csv: boolean;
+      /**
+       * Next Run At
+       * Format: date-time
+       */
+      next_run_at: string;
+      /** Last Sent At */
+      last_sent_at: string | null;
+      /**
+       * Last Error
+       * @description Why the last send failed, if it did.
+       */
+      last_error: string | null;
+    };
+    /** ReportSubscriptionWrite */
+    ReportSubscriptionWrite: {
+      /** @description When to send, in your time zone. */
+      schedule: components['schemas']['ScheduleSpec-Input'];
+      /**
+       * Attach Csv
+       * @description Attach the full report (up to 500 rows) as CSV.
+       * @default true
+       */
+      attach_csv?: boolean;
     };
     /** RescheduleResult */
     RescheduleResult: {
@@ -13867,6 +13965,66 @@ export interface operations {
       };
     };
   };
+  list_report_emails: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReportSubscriptionRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
   get_report: {
     parameters: {
       query?: never;
@@ -14180,6 +14338,274 @@ export interface operations {
           'application/problem+json': unknown;
           'application/json': components['schemas']['Problem'];
         };
+      };
+    };
+  };
+  report_email_status: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReportEmailStatus'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  subscribe_report: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ReportSubscriptionWrite'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReportSubscriptionRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Email is not configured on this server */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  unsubscribe_report: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  send_report_now: {
+    parameters: {
+      query?: {
+        attach_csv?: boolean;
+      };
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            [key: string]: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Email is not configured or delivery failed */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

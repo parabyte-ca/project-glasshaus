@@ -4,12 +4,16 @@ from typing import Any
 
 from fastapi import APIRouter, Response, status
 
-from glasshaus.api.deps import Ctx
+from glasshaus.api.deps import Ctx, CurrentActor
 from glasshaus.reports import service as reports
+from glasshaus.reports import subscriptions
 from glasshaus.reports.schemas import (
     ReportDefinition,
+    ReportEmailStatus,
     ReportOverrides,
     ReportResult,
+    ReportSubscriptionRead,
+    ReportSubscriptionWrite,
     SavedReportCreate,
     SavedReportRead,
     SavedReportUpdate,
@@ -38,6 +42,15 @@ async def list_reports(ctx: Ctx) -> list[SavedReportRead]:
 )
 async def create_report(data: SavedReportCreate, ctx: Ctx) -> SavedReportRead:
     return await reports.create_report(ctx, data)
+
+
+@router.get(
+    "/reports/subscriptions",
+    response_model=list[ReportSubscriptionRead],
+    summary="Your report emails",
+)
+async def list_report_emails(ctx: Ctx) -> list[ReportSubscriptionRead]:
+    return await subscriptions.list_subscriptions(ctx)
 
 
 @router.get("/reports/{report_id}", response_model=SavedReportRead, summary="A saved report's definition")
@@ -85,3 +98,46 @@ async def export_report(report_id: uuid.UUID, ctx: Ctx) -> Response:
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="glasshaus-{filename}.csv"'},
     )
+
+
+@router.get(
+    "/reports/{report_id}/email",
+    response_model=ReportEmailStatus,
+    summary="Whether email is available and your email schedule for this report",
+)
+async def report_email_status(report_id: uuid.UUID, ctx: Ctx) -> ReportEmailStatus:
+    return await subscriptions.email_status(ctx, report_id)
+
+
+@router.put(
+    "/reports/{report_id}/email",
+    response_model=ReportSubscriptionRead,
+    summary="Email this report to yourself on a schedule (runs with your access each time)",
+    responses={503: {"description": "Email is not configured on this server"}},
+)
+async def subscribe_report(
+    report_id: uuid.UUID, data: ReportSubscriptionWrite, ctx: Ctx
+) -> ReportSubscriptionRead:
+    return await subscriptions.subscribe(ctx, report_id, data)
+
+
+@router.delete(
+    "/reports/{report_id}/email",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Stop emailing this report to you",
+)
+async def unsubscribe_report(report_id: uuid.UUID, ctx: Ctx) -> Response:
+    await subscriptions.unsubscribe(ctx, report_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/reports/{report_id}/email/send",
+    response_model=dict[str, str],
+    summary="Email this report to yourself now",
+    responses={503: {"description": "Email is not configured or delivery failed"}},
+)
+async def send_report_now(
+    report_id: uuid.UUID, actor: CurrentActor, attach_csv: bool = True
+) -> dict[str, str]:
+    return {"sent_to": await subscriptions.send_now(actor, report_id, attach_csv=attach_csv)}

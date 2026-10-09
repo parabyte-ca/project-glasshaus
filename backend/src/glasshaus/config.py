@@ -79,6 +79,16 @@ class Settings(BaseSettings):
     # AI requests per user per minute; 0 disables the limit.
     ai_rate_limit_per_minute: int = 10
 
+    # Outgoing email (scheduled reports). Off while smtp_host is empty; "memory" keeps messages in the
+    # process for tests and demos. smtp_security: starttls (usually port 587), tls (465) or none.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_security: Literal["starttls", "tls", "none"] = "starttls"
+    smtp_username: str = ""
+    smtp_password: SecretStr | None = None
+    smtp_from: str = "Glasshaus <glasshaus@localhost>"
+    smtp_timeout_seconds: float = 30.0
+
     @field_validator("cors_origins", "mcp_allowed_hosts", "trusted_proxies", mode="before")
     @classmethod
     def _split_csv(cls, value: object) -> object:

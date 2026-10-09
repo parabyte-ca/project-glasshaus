@@ -74,6 +74,7 @@ RLS_TABLES = (
     "running_timers",
     "dashboards",
     "saved_reports",
+    "report_subscriptions",
     "portfolios",
     "portfolio_projects",
     "objectives",

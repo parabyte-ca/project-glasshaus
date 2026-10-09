@@ -298,3 +298,64 @@ describe('asking about reports', () => {
     expect(screen.queryByRole('link', { name: /Open “Open work”/ })).toBeNull();
   });
 });
+
+describe('report emails', () => {
+  const sub = {
+    report_id: 'r1',
+    report_name: 'Open work',
+    schedule: { frequency: 'weekly', weekday: 0, day: null, hour: 8, minute: 0, timezone: 'UTC' },
+    attach_csv: true,
+    next_run_at: '2026-10-12T08:00:00Z',
+    last_sent_at: null,
+    last_error: 'email delivery failed: SMTPAuthenticationError',
+  };
+  const routes = (status: object): Route[] => [
+    { method: 'GET', path: '/api/v1/reports/r1/email', body: status },
+    ...baseRoutes,
+    signedIn,
+    { method: 'GET', path: '/api/v1/reports/r1', body: saved },
+    { method: 'GET', path: '/api/v1/dashboards', body: [] },
+    { method: 'POST', path: '/api/v1/reports/run', body: result() },
+    { method: 'PUT', path: '/api/v1/reports/r1/email', body: sub },
+    { method: 'DELETE', path: '/api/v1/reports/r1/email', status: 204 },
+    { method: 'POST', path: '/api/v1/reports/r1/email/send', body: { sent_to: 'ada@example.com' } },
+  ];
+
+  it('says when the server has no email', async () => {
+    mockApi(routes({ available: false, subscription: null }));
+    renderAt('/reports/r1');
+    expect(await screen.findByText(/Email isn’t set up on this server yet/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start emails' })).toBeNull();
+  });
+
+  it('starts a schedule, sends now and shows the last error', async () => {
+    const { calls } = mockApi(routes({ available: true, subscription: null }));
+    renderAt('/reports/r1');
+    const panel = (await screen.findByRole('heading', { name: 'Email me this report' })).closest('section')!;
+    await userEvent.selectOptions(within(panel).getByLabelText('Repeat'), 'Monthly');
+    await userEvent.clear(within(panel).getByLabelText('Day of month'));
+    await userEvent.type(within(panel).getByLabelText('Day of month'), '15');
+    await userEvent.click(within(panel).getByRole('checkbox', { name: 'Attach CSV' }));
+    await userEvent.click(within(panel).getByRole('button', { name: 'Email me now' }));
+    expect(await screen.findByText('Sent to ada@example.com')).toBeInTheDocument();
+    const send = calls.find((c) => c.url.includes('/email/send'))!;
+    expect(new URL(send.url).searchParams.get('attach_csv')).toBe('false');
+    await userEvent.click(within(panel).getByRole('button', { name: 'Start emails' }));
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true));
+    const put = calls.find((c) => c.method === 'PUT')!;
+    expect(await put.json()).toMatchObject({
+      schedule: { frequency: 'monthly', day: 15, weekday: null, hour: 8 },
+      attach_csv: false,
+    });
+  });
+
+  it('shows an existing schedule and stops it', async () => {
+    const { calls } = mockApi(routes({ available: true, subscription: sub }));
+    renderAt('/reports/r1');
+    expect(await screen.findByRole('alert')).toHaveTextContent('SMTPAuthenticationError');
+    const panel = screen.getByRole('heading', { name: 'Email me this report' }).closest('section')!;
+    expect(within(panel).getByLabelText('Repeat')).toHaveValue('weekly');
+    await userEvent.click(within(panel).getByRole('button', { name: 'Stop emails' }));
+    await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
+  });
+});

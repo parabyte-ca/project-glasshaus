@@ -14,7 +14,7 @@ from glasshaus.integrations.models import CalendarFeed, Integration, Integration
 from glasshaus.models.tenant import Tenant
 from glasshaus.oauth.models import OAuthClient, OAuthGrant, OAuthRequest
 from glasshaus.projects.models import Project, ProjectMember, ProjectStatus
-from glasshaus.reports.models import SavedReport
+from glasshaus.reports.models import ReportSubscription, SavedReport
 from glasshaus.scheduling.models import Baseline, BaselineTask, TaskDependency
 from glasshaus.scim.models import ScimToken
 from glasshaus.sso.models import IdentityProvider, UserIdentity
@@ -55,6 +55,7 @@ __all__ = [
     "ProjectStatus",
     "ProjectTemplate",
     "RecurringTask",
+    "ReportSubscription",
     "RunningTimer",
     "SavedReport",
     "SavedView",
