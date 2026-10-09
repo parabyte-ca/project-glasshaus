@@ -213,6 +213,33 @@ async def test_provider_failure_is_audited(
     assert [e.outcome for e in await audit(world, "ai.risks")] == ["error"]
 
 
+async def test_no_database_connection_is_held_during_the_model_call(
+    client: AsyncClient, fake: providers.FakeProvider, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from glasshaus.db import get_engine
+
+    world = await make_world()
+    await enable(client, world)
+    held: list[int] = []
+    complete = fake.complete
+
+    async def watching(**kwargs: Any) -> Any:
+        held.append(get_engine().pool.checkedout())  # type: ignore[attr-defined]
+        return await complete(**kwargs)
+
+    monkeypatch.setattr(fake, "complete", watching)
+    base = f"/api/v1/ai/projects/{world.project.id}"
+    for url, body in (
+        (f"{base}/status-report", None),
+        (f"{base}/draft-tasks", {"brief": "Launch"}),
+        (f"{base}/risks", None),
+        ("/api/v1/ai/search", {"query": "my overdue tasks"}),
+    ):
+        r = await client.post(url, json=body, headers=world.headers)
+        assert r.status_code == 200, r.text
+    assert held == [0, 0, 0, 0]
+
+
 async def test_mcp_tools(client: AsyncClient, fake: providers.FakeProvider) -> None:
     world = await make_world()
     async with connect(token_actor(world, {"read"})) as mcp:

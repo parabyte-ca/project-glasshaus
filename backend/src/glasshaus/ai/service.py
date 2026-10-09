@@ -5,6 +5,9 @@ to turn it on. Everything here is read-only. Drafts and risk flags are proposals
 with the normal task tools; search turns a question into ordinary task filters and runs them with
 the caller's permissions. Project content sent to the model is wrapped as untrusted data, only what
 the feature needs is sent (names, never emails), and every call is rate limited and audited.
+
+Model calls can take minutes, so the features take an ``Actor`` and read the facts in a short
+transaction of their own: no database connection is held while the provider works.
 """
 
 import time
@@ -20,10 +23,11 @@ from glasshaus.ai.providers import Completion, get_provider, model_name, timed
 from glasshaus.audit import service as audit
 from glasshaus.config import get_settings
 from glasshaus.core.authz import require_project, visible_projects_clause
-from glasshaus.core.context import ServiceContext
+from glasshaus.core.context import Actor, ServiceContext
 from glasshaus.core.errors import InvalidInput, RateLimited, ServiceError, Unavailable
 from glasshaus.core.rbac import OrgRole, Permission
 from glasshaus.core.schemas import Schema
+from glasshaus.db import unit_of_work
 from glasshaus.governance.models import OrgSettings
 from glasshaus.governance.service import AiFeature
 from glasshaus.identity.models import User
@@ -212,7 +216,7 @@ async def _rate_limit(ctx: ServiceContext) -> None:
 
 
 async def _run[T: BaseModel](
-    ctx: ServiceContext,
+    actor: Actor,
     feature: AiFeature,
     target: str,
     *,
@@ -249,7 +253,7 @@ async def _run[T: BaseModel](
     finally:
         # Audit records who asked, what for and the cost; never the prompt or the answer.
         await audit.record(
-            ctx.actor,
+            actor,
             f"ai.{feature}",
             outcome=outcome,
             target=target,
@@ -320,14 +324,15 @@ def _summary_names(facts: StatusSummary) -> set[uuid.UUID]:
 # --------------------------------------------------------------------------- features
 
 
-async def status_report(ctx: ServiceContext, project_id: uuid.UUID, *, days: int = 7) -> AiStatusReport:
+async def status_report(actor: Actor, project_id: uuid.UUID, *, days: int = 7) -> AiStatusReport:
     """A written status update from the project's status summary."""
-    await require_project(ctx, project_id, Permission.PROJECT_READ)
-    await _require(ctx, "summaries")
-    facts = await insights.status_summary(ctx, project_id, days=days)
-    payload = _summary_payload(facts, await _names(ctx, _summary_names(facts)))
+    async with unit_of_work(actor) as ctx:
+        await require_project(ctx, project_id, Permission.PROJECT_READ)
+        await _require(ctx, "summaries")
+        facts = await insights.status_summary(ctx, project_id, days=days)
+        payload = _summary_payload(facts, await _names(ctx, _summary_names(facts)))
     report, usage = await _run(
-        ctx,
+        actor,
         "summaries",
         facts.key,
         system=(
@@ -342,28 +347,34 @@ async def status_report(ctx: ServiceContext, project_id: uuid.UUID, *, days: int
     return AiStatusReport(project_key=facts.key, report=report, facts=facts, usage=usage)
 
 
-async def draft_tasks(ctx: ServiceContext, project_id: uuid.UUID, data: AiDraftRequest) -> AiDrafts:
+async def draft_tasks(actor: Actor, project_id: uuid.UUID, data: AiDraftRequest) -> AiDrafts:
     """Propose tasks for a brief. Proposals only; nothing is created."""
-    project = await require_project(ctx, project_id, Permission.PROJECT_READ)
-    await _require(ctx, "drafting")
-    existing = (
-        await ctx.session.scalars(
-            select(Task.title)
-            .join(ProjectStatus, ProjectStatus.id == Task.status_id)
-            .where(Task.project_id == project_id, Task.deleted_at.is_(None), ProjectStatus.category.in_(OPEN))
-            .order_by(Task.updated_at.desc())
-            .limit(100)
-        )
-    ).all()
-    payload = {
-        "project": {"key": project.key, "name": project.name, "description": project.description[:2000]},
-        "open_task_titles": list(existing),
-        "brief": data.brief,
-    }
+    async with unit_of_work(actor) as ctx:
+        project = await require_project(ctx, project_id, Permission.PROJECT_READ)
+        await _require(ctx, "drafting")
+        existing = (
+            await ctx.session.scalars(
+                select(Task.title)
+                .join(ProjectStatus, ProjectStatus.id == Task.status_id)
+                .where(
+                    Task.project_id == project_id,
+                    Task.deleted_at.is_(None),
+                    ProjectStatus.category.in_(OPEN),
+                )
+                .order_by(Task.updated_at.desc())
+                .limit(100)
+            )
+        ).all()
+        key = project.key
+        payload = {
+            "project": {"key": key, "name": project.name, "description": project.description[:2000]},
+            "open_task_titles": list(existing),
+            "brief": data.brief,
+        }
     out, usage = await _run(
-        ctx,
+        actor,
         "drafting",
-        project.key,
+        key,
         system=(
             "You break work down into clear, independent tasks for a project management tool. Avoid "
             "duplicating open tasks. Each task should take between an hour and a few days. " + GUARD
@@ -391,53 +402,57 @@ async def draft_tasks(ctx: ServiceContext, project_id: uuid.UUID, data: AiDraftR
                 tags=tags,
             )
         )
-    return AiDrafts(project_key=project.key, drafts=drafts, usage=usage)
+    return AiDrafts(project_key=key, drafts=drafts, usage=usage)
 
 
-async def flag_risks(ctx: ServiceContext, project_id: uuid.UUID) -> AiRisks:
+async def flag_risks(actor: Actor, project_id: uuid.UUID) -> AiRisks:
     """Risks in the plan (late work, overload, dependency trouble, vague tasks), with evidence."""
-    project = await require_project(ctx, project_id, Permission.PROJECT_READ)
-    await _require(ctx, "risks")
-    facts = await insights.status_summary(ctx, project_id, days=14)
-    rows = (
-        await ctx.session.execute(
-            select(
-                Task.number,
-                Task.title,
-                Task.priority,
-                Task.assignee_id,
-                Task.start_date,
-                Task.due_date,
-                Task.estimate_minutes,
-                ProjectStatus.name,
+    async with unit_of_work(actor) as ctx:
+        project = await require_project(ctx, project_id, Permission.PROJECT_READ)
+        await _require(ctx, "risks")
+        facts = await insights.status_summary(ctx, project_id, days=14)
+        rows = (
+            await ctx.session.execute(
+                select(
+                    Task.number,
+                    Task.title,
+                    Task.priority,
+                    Task.assignee_id,
+                    Task.start_date,
+                    Task.due_date,
+                    Task.estimate_minutes,
+                    ProjectStatus.name,
+                )
+                .join(ProjectStatus, ProjectStatus.id == Task.status_id)
+                .where(
+                    Task.project_id == project_id, Task.deleted_at.is_(None), ProjectStatus.category.in_(OPEN)
+                )
+                .order_by(Task.due_date.asc().nulls_last(), Task.number)
+                .limit(200)
             )
-            .join(ProjectStatus, ProjectStatus.id == Task.status_id)
-            .where(Task.project_id == project_id, Task.deleted_at.is_(None), ProjectStatus.category.in_(OPEN))
-            .order_by(Task.due_date.asc().nulls_last(), Task.number)
-            .limit(200)
-        )
-    ).all()
-    names = await _names(ctx, _summary_names(facts) | {r.assignee_id for r in rows if r.assignee_id})
-    keys = {f"{project.key}-{r.number}" for r in rows}
-    payload = _summary_payload(facts, names)
-    payload["open_tasks"] = [
-        {
-            "key": f"{project.key}-{r.number}",
-            "title": r.title,
-            "status": r.name,
-            "priority": r.priority,
-            "assignee": names.get(r.assignee_id) if r.assignee_id else None,
-            "start": r.start_date.isoformat() if r.start_date else None,
-            "due": r.due_date.isoformat() if r.due_date else None,
-            "estimate_hours": round(r.estimate_minutes / 60, 1) if r.estimate_minutes else None,
-        }
-        for r in rows
-    ]
-    payload["today"] = insights._today().isoformat()
+        ).all()
+        names = await _names(ctx, _summary_names(facts) | {r.assignee_id for r in rows if r.assignee_id})
+        keys = {f"{project.key}-{r.number}" for r in rows}
+        payload = _summary_payload(facts, names)
+        payload["open_tasks"] = [
+            {
+                "key": f"{project.key}-{r.number}",
+                "title": r.title,
+                "status": r.name,
+                "priority": r.priority,
+                "assignee": names.get(r.assignee_id) if r.assignee_id else None,
+                "start": r.start_date.isoformat() if r.start_date else None,
+                "due": r.due_date.isoformat() if r.due_date else None,
+                "estimate_hours": round(r.estimate_minutes / 60, 1) if r.estimate_minutes else None,
+            }
+            for r in rows
+        ]
+        payload["today"] = insights._today().isoformat()
+        key = project.key
     out, usage = await _run(
-        ctx,
+        actor,
         "risks",
-        project.key,
+        key,
         system=(
             "You are a careful delivery manager reviewing a project plan for risks: overdue or slipping "
             "work, unassigned or unestimated work close to its date, one person holding too much, "
@@ -457,7 +472,7 @@ async def flag_risks(ctx: ServiceContext, project_id: uuid.UUID) -> AiRisks:
         risks.append(r)
     order = {"high": 0, "medium": 1, "low": 2}
     risks.sort(key=lambda r: order[r.severity])
-    return AiRisks(project_key=project.key, risks=risks, usage=usage)
+    return AiRisks(project_key=key, risks=risks, usage=usage)
 
 
 def _match_person(name: str, people: list[tuple[uuid.UUID, str]]) -> uuid.UUID | None:
@@ -469,43 +484,47 @@ def _match_person(name: str, people: list[tuple[uuid.UUID, str]]) -> uuid.UUID |
     return partial[0] if len(partial) == 1 else None
 
 
-async def search(ctx: ServiceContext, data: AiSearchRequest) -> AiSearchResult:
+async def search(actor: Actor, data: AiSearchRequest) -> AiSearchResult:
     """Turn a question into task filters and run them. Task content never goes to the model: it sees
     only the question, today's date, project keys and people's names."""
     from glasshaus.tasks import service as tasks
 
-    await _require(ctx, "search")
-    projects = (
-        await ctx.session.execute(
-            select(Project.id, Project.key, Project.name)
-            .where(visible_projects_clause(ctx), Project.archived_at.is_(None))
-            .order_by(Project.key)
-            .limit(200)
-        )
-    ).all()
-    if data.project_id is not None:
-        await require_project(ctx, data.project_id, Permission.PROJECT_READ)
-    people: list[tuple[uuid.UUID, str]] = []
-    if ctx.actor.org_role != OrgRole.GUEST:
-        people = [
-            (uid, name)
-            for uid, name in (
-                await ctx.session.execute(
-                    select(User.id, User.name).where(User.is_active.is_(True)).order_by(User.name).limit(300)
-                )
-            ).all()
-        ]
-    today = insights._today()
-    context = {
-        "today": today.isoformat(),
-        "weekday": today.strftime("%A"),
-        "projects": [{"key": p.key, "name": p.name} for p in projects],
-        "people": [n for _, n in people],
-        "status_categories": [c.value for c in StatusCategory],
-        "priorities": [p.value for p in Priority],
-    }
+    async with unit_of_work(actor) as ctx:
+        await _require(ctx, "search")
+        projects = (
+            await ctx.session.execute(
+                select(Project.id, Project.key, Project.name)
+                .where(visible_projects_clause(ctx), Project.archived_at.is_(None))
+                .order_by(Project.key)
+                .limit(200)
+            )
+        ).all()
+        if data.project_id is not None:
+            await require_project(ctx, data.project_id, Permission.PROJECT_READ)
+        people: list[tuple[uuid.UUID, str]] = []
+        if ctx.actor.org_role != OrgRole.GUEST:
+            people = [
+                (uid, name)
+                for uid, name in (
+                    await ctx.session.execute(
+                        select(User.id, User.name)
+                        .where(User.is_active.is_(True))
+                        .order_by(User.name)
+                        .limit(300)
+                    )
+                ).all()
+            ]
+        today = insights._today()
+        context = {
+            "today": today.isoformat(),
+            "weekday": today.strftime("%A"),
+            "projects": [{"key": p.key, "name": p.name} for p in projects],
+            "people": [n for _, n in people],
+            "status_categories": [c.value for c in StatusCategory],
+            "priorities": [p.value for p in Priority],
+        }
     filters, usage = await _run(
-        ctx,
+        actor,
         "search",
         "tasks",
         system=(
@@ -541,8 +560,8 @@ async def search(ctx: ServiceContext, data: AiSearchRequest) -> AiSearchResult:
         query["tags"] = filters.tags[:5]
     if filters.assignee:
         who = filters.assignee.strip().lower()
-        if who == "me" and ctx.actor.user_id:
-            query["assignee_ids"] = [ctx.actor.user_id]
+        if who == "me" and actor.user_id:
+            query["assignee_ids"] = [actor.user_id]
         elif who == "unassigned":
             query["unassigned"] = True
         elif (uid := _match_person(filters.assignee, people)) is not None:
@@ -557,7 +576,8 @@ async def search(ctx: ServiceContext, data: AiSearchRequest) -> AiSearchResult:
         task_query = TaskQuery.model_validate(query)
     except ValueError as exc:
         raise InvalidInput(f"could not build a search from that question: {exc}") from None
-    page = await tasks.list_tasks(ctx, task_query)
+    async with unit_of_work(actor) as ctx:
+        page = await tasks.list_tasks(ctx, task_query)
     return AiSearchResult(
         query=data.query,
         filters=filters,
