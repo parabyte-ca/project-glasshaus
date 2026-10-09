@@ -19,6 +19,7 @@ const ShortcutHelp = lazy(() => import('./CommandPalette').then((m) => ({ defaul
 const SECTIONS = [
   ['/', 'Home'],
   ['/dashboards', 'Dashboards'],
+  ['/reports', 'Reports'],
   ['/time', 'Time'],
   ['/workload', 'Workload'],
   ['/portfolios', 'Portfolios'],

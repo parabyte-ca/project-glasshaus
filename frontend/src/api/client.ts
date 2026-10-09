@@ -48,6 +48,10 @@ export type Portfolio = Schemas['PortfolioRead'];
 export type PortfolioDetail = Schemas['PortfolioDetail'];
 export type Objective = Schemas['ObjectiveRead'];
 export type KeyResult = Schemas['KeyResultRead'];
+export type SavedReport = Schemas['SavedReportRead'];
+export type ReportDefinition = Schemas['ReportDefinition-Input'];
+export type ReportResult = Schemas['ReportResult'];
+export type ReportOverrides = Schemas['ReportOverrides'];
 
 export class ApiError extends Error {
   constructor(

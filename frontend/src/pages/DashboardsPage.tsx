@@ -1,8 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useState, type DragEvent, type FormEvent, type ReactNode } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 
-import { api, unwrap, type Dashboard, type Widget } from '../api/client';
+import {
+  api,
+  unwrap,
+  type Dashboard,
+  type ReportOverrides,
+  type SavedReport,
+  type Widget,
+} from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { HealthBadge, ProgressBar } from '../components/charts';
 import { Burnup, ProjectHealthCard, StatusMix, Throughput } from '../components/ReportWidgets';
@@ -12,11 +19,18 @@ import { addDays, todayIso } from '../lib/dates';
 import { formatMinutes, hours, mondayOf } from '../lib/format';
 import { usePageTitle } from '../lib/pageTitle';
 import { LoadError } from '../components/PageState';
+import { ReportTile } from '../components/ReportTile';
+import { DATE_PRESETS, type DatePreset } from '../lib/reportMeta';
 import { useConfirm } from '../lib/confirm';
 
 type WidgetType = Widget['type'];
 
-const TYPES: { value: WidgetType; label: string; needs?: 'project' | 'portfolio' | 'objective' }[] = [
+const TYPES: {
+  value: WidgetType;
+  label: string;
+  needs?: 'project' | 'portfolio' | 'objective' | 'report';
+}[] = [
+  { value: 'report', label: 'Saved report or number', needs: 'report' },
   { value: 'my_tasks', label: 'My open tasks' },
   { value: 'my_time', label: 'My time this week' },
   { value: 'time_by_project', label: 'Team time by project (30 days)' },
@@ -228,9 +242,21 @@ function ObjectiveWidget({ id }: { id: string }) {
   );
 }
 
-function WidgetBody({ widget }: { widget: Widget }) {
+function WidgetBody({
+  widget,
+  reports,
+  overrides,
+}: {
+  widget: Widget;
+  reports: Map<string, SavedReport>;
+  overrides: ReportOverrides | null;
+}) {
   const config = widget.config ?? {};
   switch (widget.type) {
+    case 'report':
+      return (
+        <ReportTile report={reports.get(str(config, 'report_id'))} config={config} overrides={overrides} />
+      );
     case 'my_tasks':
       return <MyTasks />;
     case 'my_time':
@@ -256,16 +282,30 @@ function WidgetFrame({
   widget,
   children,
   controls,
+  title: fallback,
+  drag,
 }: {
   widget: Widget;
   children: ReactNode;
   controls?: ReactNode;
+  title?: string;
+  drag?: {
+    onDragStart: (e: DragEvent) => void;
+    onDragEnter: () => void;
+    onDrop: (e: DragEvent) => void;
+    over: boolean;
+  };
 }) {
-  const title = widget.title || TYPES.find((t) => t.value === widget.type)?.label;
+  const title = widget.title || fallback || TYPES.find((t) => t.value === widget.type)?.label;
   return (
     <section
       aria-label={title}
-      className={`rounded-lg border border-slate-200 p-4 dark:border-slate-800 ${SPAN[(widget.width ?? 1) as 1 | 2 | 3]}`}
+      draggable={!!drag}
+      onDragStart={drag?.onDragStart}
+      onDragOver={drag ? (e) => e.preventDefault() : undefined}
+      onDragEnter={drag?.onDragEnter}
+      onDrop={drag?.onDrop}
+      className={`rounded-lg border p-4 ${drag ? 'cursor-move' : ''} ${drag?.over ? 'border-sky-600' : 'border-slate-200 dark:border-slate-800'} ${SPAN[(widget.width ?? 1) as 1 | 2 | 3]}`}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">{title}</h2>
@@ -296,12 +336,24 @@ function AddWidget({ onAdd }: { onAdd: (w: Widget) => void }) {
     queryFn: () => unwrap(api.GET('/api/v1/objectives')),
     enabled: needs === 'objective',
   });
+  const reports = useQuery({
+    queryKey: ['reports'],
+    queryFn: () => unwrap(api.GET('/api/v1/reports')),
+    enabled: needs === 'report',
+  });
+  const [goal, setGoal] = useState('');
+  const [good, setGood] = useState<'up' | 'down'>('up');
+  const chosenReport = needs === 'report' ? reports.data?.find((r) => r.id === target) : undefined;
+  const isNumber =
+    chosenReport?.definition.chart === 'kpi' || chosenReport?.definition.group_by?.length === 0;
   const options =
     needs === 'project'
       ? projects.data?.map((p) => [p.id, `${p.key} — ${p.name}`] as const)
       : needs === 'portfolio'
         ? portfolios.data?.map((p) => [p.id, p.name] as const)
-        : objectives.data?.map((o) => [o.id, `${o.period}: ${o.title}`] as const);
+        : needs === 'report'
+          ? reports.data?.map((r) => [r.id, r.name] as const)
+          : objectives.data?.map((o) => [o.id, `${o.period}: ${o.title}`] as const);
   return (
     <form
       aria-label="Add widget"
@@ -313,9 +365,15 @@ function AddWidget({ onAdd }: { onAdd: (w: Widget) => void }) {
           type,
           width,
           title: '',
-          config: needs ? { [`${needs}_id`]: target } : {},
+          config: needs
+            ? {
+                [`${needs}_id`]: target,
+                ...(isNumber && goal !== '' ? { target: Number(goal), good } : {}),
+              }
+            : {},
         });
         setTarget('');
+        setGoal('');
       }}
     >
       <Field label="Widget" id="w-type">
@@ -334,6 +392,15 @@ function AddWidget({ onAdd }: { onAdd: (w: Widget) => void }) {
           ))}
         </Select>
       </Field>
+      {needs === 'report' && reports.data?.length === 0 && (
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          No saved reports yet.{' '}
+          <Link to="/reports/new" className={linkClass}>
+            Build one
+          </Link>
+          .
+        </p>
+      )}
       {needs && (
         <Field label={needs[0]!.toUpperCase() + needs.slice(1)} id="w-target">
           <Select id="w-target" required value={target} onChange={(e) => setTarget(e.target.value)}>
@@ -345,6 +412,25 @@ function AddWidget({ onAdd }: { onAdd: (w: Widget) => void }) {
             ))}
           </Select>
         </Field>
+      )}
+      {isNumber && (
+        <>
+          <Field label="Target (optional)" id="w-goal">
+            <Input
+              id="w-goal"
+              type="number"
+              step="any"
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+            />
+          </Field>
+          <Field label="Good when" id="w-good">
+            <Select id="w-good" value={good} onChange={(e) => setGood(e.target.value as 'up' | 'down')}>
+              <option value="up">At or above target</option>
+              <option value="down">At or below target</option>
+            </Select>
+          </Field>
+        </>
       )}
       <Field label="Width" id="w-width">
         <Select id="w-width" value={width} onChange={(e) => setWidth(Number(e.target.value))}>
@@ -369,6 +455,42 @@ function DashboardView({ id }: { id: string }) {
       unwrap(api.GET('/api/v1/dashboards/{dashboard_id}', { params: { path: { dashboard_id: id } } })),
   });
   const [editing, setEditing] = useState(false);
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+  const [params, setParams] = useSearchParams();
+  const hasReports =
+    (dashboard.data?.widgets as Widget[] | undefined)?.some((w) => w.type === 'report') ?? false;
+  const reportList = useQuery({
+    queryKey: ['reports'],
+    queryFn: () => unwrap(api.GET('/api/v1/reports')),
+    enabled: hasReports,
+  });
+  const projectList = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => unwrap(api.GET('/api/v1/projects')),
+    enabled: hasReports,
+  });
+  const reports = new Map((reportList.data ?? []).map((r) => [r.id, r]));
+  // Dashboard-wide filters for report tiles, kept in the address so a filtered view can be shared.
+  const range = (params.get('range') ?? '') as DatePreset | '';
+  const projectFilter = params.get('project') ?? '';
+  const overrides: ReportOverrides | null =
+    range || projectFilter
+      ? {
+          ...(range ? { date: { preset: range } } : {}),
+          project_ids: projectFilter ? [projectFilter] : [],
+        }
+      : null;
+  const setFilter = (key: string, value: string) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set(key, value);
+        else next.delete(key);
+        return next;
+      },
+      { replace: true },
+    );
   const save = useMutation({
     mutationFn: (patch: { widgets?: Widget[]; shared?: boolean }) =>
       unwrap(
@@ -398,12 +520,16 @@ function DashboardView({ id }: { id: string }) {
   const d = dashboard.data;
   const widgets = d.widgets as Widget[];
   const canEdit = d.owner_id === user.id || user.org_role === 'owner' || user.org_role === 'admin';
-  const move = (i: number, by: number) => {
+  const moveTo = (from: number, to: number) => {
+    if (from === to) return;
     const next = [...widgets];
-    const [w] = next.splice(i, 1);
-    next.splice(i + by, 0, w!);
+    const [w] = next.splice(from, 1);
+    next.splice(to, 0, w!);
     save.mutate({ widgets: next });
   };
+  const move = (i: number, by: number) => moveTo(i, i + by);
+  const change = (id: string, patch: Partial<Widget>) =>
+    save.mutate({ widgets: widgets.map((w) => (w.id === id ? { ...w, ...patch } : w)) });
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -441,6 +567,39 @@ function DashboardView({ id }: { id: string }) {
         )}
       </div>
       {editing && <AddWidget onAdd={(w) => save.mutate({ widgets: [...widgets, w] })} />}
+      {editing && widgets.length > 1 && (
+        <p className="text-xs text-slate-600 dark:text-slate-400">
+          Drag tiles to reorder them, or use the arrow buttons.
+        </p>
+      )}
+      {hasReports && (
+        <div className="flex flex-wrap items-end gap-3" role="group" aria-label="Filters for report tiles">
+          <Field label="Date range (report tiles)" id="dash-range">
+            <Select id="dash-range" value={range} onChange={(e) => setFilter('range', e.target.value)}>
+              <option value="">Each report's own</option>
+              {DATE_PRESETS.filter(([v]) => v !== 'custom').map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Project (report tiles)" id="dash-project">
+            <Select
+              id="dash-project"
+              value={projectFilter}
+              onChange={(e) => setFilter('project', e.target.value)}
+            >
+              <option value="">Each report's own</option>
+              {projectList.data?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.key} {p.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      )}
       <ErrorText error={save.error ?? remove.error} />
       {widgets.length === 0 && (
         <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -452,9 +611,50 @@ function DashboardView({ id }: { id: string }) {
           <WidgetFrame
             key={w.id}
             widget={w}
+            title={w.type === 'report' ? reports.get(str(w.config, 'report_id'))?.name : undefined}
+            drag={
+              editing
+                ? {
+                    over: dragOver === i && dragFrom !== i,
+                    onDragStart: (e) => {
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', w.id);
+                      setDragFrom(i);
+                    },
+                    onDragEnter: () => setDragOver(i),
+                    onDrop: (e) => {
+                      e.preventDefault();
+                      if (dragFrom !== null) moveTo(dragFrom, i);
+                      setDragFrom(null);
+                      setDragOver(null);
+                    },
+                  }
+                : undefined
+            }
             controls={
               editing && (
-                <span className="flex gap-1">
+                <span className="flex flex-wrap items-center gap-1">
+                  <Select
+                    aria-label={`Width of ${w.title || w.type}`}
+                    className="px-1 py-0.5 text-xs"
+                    value={w.width ?? 1}
+                    onChange={(e) => change(w.id, { width: Number(e.target.value) })}
+                  >
+                    <option value={1}>Narrow</option>
+                    <option value={2}>Wide</option>
+                    <option value={3}>Full</option>
+                  </Select>
+                  <Input
+                    aria-label={`Title of ${w.title || w.type} tile`}
+                    className="w-32 px-2 py-0.5 text-xs"
+                    placeholder="Default title"
+                    maxLength={100}
+                    defaultValue={w.title ?? ''}
+                    onBlur={(e) =>
+                      e.target.value !== (w.title ?? '') && change(w.id, { title: e.target.value })
+                    }
+                    onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                  />
                   <GhostButton
                     className="px-2 py-0.5"
                     aria-label="Move earlier"
@@ -482,7 +682,7 @@ function DashboardView({ id }: { id: string }) {
               )
             }
           >
-            <WidgetBody widget={w} />
+            <WidgetBody widget={w} reports={reports} overrides={overrides} />
           </WidgetFrame>
         ))}
       </div>
