@@ -68,7 +68,7 @@ function CapacityEditor({ person }: { person: Person }) {
     return (
       <button
         type="button"
-        className={`text-xs ${linkClass}`}
+        className={`min-h-6 text-xs ${linkClass}`}
         aria-label={`Change capacity for ${person.name}`}
         onClick={() => setEditing(true)}
       >

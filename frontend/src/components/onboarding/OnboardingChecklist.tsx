@@ -52,14 +52,14 @@ export function OnboardingChecklist() {
             type="button"
             aria-expanded="true"
             onClick={() => update({ checklist: 'minimized' })}
-            className="rounded px-2 py-0.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
+            className="min-h-6 rounded px-2 py-0.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
           >
             Minimize
           </button>
           <button
             type="button"
             onClick={() => update({ checklist: 'dismissed' })}
-            className="rounded px-2 py-0.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
+            className="min-h-6 rounded px-2 py-0.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
           >
             Dismiss
           </button>

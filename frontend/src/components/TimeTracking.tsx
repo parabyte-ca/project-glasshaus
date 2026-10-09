@@ -49,7 +49,7 @@ export function TimerIndicator() {
       </span>
       <button
         type="button"
-        className="rounded px-1 text-xs font-medium text-sky-700 hover:underline dark:text-sky-400"
+        className="min-h-6 rounded px-1 text-xs font-medium text-sky-700 hover:underline dark:text-sky-400"
         onClick={() => stop.mutate()}
         disabled={stop.isPending}
       >
@@ -172,7 +172,7 @@ export function TaskTime({ taskId, taskKey, users }: { taskId: string; taskKey: 
             </span>
             <button
               type="button"
-              className="text-slate-500 dark:text-slate-400 hover:text-red-700"
+              className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-sky-600 dark:text-slate-400"
               aria-label={`Delete ${formatMinutes(e.minutes)} logged on ${e.spent_on}`}
               onClick={async () =>
                 (await confirm({

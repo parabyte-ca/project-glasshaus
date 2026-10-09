@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 
-import { api, unwrap, type Schemas } from '../api/client';
+import { api, fieldError, type Schemas, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { Button, CopyButton, ErrorText, Field, GhostButton, Input, Select } from './ui';
 import { useConfirm } from '../lib/confirm';
@@ -69,7 +69,7 @@ export function AccessSettings() {
           guide). Tokens act as you and expire after 90 days.
         </p>
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-          <Field label="Token name" id="token-name">
+          <Field label="Token name" id="token-name" error={fieldError(create.error, 'name')}>
             <Input
               id="token-name"
               required

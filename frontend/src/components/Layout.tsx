@@ -156,11 +156,11 @@ export function Layout() {
       </Suspense>
       <OnboardingChecklist />
       <footer className="flex gap-3 px-4 py-3 text-xs text-slate-600 dark:text-slate-400" aria-live="polite">
-        <button type="button" onClick={openHelp} className="underline">
+        <button type="button" onClick={openHelp} className="min-h-6 rounded underline">
           Keyboard shortcuts (?)
         </button>
         {startTour && (
-          <button type="button" onClick={startTour} className="underline">
+          <button type="button" onClick={startTour} className="min-h-6 rounded underline">
             Product tour
           </button>
         )}

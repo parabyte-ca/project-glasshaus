@@ -1,18 +1,20 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { api, unwrap, type Task, type ViewConfig, type ViewKind } from '../api/client';
 import { Beacon } from '../components/onboarding/Beacon';
 import { ProjectPeople } from '../components/ProjectPeople';
 import { Button, ErrorText, GhostButton, Input, linkClass, Select } from '../components/ui';
 import { PRIORITIES } from '../lib/grouping';
-import { defaultConfig, OPEN } from '../lib/views';
+import { configWithParams, defaultConfig, OPEN, paramsForConfig } from '../lib/views';
 import { useAiStatus } from '../lib/ai';
 import { useOnboarding } from '../lib/onboarding';
 import { useProject } from '../lib/useProject';
 import { ListView } from '../views/ListView';
 import { useTaskUpdate, type TaskPatch } from '../lib/taskUpdates';
+import { toast } from '../lib/toast';
+import { usePageTitle } from '../lib/pageTitle';
 import { LoadError } from '../components/PageState';
 
 // Layouts and the task drawer load on demand to keep the first page small.
@@ -41,16 +43,19 @@ function ProjectPageFor({ projectKey }: { projectKey: string }) {
   const queryClient = useQueryClient();
   const { project, fields, views, users } = useProject(projectKey);
   const p = project.data;
+  usePageTitle(p?.name ?? 'Project');
   const ai = useAiStatus();
   const aiFeatures = (ai.data?.features ?? []).filter((f) => f !== 'search');
   const [assistant, setAssistant] = useState(false);
 
   const viewId = params.get('view');
   const savedView = views.find((v) => v.id === viewId);
-  const [draft, setDraft] = useState<{ viewId: string | null; config: ViewConfig } | null>(null);
   const kind = (params.get('kind') as ViewKind | null) ?? savedView?.kind ?? 'list';
-  const config = draft && draft.viewId === viewId ? draft.config : (savedView?.config ?? defaultConfig(kind));
-  const setConfig = (next: ViewConfig) => setDraft({ viewId, config: next });
+  const baseConfig = savedView?.config ?? defaultConfig(kind);
+  const config = configWithParams(baseConfig, params);
+  // Filter changes replace the address entry instead of adding one per keystroke.
+  const setConfig = (next: ViewConfig) =>
+    setParams((prev) => paramsForConfig(baseConfig, next, prev), { replace: true });
   const setParam = (key: string, value: string | null) =>
     setParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -87,8 +92,9 @@ function ProjectPageFor({ projectKey }: { projectKey: string }) {
   const [title, setTitle] = useState('');
   const create = useMutation({
     mutationFn: () => unwrap(api.POST('/api/v1/tasks', { body: { project_id: p!.id, title } })),
-    onSuccess: () => {
+    onSuccess: (created) => {
       setTitle('');
+      toast(`${created.key} created`);
       void invalidate();
     },
   });
@@ -141,8 +147,35 @@ function ProjectPageFor({ projectKey }: { projectKey: string }) {
     [],
   );
 
-  const openTask = useCallback((task: Task) => setParam('task', task.key), []); // eslint-disable-line react-hooks/exhaustive-deps
-  const closeTask = useCallback(() => setParam('task', null), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Opening a task adds one history entry and closing it goes back, so Back after closing leaves the
+  // project instead of reopening the task. A drawer reached by a link closes in place.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const openedHere = (location.state as { drawer?: boolean } | null)?.drawer === true;
+  const openTask = useCallback(
+    (task: Task) =>
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('task', task.key);
+          return next;
+        },
+        { state: { drawer: true }, replace: !!params.get('task') },
+      ),
+    [setParams, params],
+  );
+  const closeTask = useCallback(() => {
+    if (openedHere) void navigate(-1);
+    else
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('task');
+          return next;
+        },
+        { replace: true },
+      );
+  }, [openedHere, navigate, setParams]);
 
   if (project.isError) {
     return <LoadError error={project.error} what="project" onRetry={() => void project.refetch()} />;
@@ -374,10 +407,16 @@ function ProjectPageFor({ projectKey }: { projectKey: string }) {
           Add
         </Button>
       </form>
-      <ErrorText error={create.error ?? update.error ?? saveView.error ?? tasksQuery.error} />
+      <ErrorText error={create.error ?? update.error ?? saveView.error} />
       <div data-tour="task-view">
         <Suspense fallback={<p role="status">Loading view…</p>}>
-          {
+          {tasksQuery.isPending ? (
+            <p role="status" className="py-6 text-slate-600 dark:text-slate-400">
+              Loading tasks…
+            </p>
+          ) : tasksQuery.isError && !tasksQuery.data ? (
+            <LoadError error={tasksQuery.error} what="task list" onRetry={() => void tasksQuery.refetch()} />
+          ) : (
             {
               board: <BoardView {...props} />,
               table: <TableView {...props} />,
@@ -385,7 +424,7 @@ function ProjectPageFor({ projectKey }: { projectKey: string }) {
               calendar: <CalendarView {...props} />,
               list: <ListView {...props} />,
             }[kind]
-          }
+          )}
         </Suspense>
       </div>
 

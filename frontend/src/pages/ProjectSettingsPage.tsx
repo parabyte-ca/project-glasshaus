@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 
-import { api, unwrap, type CustomField } from '../api/client';
+import { api, type CustomField, fieldError, unwrap } from '../api/client';
 import { AutomationRules } from '../components/AutomationRules';
 import { RecurringTasks, SaveAsTemplate } from '../components/RecurringTasks';
 import {
@@ -159,7 +159,7 @@ function FieldsSettings({ projectId, fields }: { projectId: string; fields: Cust
             create.mutate();
           }}
         >
-          <Field label="Field name" id="f-name">
+          <Field label="Field name" id="f-name" error={fieldError(create.error, 'name')}>
             <Input
               id="f-name"
               required

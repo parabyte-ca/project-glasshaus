@@ -128,7 +128,7 @@ export function ProjectPeople({
                         danger: true,
                       })) && remove.mutate(m.user_id)
                     }
-                    className="rounded px-1.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
+                    className="min-h-6 rounded px-1.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
                   >
                     Remove
                   </button>

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 
-import { api, unwrap, type Schemas, type User } from '../../api/client';
+import { api, fieldError, type Schemas, unwrap, type User } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { Button, ErrorText, Field, GhostButton, Input, ScrollArea, Select } from '../ui';
 import { Section } from './common';
@@ -229,7 +229,7 @@ export function People() {
         intro="Leave the password empty when they will sign in with single sign-on, or set a temporary one and share it securely."
       >
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-          <Field label="Email" id="new-email">
+          <Field label="Email" id="new-email" error={fieldError(create.error, 'email')}>
             <Input
               id="new-email"
               type="email"
@@ -238,7 +238,7 @@ export function People() {
               onChange={(e) => setDraft({ ...draft, email: e.target.value })}
             />
           </Field>
-          <Field label="Name" id="new-name">
+          <Field label="Name" id="new-name" error={fieldError(create.error, 'name')}>
             <Input
               id="new-name"
               required
@@ -259,7 +259,11 @@ export function People() {
               ))}
             </Select>
           </Field>
-          <Field label="Temporary password (optional)" id="new-password">
+          <Field
+            label="Temporary password (optional)"
+            id="new-password"
+            error={fieldError(create.error, 'password')}
+          >
             <Input
               id="new-password"
               type="password"

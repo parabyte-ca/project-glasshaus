@@ -98,7 +98,7 @@ export function NotificationsBell() {
             <span className="text-sm font-semibold">Notifications</span>
             <button
               type="button"
-              className="rounded px-1 py-0.5 text-xs text-sky-700 hover:underline focus-visible:outline-2 focus-visible:outline-sky-600 dark:text-sky-400"
+              className="min-h-6 rounded px-1 py-0.5 text-xs text-sky-700 hover:underline focus-visible:outline-2 focus-visible:outline-sky-600 dark:text-sky-400"
               onClick={() => markRead.mutate(null)}
             >
               Mark all read
