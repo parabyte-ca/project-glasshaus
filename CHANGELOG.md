@@ -6,6 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-09
+
+### Fixed
+- **Upgrades could roll back on some hosts** with "container glasshaus-api-1 is unhealthy". Since
+  0.9.2 the API looked up the `web` container's name inside every request, blocking it; during an
+  upgrade `web` is not running yet, and where DNS is slow to answer (seen on TrueNAS) each health
+  check stalled past its timeout. The lookup now runs in the background and never delays a request.
+- Command palette: the hint text on the highlighted item has enough contrast.
+
+### Changed
+- Colours now match ghsystems.com exactly: `#1c75bc` buttons and links, `#00aeef` bright blue in dark
+  mode, `#ff8900` orange, `#121212` / `#212121` / `#303030` panels; buttons and fields have 8 px
+  corners.
+
+
 ## [0.11.0] - 2026-10-09
 
 New look, and the remaining usability and accessibility fixes from the code review (U8–U25).

@@ -1,5 +1,6 @@
 """HTTP hardening: headers, request size, rate limits, lockout and password policy."""
 
+import asyncio
 import uuid
 from collections.abc import AsyncIterator
 
@@ -104,6 +105,7 @@ async def test_forwarded_for_only_from_trusted_proxies() -> None:
 
     middleware = ProxyHeadersMiddleware(app)
     middleware.trusted = TrustedProxies(["10.9.0.0/24", "localhost"])
+    await middleware.trusted.refresh()
 
     async def call(peer: str, forwarded: str | None) -> str:
         headers = [(b"x-forwarded-for", forwarded.encode())] if forwarded else []
@@ -117,6 +119,41 @@ async def test_forwarded_for_only_from_trusted_proxies() -> None:
     assert await call("203.0.113.9", "10.0.0.1") == "203.0.113.9"
     assert await call("10.9.0.5", "not-an-ip") == "10.9.0.5"
     assert await call("10.9.0.5", None) == "10.9.0.5"
+
+
+async def test_slow_dns_never_delays_a_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A resolver that hangs (e.g. `web` not started yet) must not stall requests or health checks."""
+    import socket
+    import time
+
+    from starlette.types import Receive, Scope, Send
+
+    from glasshaus.api import proxy
+
+    def hang(*_args: object, **_kwargs: object) -> list[object]:
+        time.sleep(1.5)
+        raise socket.gaierror("no such host")
+
+    monkeypatch.setattr(proxy.socket, "getaddrinfo", hang)
+    monkeypatch.setattr(proxy, "RESOLVE_TIMEOUT_SECONDS", 0.2)
+    seen: list[str] = []
+
+    async def app(scope: Scope, receive: Receive, send: Send) -> None:
+        seen.append(scope["client"][0])
+
+    middleware = proxy.ProxyHeadersMiddleware(app, trusted=["web", "127.0.0.1"])
+    started = time.monotonic()
+    for _ in range(3):
+        scope = {
+            "type": "http",
+            "client": ("127.0.0.1", 1),
+            "headers": [(b"x-forwarded-for", b"198.51.100.9")],
+        }
+        await middleware(scope, None, None)  # type: ignore[arg-type]
+    assert time.monotonic() - started < 0.5
+    assert seen == ["198.51.100.9"] * 3  # address literals work while names resolve
+    await asyncio.sleep(0.3)  # the background lookup gives up; requests carry on
+    assert middleware.trusted.resolved == []
 
 
 async def test_rate_limit_counts_client_address_too(app, monkeypatch: pytest.MonkeyPatch) -> None:  # type: ignore[no-untyped-def]

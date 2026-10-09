@@ -208,7 +208,7 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
                 {item.label}
               </span>
               <span
-                className={`shrink-0 text-xs ${i === current ? 'text-sky-100' : 'text-slate-600 dark:text-slate-400'}`}
+                className={`shrink-0 text-xs ${i === current ? 'text-white' : 'text-slate-600 dark:text-slate-400'}`}
               >
                 {item.hint ?? item.group}
               </span>
