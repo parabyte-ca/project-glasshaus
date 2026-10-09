@@ -1,6 +1,6 @@
 [project]
 name = "glasshaus"
-version = "0.9.3"
+version = "0.10.0"
 description = "Project Glasshaus — self-hosted project management platform (API, worker, MCP server)"
 authors = [
     { name = "Parabyte" }

@@ -125,3 +125,9 @@
     animation: none !important;
   }
 }
+
+.driver-popover.glasshaus-tour .driver-popover-footer .driver-popover-btn-disabled {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
+}
