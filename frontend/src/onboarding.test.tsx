@@ -117,6 +117,10 @@ describe('product tour', () => {
     renderAt('/projects/WEB');
     const card = await screen.findByRole('dialog', { name: 'Create a task' });
     expect(card).toHaveAttribute('aria-modal', 'true');
+    // The highlighted form carries no popup ARIA (invalid on a form).
+    await waitFor(() =>
+      expect(document.querySelector('[data-tour="create-task"]')).not.toHaveAttribute('aria-haspopup'),
+    );
     expect(within(card).getByText('Step 1 of 4')).toBeInTheDocument();
     expect(within(card).getByRole('button', { name: 'Skip tour' })).toBeInTheDocument();
 
