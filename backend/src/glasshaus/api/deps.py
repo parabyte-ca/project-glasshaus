@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from glasshaus.core.context import ServiceContext
+from glasshaus.core.context import Actor, ServiceContext
 from glasshaus.core.errors import PermissionDenied, Unauthenticated
 from glasshaus.core.events import relay_events
 from glasshaus.db import get_sessionmaker
@@ -56,6 +56,13 @@ async def get_ctx(request: Request) -> AsyncIterator[ServiceContext]:
             await relay_events(ctx.pending_events)
 
 
+async def get_actor(request: Request) -> Actor:
+    """Authenticate in a short transaction and hold no connection afterwards. For slow calls (AI) that
+    open their own short transactions around the slow part."""
+    async with get_sessionmaker()() as session, session.begin():
+        return (await _authenticate(request, session)).actor
+
+
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     """Unauthenticated transaction (login/refresh/logout)."""
     async with get_sessionmaker()() as session, session.begin():
@@ -63,4 +70,5 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
 
 
 Ctx = Annotated[ServiceContext, Depends(get_ctx, scope="function")]
+CurrentActor = Annotated[Actor, Depends(get_actor)]
 Session = Annotated[AsyncSession, Depends(get_session, scope="function")]

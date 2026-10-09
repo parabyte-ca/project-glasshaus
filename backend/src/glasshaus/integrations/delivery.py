@@ -1,14 +1,17 @@
 """Outbound integration delivery: match events, render Slack / Teams / webhook payloads, send with
 SSRF protection, and retry with backoff."""
 
+import asyncio
 import uuid
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from glasshaus.automation.webhooks import Delivery
 from glasshaus.config import get_settings
 from glasshaus.core.consumers import handles
 from glasshaus.integrations.models import Integration, IntegrationDelivery
@@ -17,6 +20,9 @@ from glasshaus.logs import get_logger
 
 log = get_logger(__name__)
 MAX_TEXT = 300
+SEND_CONCURRENCY = 10
+# How long a claimed delivery is left alone before the retry cron may take it over (a crashed sender).
+SEND_LEASE = timedelta(minutes=5)
 
 
 def _is_completion(event: dict[str, Any]) -> bool:
@@ -147,13 +153,43 @@ async def render(session: AsyncSession, integration: Integration, event: dict[st
     }
 
 
-async def attempt(session: AsyncSession, integration: Integration, delivery: IntegrationDelivery) -> bool:
+@dataclass(frozen=True)
+class Outgoing:
+    """Everything needed to send one delivery without a database connection."""
+
+    delivery_id: uuid.UUID
+    integration_id: uuid.UUID
+    tenant_id: uuid.UUID
+    url: str
+    signing: str | None
+    payload: dict[str, Any]
+    event_type: str
+
+
+def _outgoing(integration: Integration, delivery: IntegrationDelivery) -> Outgoing:
+    values = _secrets_of(integration)
+    return Outgoing(
+        delivery_id=delivery.id,
+        integration_id=integration.id,
+        tenant_id=delivery.tenant_id,
+        url=values.get("url", ""),
+        signing=values.get("signing") if integration.kind == "webhook" else None,
+        payload=delivery.payload,
+        event_type=delivery.event_type,
+    )
+
+
+async def _send(out: Outgoing) -> Delivery:
     from glasshaus.automation.webhooks import send
 
-    values = _secrets_of(integration)
-    url = values.get("url", "")
-    signing = values.get("signing") if integration.kind == "webhook" else None
-    result = await send(url, delivery.payload, secret=signing, event=delivery.event_type)
+    try:
+        return await send(out.url, out.payload, secret=out.signing, event=out.event_type)
+    except Exception as exc:
+        log.warning("integration.delivery_error", integration=str(out.integration_id), exc_info=True)
+        return Delivery(url=out.url, ok=False, error=type(exc).__name__)
+
+
+def _record(integration: Integration, delivery: IntegrationDelivery, result: Delivery) -> bool:
     now = datetime.now(UTC)
     delivery.attempts += 1
     delivery.response_status = result.status_code
@@ -179,14 +215,49 @@ async def attempt(session: AsyncSession, integration: Integration, delivery: Int
     return False
 
 
+async def attempt(session: AsyncSession, integration: Integration, delivery: IntegrationDelivery) -> bool:
+    """Send one delivery now and record the outcome (the 'send test' button)."""
+    return _record(integration, delivery, await _send(_outgoing(integration, delivery)))
+
+
+async def _send_all(batch: list[Outgoing]) -> int:
+    """Send outside any transaction, a few at a time, then record every outcome in one short one."""
+    from glasshaus.db import apply_tenant, system_session
+
+    if not batch:
+        return 0
+    limit = asyncio.Semaphore(SEND_CONCURRENCY)
+
+    async def one(out: Outgoing) -> Delivery:
+        async with limit:
+            return await _send(out)
+
+    results = await asyncio.gather(*(one(out) for out in batch))
+    sent = 0
+    async with system_session() as session:
+        for out, result in zip(batch, results, strict=True):
+            await apply_tenant(session, out.tenant_id)
+            delivery = await session.get(IntegrationDelivery, out.delivery_id)
+            integration = await session.get(Integration, out.integration_id)
+            if delivery is None or integration is None or delivery.status != "pending":
+                continue  # deleted meanwhile
+            sent += int(_record(integration, delivery, result))
+    return sent
+
+
 @handles("*")
 async def fan_out(event: dict[str, Any]) -> None:
-    """Queue one delivery per matching integration and try it once now; failures retry on a cron."""
+    """Queue one delivery per matching integration and try it once now; failures retry on a cron.
+
+    The rows are committed before anything is sent, with their first retry a lease away, so a slow
+    endpoint holds no database connection or row lock and a crash mid-send is retried by the cron.
+    """
     from glasshaus.db import apply_tenant, system_session
 
     if event["type"].startswith(("integration.", "sso.", "scim.", "api_token.", "user.password")):
         return
     tenant_id = uuid.UUID(event["tenant_id"])
+    batch: list[Outgoing] = []
     async with system_session() as session:
         await apply_tenant(session, tenant_id)
         integrations = [
@@ -213,7 +284,7 @@ async def fan_out(event: dict[str, Any]) -> None:
                     status="pending",
                     attempts=0,
                     payload=payload,
-                    next_attempt_at=datetime.now(UTC),
+                    next_attempt_at=datetime.now(UTC) + SEND_LEASE,
                 )
                 .on_conflict_do_nothing()
                 .returning(IntegrationDelivery.id)
@@ -222,24 +293,27 @@ async def fan_out(event: dict[str, Any]) -> None:
                 continue  # already queued by an earlier delivery of this event
             delivery = await session.get(IntegrationDelivery, inserted)
             assert delivery is not None
-            try:
-                await attempt(session, integration, delivery)
-            except Exception:
-                log.warning("integration.delivery_error", integration=str(integration.id), exc_info=True)
+            batch.append(_outgoing(integration, delivery))
+    await _send_all(batch)
 
 
 async def retry_due(limit: int = 100) -> int:
-    """Worker cron: resend pending deliveries whose backoff has elapsed."""
+    """Worker cron: resend pending deliveries whose backoff has elapsed.
+
+    Due rows are claimed by pushing their next attempt a lease away and committing; the sends then run
+    concurrently with no transaction open, and the outcomes are recorded in one short transaction.
+    """
     from glasshaus.db import apply_tenant, system_session
 
-    sent = 0
+    batch: list[Outgoing] = []
     async with system_session() as session:
+        now = datetime.now(UTC)
         due = (
             await session.scalars(
                 select(IntegrationDelivery)
                 .where(
                     IntegrationDelivery.status == "pending",
-                    IntegrationDelivery.next_attempt_at <= datetime.now(UTC),
+                    IntegrationDelivery.next_attempt_at <= now,
                 )
                 .order_by(IntegrationDelivery.next_attempt_at)
                 .limit(limit)
@@ -253,5 +327,6 @@ async def retry_due(limit: int = 100) -> int:
                 delivery.status = "failed"
                 delivery.error = "integration disabled"
                 continue
-            sent += int(await attempt(session, integration, delivery))
-    return sent
+            delivery.next_attempt_at = now + SEND_LEASE
+            batch.append(_outgoing(integration, delivery))
+    return await _send_all(batch)

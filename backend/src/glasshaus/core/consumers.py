@@ -2,6 +2,8 @@
 
 Delivery is at-least-once via a Redis Streams consumer group; handlers must be idempotent.
 Failed entries are retried after ``RETRY_IDLE_MS`` and dead-lettered after ``MAX_DELIVERIES``.
+Events for different aggregates run concurrently (up to ``CONCURRENCY``); events for the same
+aggregate (a task and its comments, say) run one after another in stream order.
 """
 
 import asyncio
@@ -23,6 +25,7 @@ GROUP = "glasshaus-workers"
 DEAD_LETTER = "glasshaus:events:dead"
 RETRY_IDLE_MS = 60_000
 MAX_DELIVERIES = 5
+CONCURRENCY = 8
 log = get_logger(__name__)
 _handlers: dict[str, list[Handler]] = defaultdict(list)
 
@@ -80,6 +83,29 @@ async def _process(entry_id: str, fields: dict[str, str], deliveries: int = 1) -
     await redis.xack(STREAM, GROUP, entry_id)
 
 
+def _ordering_key(fields: dict[str, str]) -> str:
+    try:
+        event = orjson.loads(fields["event"])
+        return f"{event.get('aggregate_type')}:{event.get('aggregate_id')}"
+    except (KeyError, ValueError, AttributeError):
+        return ""  # unreadable entries share one lane; _process dead-letters them
+
+
+async def process_batch(entries: list[tuple[str, dict[str, str]]], concurrency: int = CONCURRENCY) -> None:
+    """Process new entries: one lane per aggregate, in stream order within a lane."""
+    lanes: dict[str, list[tuple[str, dict[str, str]]]] = defaultdict(list)
+    for entry_id, fields in entries:
+        lanes[_ordering_key(fields)].append((entry_id, fields))
+    limit = asyncio.Semaphore(concurrency)
+
+    async def run(lane: list[tuple[str, dict[str, str]]]) -> None:
+        async with limit:
+            for entry_id, fields in lane:
+                await _process(entry_id, fields)
+
+    await asyncio.gather(*(run(lane) for lane in lanes.values()))
+
+
 async def consume(stop: asyncio.Event, consumer: str | None = None, *, block_ms: int = 5000) -> None:
     from glasshaus.redis_client import get_redis
 
@@ -93,8 +119,7 @@ async def consume(stop: asyncio.Event, consumer: str | None = None, *, block_ms:
             # New events first, so a backlog of retries never delays live work.
             batches = await redis.xreadgroup(GROUP, name, {STREAM: ">"}, count=50, block=block_ms)
             for _, entries in batches or []:
-                for entry_id, fields in entries:
-                    await _process(entry_id, fields)
+                await process_batch(entries)
             # Then retry entries another (or this) consumer failed on and left idle.
             _, claimed, _ = await redis.xautoclaim(STREAM, GROUP, name, min_idle_time=RETRY_IDLE_MS, count=20)
             for entry_id, fields in claimed:

@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { QueryClient } from '@tanstack/react-query';
+import { describe, expect, it, vi } from 'vitest';
 
 import { fields, statuses, task, user } from '../test/mockApi';
 import type { CustomField, Status, Task, User } from '../api/client';
@@ -6,7 +7,7 @@ import { formatValue, groupTasks, patchForGroup, positionBetween } from './group
 import { triggerLabel } from './automation';
 import { niceScale } from './chartScale';
 import { currentQuarter, formatMinutes, hours, mondayOf, parseDuration } from './format';
-import { keysFor } from './realtime';
+import { InvalidationBatcher, keysFor } from './realtime';
 import { addDays, monthGrid, parseDay, formatDay } from './dates';
 import { shiftPatch, tasksOn } from './schedule';
 
@@ -60,12 +61,36 @@ describe('board helpers', () => {
 describe('live update keys', () => {
   it('invalidates task, comments and activity for task events', () => {
     expect(keysFor({ type: 'task.updated', aggregate_id: 't1', project_id: 'p1' })).toEqual([
-      ['activity'],
       ['tasks', 'p1'],
       ['task', 't1'],
       ['comments', 't1'],
+      ['activity', 'task', 't1'],
     ]);
     expect(keysFor({ type: 'notification.created' })).toEqual([['notifications']]);
+  });
+
+  it('invalidates each key once per burst, without cancelling refetches in flight', () => {
+    vi.useFakeTimers();
+    try {
+      const client = new QueryClient();
+      const spy = vi.spyOn(client, 'invalidateQueries').mockResolvedValue();
+      const batcher = new InvalidationBatcher(client, 400);
+      for (let i = 0; i < 50; i++) {
+        batcher.add(keysFor({ type: 'task.updated', aggregate_id: `t${i % 2}`, project_id: 'p1' }));
+      }
+      expect(spy).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(400);
+      // tasks list once, plus task/comments/activity for each of the two tasks.
+      expect(spy).toHaveBeenCalledTimes(7);
+      expect(spy).toHaveBeenCalledWith({ queryKey: ['tasks', 'p1'] }, { cancelRefetch: false });
+      spy.mockClear();
+      batcher.add([['projects']]);
+      batcher.dispose();
+      vi.advanceTimersByTime(1000);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -110,8 +110,25 @@ async def invoke[T](
     *,
     target: str | None = None,
 ) -> Any:
+    """Run ``fn`` in one transaction as the caller (scope check, rate limit and audit included)."""
     from glasshaus.db import unit_of_work
 
+    async def in_transaction(actor: Actor) -> T:
+        async with unit_of_work(actor) as ctx:
+            return await fn(ctx)
+
+    return await invoke_as(tool, scope, args, in_transaction, target=target)
+
+
+async def invoke_as[T](
+    tool: str,
+    scope: Scope,
+    args: dict[str, Any],
+    fn: Callable[[Actor], Awaitable[T]],
+    *,
+    target: str | None = None,
+) -> Any:
+    """Like ``invoke`` for calls that manage their own short transactions (slow AI calls)."""
     started = time.monotonic()
     try:
         actor = await current_actor()
@@ -122,9 +139,7 @@ async def invoke[T](
         if not has_scope(actor, scope):
             raise PermissionDenied(f"this tool needs the '{scope.value}' scope; reconnect and grant it")
         await _rate_limit(actor)
-        async with unit_of_work(actor) as ctx:
-            result = await fn(ctx)
-        return dump(result)
+        return dump(await fn(actor))
     except ServiceError as exc:
         outcome = {
             PermissionDenied: "denied",

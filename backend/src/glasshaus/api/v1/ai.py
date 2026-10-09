@@ -15,7 +15,7 @@ from glasshaus.ai.service import (
     AiStatus,
     AiStatusReport,
 )
-from glasshaus.api.deps import Ctx
+from glasshaus.api.deps import Ctx, CurrentActor
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 UNAVAILABLE: dict[int | str, dict[str, Any]] = {
@@ -34,8 +34,8 @@ async def ai_status(ctx: Ctx) -> AiStatus:
     responses=UNAVAILABLE,
     summary="Write a status update from the project's status summary (review before sharing)",
 )
-async def ai_status_report(project_id: uuid.UUID, ctx: Ctx, days: int = 7) -> AiStatusReport:
-    return await ai.status_report(ctx, project_id, days=days)
+async def ai_status_report(project_id: uuid.UUID, actor: CurrentActor, days: int = 7) -> AiStatusReport:
+    return await ai.status_report(actor, project_id, days=days)
 
 
 @router.post(
@@ -44,8 +44,8 @@ async def ai_status_report(project_id: uuid.UUID, ctx: Ctx, days: int = 7) -> Ai
     responses=UNAVAILABLE,
     summary="Propose tasks for a brief; nothing is created until you create them",
 )
-async def ai_draft_tasks(project_id: uuid.UUID, data: AiDraftRequest, ctx: Ctx) -> AiDrafts:
-    return await ai.draft_tasks(ctx, project_id, data)
+async def ai_draft_tasks(project_id: uuid.UUID, data: AiDraftRequest, actor: CurrentActor) -> AiDrafts:
+    return await ai.draft_tasks(actor, project_id, data)
 
 
 @router.post(
@@ -54,8 +54,8 @@ async def ai_draft_tasks(project_id: uuid.UUID, data: AiDraftRequest, ctx: Ctx) 
     responses=UNAVAILABLE,
     summary="Flag schedule and delivery risks with evidence and a suggested next step",
 )
-async def ai_risks(project_id: uuid.UUID, ctx: Ctx) -> AiRisks:
-    return await ai.flag_risks(ctx, project_id)
+async def ai_risks(project_id: uuid.UUID, actor: CurrentActor) -> AiRisks:
+    return await ai.flag_risks(actor, project_id)
 
 
 @router.post(
@@ -64,5 +64,5 @@ async def ai_risks(project_id: uuid.UUID, ctx: Ctx) -> AiRisks:
     responses=UNAVAILABLE,
     summary="Search tasks in plain words; returns the filters used and the matching tasks",
 )
-async def ai_search(data: AiSearchRequest, ctx: Ctx) -> AiSearchResult:
-    return await ai.search(ctx, data)
+async def ai_search(data: AiSearchRequest, actor: CurrentActor) -> AiSearchResult:
+    return await ai.search(actor, data)
