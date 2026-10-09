@@ -53,7 +53,15 @@ export const TOUR_STEPS: DriveStep[] = [
  * leaves, Tab stays inside the card. Resolves with how it ended: finished, or skipped/closed early.
  */
 export function startTour(onEnd: (outcome: TourOutcome) => void) {
-  let outcome: TourOutcome = 'skipped';
+  // driver.js skips onDestroyed when it is closed mid-animation, so the outcome is reported here,
+  // once, from every way out: Done, Skip, ×, Escape or a click outside.
+  let ended = false;
+  const finish = (outcome: TourOutcome) => {
+    if (ended) return;
+    ended = true;
+    aria.disconnect();
+    onEnd(outcome);
+  };
   const dark = document.documentElement.classList.contains('dark');
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   // driver.js marks the highlighted element as a popup trigger; that is invalid ARIA on a form or a
@@ -89,17 +97,20 @@ export function startTour(onEnd: (outcome: TourOutcome) => void) {
         skip.type = 'button';
         skip.className = 'glasshaus-tour-skip';
         skip.textContent = 'Skip tour';
-        skip.addEventListener('click', () => d.destroy());
+        skip.addEventListener('click', () => {
+          finish('skipped');
+          d.destroy();
+        });
         popover.footer.insertBefore(skip, popover.footer.firstChild);
       }
     },
     onDoneClick: (_el, _step, { driver: d }) => {
-      outcome = 'completed';
+      finish('completed');
       d.destroy();
     },
-    onDestroyed: () => {
-      aria.disconnect();
-      onEnd(outcome);
+    onDestroyStarted: (_el, _step, { driver: d }) => {
+      finish('skipped');
+      d.destroy();
     },
   });
   aria.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['aria-haspopup'] });
