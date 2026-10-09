@@ -1,0 +1,127 @@
+/* driver.js popover in the app's design language (Tailwind slate/sky, light and dark). */
+.driver-popover.glasshaus-tour {
+  font-family: inherit;
+  color: #0f172a;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgb(15 23 42 / 0.25);
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: 1rem;
+}
+.driver-popover.glasshaus-tour .driver-popover-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.driver-popover.glasshaus-tour .driver-popover-description {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #334155;
+}
+.driver-popover.glasshaus-tour .driver-popover-progress-text {
+  font-size: 0.75rem;
+  color: #475569;
+}
+.driver-popover.glasshaus-tour .driver-popover-footer {
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.driver-popover.glasshaus-tour .driver-popover-footer button,
+.glasshaus-tour-skip {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  border: 1px solid #cbd5e1;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  text-shadow: none;
+  color: inherit;
+  background: transparent;
+}
+.driver-popover.glasshaus-tour .driver-popover-footer .driver-popover-next-btn {
+  background: #0369a1;
+  border-color: #0369a1;
+  color: #fff;
+  font-weight: 500;
+}
+.driver-popover.glasshaus-tour .driver-popover-footer button:hover,
+.glasshaus-tour-skip:hover {
+  background: #f1f5f9;
+}
+.driver-popover.glasshaus-tour .driver-popover-footer .driver-popover-next-btn:hover {
+  background: #075985;
+}
+.driver-popover.glasshaus-tour button:focus-visible,
+.glasshaus-tour-skip:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 2px;
+}
+.glasshaus-tour-skip {
+  margin-right: auto;
+  border-color: transparent;
+  text-decoration: underline;
+  padding-inline: 0.25rem;
+}
+.driver-popover.glasshaus-tour .driver-popover-close-btn {
+  color: #475569;
+}
+.driver-popover.glasshaus-tour .driver-popover-arrow-side-bottom {
+  border-bottom-color: #fff;
+}
+.driver-popover.glasshaus-tour .driver-popover-arrow-side-top {
+  border-top-color: #fff;
+}
+.driver-popover.glasshaus-tour .driver-popover-arrow-side-left {
+  border-left-color: #fff;
+}
+.driver-popover.glasshaus-tour .driver-popover-arrow-side-right {
+  border-right-color: #fff;
+}
+
+.dark .driver-popover.glasshaus-tour {
+  color: #f1f5f9;
+  background: #0f172a;
+  border-color: #334155;
+}
+.dark .driver-popover.glasshaus-tour .driver-popover-description {
+  color: #cbd5e1;
+}
+.dark .driver-popover.glasshaus-tour .driver-popover-progress-text,
+.dark .driver-popover.glasshaus-tour .driver-popover-close-btn {
+  color: #94a3b8;
+}
+.dark .driver-popover.glasshaus-tour .driver-popover-footer button,
+.dark .glasshaus-tour-skip {
+  border-color: #475569;
+}
+.dark .glasshaus-tour-skip {
+  border-color: transparent;
+}
+.dark .driver-popover.glasshaus-tour .driver-popover-footer button:hover,
+.dark .glasshaus-tour-skip:hover {
+  background: #1e293b;
+}
+.dark .driver-popover.glasshaus-tour .driver-popover-footer .driver-popover-next-btn:hover {
+  background: #075985;
+}
+.dark .driver-popover.glasshaus-tour .driver-popover-arrow-side-bottom {
+  border-bottom-color: #0f172a;
+}
+.dark .driver-popover.glasshaus-tour .driver-popover-arrow-side-top {
+  border-top-color: #0f172a;
+}
+.dark .driver-popover.glasshaus-tour .driver-popover-arrow-side-left {
+  border-left-color: #0f172a;
+}
+.dark .driver-popover.glasshaus-tour .driver-popover-arrow-side-right {
+  border-right-color: #0f172a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .driver-popover,
+  .driver-overlay {
+    transition: none !important;
+    animation: none !important;
+  }
+}

@@ -132,6 +132,8 @@ export const baseRoutes: Route[] = [
   { method: 'GET', path: '/api/v1/calendar-feed', body: { url: null, created_at: null, last_used_at: null } },
   { method: 'GET', path: '/api/v1/auth/sso/providers', body: [] },
   { method: 'GET', path: '/api/v1/auth/sso/identities', body: [] },
+  { method: 'GET', path: /^\/api\/v1\/projects\/[^/]+\/members$/, body: [] },
+  { method: 'GET', path: '/api/v1/users/me/onboarding', body: onboardingDone() },
   {
     method: 'GET',
     path: '/api/v1/ai/status',
@@ -150,3 +152,14 @@ export const aiOn: Route = {
     features: ['summaries', 'drafting', 'risks', 'search'],
   },
 };
+
+/** Onboarding state: by default finished and out of the way, so other tests see the plain app. */
+export function onboardingDone() {
+  return {
+    tour: 'completed',
+    tour_finished_at: '2026-01-01T00:00:00Z',
+    checklist: 'dismissed',
+    dismissed_tips: [],
+    milestones: { created_work: true, added_collaborator: true, set_due_date: true, toured: true },
+  };
+}
