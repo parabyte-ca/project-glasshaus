@@ -6,6 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-10-09
+
+Patch release: performance fixes from the code review.
+
+### Changed
+- **Compression:** the web container serves gzip. Scripts, styles and the page are compressed when the
+  image is built (`gzip_static`); API responses are compressed on the fly. The main script drops from
+  about 310 KB to about 95 KB on the wire.
+- **Live updates** are batched: a burst of events (bulk edits, imports, another person's busy session)
+  refreshes each affected list once per 400 ms instead of once per event, refetches already in flight
+  are not restarted, and only the open task's activity is refreshed.
+- **AI assistant** requests no longer hold a database connection while the model works. The facts are
+  read in a short transaction, the provider is called with no connection open, then the call is audited.
+  A slow model can no longer exhaust the connection pool.
+- **Slack, Teams and webhook deliveries** are committed before they are sent and are sent with no
+  transaction or row lock open, up to 10 at a time. Retries claim their rows with a five-minute lease,
+  so a crash mid-send is retried and two workers never send the same delivery.
+- **Event processing** in the worker runs events for different tasks and projects in parallel (up to 8
+  at a time); events for the same task still run in order.
+
 ## [0.9.1] - 2026-10-08
 
 Patch release: security fixes from a code review, Azure OpenAI for the AI assistant, and a proxy fix for
@@ -287,7 +307,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.7.0...v0.8.0

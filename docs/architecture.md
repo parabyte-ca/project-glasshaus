@@ -52,10 +52,12 @@ PostgreSQL (RLS: tenant_id = app.tenant_id)  ──commit──▶  relay → Re
   the worker through the Redis Streams consumer group `glasshaus-workers`. Delivery is at-least-once, so handlers
   are idempotent (notifications are unique per event and recipient). Failures are retried after 60 s and moved to
   `glasshaus:events:dead` after 5 deliveries. Automations, webhooks and the audit log plug in the same way.
+  Each batch runs events for different aggregates in parallel (up to 8) and events for the same aggregate (a
+  task and its comments) in stream order.
 - **Realtime** (`WS /api/v1/ws`): each connection subscribes to its tenant's pub/sub channel and forwards only
   event identifiers for projects the user can read (visibility cached for 60 s, reset on membership changes).
-  Browsers refetch through the normal API, so no data bypasses authorization. Cookie-authenticated sockets must
-  come from the app's own origin.
+  Browsers refetch through the normal API, so no data bypasses authorization; they collect stale query keys for
+  400 ms and refetch each once. Cookie-authenticated sockets must come from the app's own origin.
 
 ## Scheduling
 
@@ -138,8 +140,9 @@ call the same services.
   `user_identities` links IdP subjects to accounts. **SCIM** (`scim/`, mounted at `/scim/v2`) authenticates
   with hashed `ghs_` tokens and runs through the same services and events as the API.
 - **Integrations** (`integrations/`): a catch-all consumer matches events to outbound integrations,
-  records `integration_deliveries` and sends through the SSRF-checked webhook sender; a worker job retries
-  with backoff. GitHub/GitLab payloads are verified and turned into comments/status changes by the
+  commits `integration_deliveries` rows, then sends through the SSRF-checked webhook sender with no
+  transaction open (a row's first retry is a five-minute lease away, so a crash mid-send is retried); a
+  worker job claims due rows the same way and retries with backoff. GitHub/GitLab payloads are verified and turned into comments/status changes by the
   service layer acting as an `integration` principal. Email-to-task polls IMAP from the worker. Secrets
   are encrypted with Fernet (`core/crypto.py`).
 - **Hardening** (`api/hardening.py`): security headers, a 10 MB body cap and a Redis per-principal rate
