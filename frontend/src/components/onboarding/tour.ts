@@ -56,6 +56,16 @@ export function startTour(onEnd: (outcome: TourOutcome) => void) {
   let outcome: TourOutcome = 'skipped';
   const dark = document.documentElement.classList.contains('dark');
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  // driver.js marks the highlighted element as a popup trigger; that is invalid ARIA on a form or a
+  // region (the popover is a labelled dialog already), so take it off whenever it is added.
+  const POPUP_ARIA = ['aria-haspopup', 'aria-expanded', 'aria-controls'];
+  const aria = new MutationObserver((records) => {
+    for (const { target } of records) {
+      if (target instanceof Element && target.classList.contains('driver-active-element')) {
+        for (const attr of POPUP_ARIA) target.removeAttribute(attr);
+      }
+    }
+  });
   const tour = driver({
     steps: TOUR_STEPS.filter((s) => document.querySelector(String(s.element))),
     showProgress: true,
@@ -83,17 +93,16 @@ export function startTour(onEnd: (outcome: TourOutcome) => void) {
         popover.footer.insertBefore(skip, popover.footer.firstChild);
       }
     },
-    // driver.js marks the highlighted element as a popup trigger; that is invalid ARIA on a form or a
-    // region (the popover is a labelled dialog already), so take it off again.
-    onHighlighted: (element) => {
-      for (const attr of ['aria-haspopup', 'aria-expanded', 'aria-controls']) element?.removeAttribute(attr);
-    },
     onDoneClick: (_el, _step, { driver: d }) => {
       outcome = 'completed';
       d.destroy();
     },
-    onDestroyed: () => onEnd(outcome),
+    onDestroyed: () => {
+      aria.disconnect();
+      onEnd(outcome);
+    },
   });
+  aria.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['aria-haspopup'] });
   tour.drive();
   return tour;
 }
