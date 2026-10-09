@@ -11,7 +11,7 @@ from glasshaus.core.authz import project_role, require_project, require_workspac
 from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import Conflict, InvalidInput, NotFound, PermissionDenied
 from glasshaus.core.rbac import OrgRole, Permission, ProjectRole, WorkspaceRole
-from glasshaus.identity.models import User
+from glasshaus.identity.models import ASSISTANT_KIND, User, is_assistant
 from glasshaus.projects.models import DEFAULT_STATUSES, Project, ProjectMember, ProjectStatus
 from glasshaus.projects.schemas import (
     DeletePreview,
@@ -154,16 +154,26 @@ async def delete_project(
 
 async def list_project_members(ctx: ServiceContext, project_id: uuid.UUID) -> list[ProjectMemberRead]:
     await require_project(ctx, project_id, Permission.PROJECT_READ)
-    rows = await ctx.session.scalars(select(ProjectMember).where(ProjectMember.project_id == project_id))
-    return [ProjectMemberRead.model_validate(m) for m in rows.all()]
+    rows = await ctx.session.execute(
+        select(ProjectMember.user_id, ProjectMember.role, User.kind)
+        .join(User, User.id == ProjectMember.user_id)
+        .where(ProjectMember.project_id == project_id)
+    )
+    return [
+        ProjectMemberRead(user_id=uid, role=role, assistant=kind == ASSISTANT_KIND)
+        for uid, role, kind in rows.all()
+    ]
 
 
 async def set_project_member(
     ctx: ServiceContext, project_id: uuid.UUID, data: ProjectMemberSet
 ) -> ProjectMemberRead:
     await require_project(ctx, project_id, Permission.PROJECT_MANAGE_MEMBERS)
-    if await ctx.session.get(User, data.user_id) is None:
+    user = await ctx.session.get(User, data.user_id)
+    if user is None:
         raise NotFound("user not found")
+    if is_assistant(user) and data.role != ProjectRole.VIEWER:
+        raise InvalidInput("the project assistant can only be a viewer (set it up on the Assistant page)")
     member = await ctx.session.get(ProjectMember, (project_id, data.user_id))
     if member is None:
         member = ProjectMember(

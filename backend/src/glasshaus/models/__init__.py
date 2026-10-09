@@ -1,5 +1,6 @@
 """ORM models. Every module's models are imported here so Alembic autogenerate sees them."""
 
+from glasshaus.assistant.models import ProjectAssistant, ProjectBrief
 from glasshaus.audit.models import AuditEntry
 from glasshaus.automation.models import AutomationRule, AutomationRun, ProjectTemplate, RecurringTask
 from glasshaus.collab.models import Comment, Notification
@@ -53,6 +54,8 @@ __all__ = [
     "Portfolio",
     "PortfolioProject",
     "Project",
+    "ProjectAssistant",
+    "ProjectBrief",
     "ProjectMember",
     "ProjectStatus",
     "ProjectTemplate",

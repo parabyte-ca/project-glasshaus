@@ -25,7 +25,7 @@ from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import Conflict, InvalidInput, NotFound, Unauthenticated
 from glasshaus.core.rbac import OrgRole, Permission
 from glasshaus.core.schemas import Schema
-from glasshaus.identity.models import User
+from glasshaus.identity.models import User, is_assistant
 from glasshaus.sso.models import IdentityProvider, UserIdentity
 
 STATE_TTL_SECONDS = 600
@@ -488,6 +488,8 @@ async def resolve_user(
 
 def _link_refusal(provider: IdentityProvider, user: User, *, email_verified: bool) -> str | None:
     """Why a first sign-in may not be linked to this existing account (None: it may)."""
+    if is_assistant(user):
+        return "the project assistant cannot sign in"
     if user.org_role == OrgRole.OWNER:
         return "owner accounts link single sign-on from Account settings"
     if user.org_role == OrgRole.ADMIN:

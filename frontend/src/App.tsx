@@ -17,6 +17,9 @@ const ProjectSettingsPage = lazy(() =>
 );
 const TimePage = lazy(() => import('./pages/TimePage').then((m) => ({ default: m.TimePage })));
 const WorkloadPage = lazy(() => import('./pages/WorkloadPage').then((m) => ({ default: m.WorkloadPage })));
+const ProjectAssistantPage = lazy(() =>
+  import('./pages/ProjectAssistantPage').then((m) => ({ default: m.ProjectAssistantPage })),
+);
 const ProjectReportPage = lazy(() =>
   import('./pages/ProjectReportPage').then((m) => ({ default: m.ProjectReportPage })),
 );
@@ -60,6 +63,14 @@ export default function App() {
                 }
               />
               <Route path="projects/:projectKey" element={<ProjectPage />} />
+              <Route
+                path="projects/:projectKey/assistant"
+                element={
+                  <Lazy>
+                    <ProjectAssistantPage />
+                  </Lazy>
+                }
+              />
               <Route
                 path="projects/:projectKey/settings"
                 element={

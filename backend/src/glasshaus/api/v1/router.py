@@ -4,6 +4,7 @@ from glasshaus.api.errors import PROBLEM_RESPONSES
 from glasshaus.api.v1 import (
     admin,
     ai,
+    assistant,
     auth,
     automation,
     collab,
@@ -40,6 +41,7 @@ for module in (
     timetracking,
     insights,
     reports,
+    assistant,
     goals,
     oauth,
     onboarding,

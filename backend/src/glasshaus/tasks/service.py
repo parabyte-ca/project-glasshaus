@@ -14,7 +14,7 @@ from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import InvalidInput, NotFound, PermissionDenied, PreconditionFailed, ServiceError
 from glasshaus.core.rbac import Permission, project_role_permissions
 from glasshaus.core.schemas import Page, decode_cursor, encode_cursor
-from glasshaus.identity.models import User
+from glasshaus.identity.models import User, is_assistant
 from glasshaus.projects.models import Project, ProjectStatus, StatusCategory
 from glasshaus.projects.schemas import DeletePreview, StatusRead
 from glasshaus.tasks.models import PRIORITY_RANK, Task
@@ -116,6 +116,8 @@ async def _check_assignee(ctx: ServiceContext, project: Project, user_id: uuid.U
     user = await ctx.session.get(User, user_id)
     if user is None or not user.is_active:
         raise InvalidInput("assignee not found")
+    if is_assistant(user):
+        raise InvalidInput("the project assistant cannot be assigned tasks")
     from glasshaus.core.context import Actor
     from glasshaus.core.context import ServiceContext as Ctx
 

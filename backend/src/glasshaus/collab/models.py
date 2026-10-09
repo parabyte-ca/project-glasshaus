@@ -29,6 +29,7 @@ class NotificationKind(StrEnum):
     COMMENT = "comment"
     AUTOMATION = "automation"
     REPORT_ALERT = "report_alert"
+    ASSISTANT = "assistant"
     SYSTEM = "system"
 
 

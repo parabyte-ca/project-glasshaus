@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState, type FormEvent } from 'react';
+import { Link } from 'react-router';
 
 import { api, unwrap, type ProjectDetail, type User } from '../api/client';
 import { ONBOARDING_KEY } from '../lib/onboarding';
@@ -92,7 +93,7 @@ export function ProjectPeople({
               key={m.user_id}
               className="flex h-5 w-5 items-center justify-center rounded-full bg-sky-100 text-[10px] font-semibold text-sky-900 ring-2 ring-white dark:bg-sky-900 dark:text-sky-100 dark:ring-slate-950"
             >
-              {initials(names.get(m.user_id) ?? '?')}
+              {m.assistant ? 'AI' : initials(names.get(m.user_id) ?? '?')}
             </span>
           ))}
         </span>
@@ -113,25 +114,34 @@ export function ProjectPeople({
             {list.map((m) => (
               <li key={m.user_id} className="flex items-center justify-between gap-2">
                 <span>
-                  {names.get(m.user_id) ?? 'Unknown person'}{' '}
+                  {m.assistant ? 'Project assistant (AI)' : (names.get(m.user_id) ?? 'Unknown person')}{' '}
                   <span className="text-xs text-slate-600 dark:text-slate-400">{m.role}</span>
                 </span>
-                {canManage && (
-                  <button
-                    type="button"
-                    aria-label={`Remove ${names.get(m.user_id) ?? 'person'} from the project`}
-                    onClick={async () =>
-                      (await confirm({
-                        title: `Remove ${names.get(m.user_id) ?? 'this person'} from ${project.name}?`,
-                        body: 'They lose access to the project unless the whole organization has it.',
-                        confirmLabel: 'Remove',
-                        danger: true,
-                      })) && remove.mutate(m.user_id)
-                    }
-                    className="min-h-6 rounded px-1.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
+                {m.assistant ? (
+                  <Link
+                    to={`/projects/${project.key}/assistant`}
+                    className="min-h-6 rounded px-1.5 text-xs text-sky-700 hover:underline dark:text-sky-400"
                   >
-                    Remove
-                  </button>
+                    Settings
+                  </Link>
+                ) : (
+                  canManage && (
+                    <button
+                      type="button"
+                      aria-label={`Remove ${names.get(m.user_id) ?? 'person'} from the project`}
+                      onClick={async () =>
+                        (await confirm({
+                          title: `Remove ${names.get(m.user_id) ?? 'this person'} from ${project.name}?`,
+                          body: 'They lose access to the project unless the whole organization has it.',
+                          confirmLabel: 'Remove',
+                          danger: true,
+                        })) && remove.mutate(m.user_id)
+                      }
+                      className="min-h-6 rounded px-1.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
+                    >
+                      Remove
+                    </button>
+                  )
                 )}
               </li>
             ))}

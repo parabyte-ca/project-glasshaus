@@ -42,7 +42,7 @@ from glasshaus.tasks.schemas import TaskQuery, TaskRead
 
 log = get_logger(__name__)
 
-ALL_FEATURES: list[AiFeature] = ["summaries", "drafting", "risks", "search", "reports"]
+ALL_FEATURES: list[AiFeature] = ["summaries", "drafting", "risks", "search", "reports", "assistant"]
 OPEN = (StatusCategory.BACKLOG, StatusCategory.TODO, StatusCategory.IN_PROGRESS)
 
 GUARD = (

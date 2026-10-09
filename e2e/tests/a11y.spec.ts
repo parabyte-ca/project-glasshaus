@@ -43,6 +43,7 @@ const PAGES: [string, () => string][] = [
   ['task drawer', () => `/projects/${projectKey}?task=${taskKey}`],
   ['project report', () => `/projects/${projectKey}/report`],
   ['project settings', () => `/projects/${projectKey}/settings`],
+  ['project digests', () => `/projects/${projectKey}/assistant`],
   ['account', () => '/account'],
   ['time', () => '/time'],
   ['workload', () => '/workload'],
