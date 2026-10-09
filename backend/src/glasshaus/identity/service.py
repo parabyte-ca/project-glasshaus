@@ -24,7 +24,15 @@ from glasshaus.core.errors import (
 from glasshaus.core.rbac import OrgRole, Permission, Scope, WorkspaceRole
 from glasshaus.db import apply_tenant
 from glasshaus.identity import security
-from glasshaus.identity.models import ApiToken, AuthSession, User, Workspace, WorkspaceMember
+from glasshaus.identity.models import (
+    ASSISTANT_KIND,
+    ApiToken,
+    AuthSession,
+    User,
+    Workspace,
+    WorkspaceMember,
+    is_assistant,
+)
 from glasshaus.identity.schemas import (
     ApiTokenCreate,
     ApiTokenCreated,
@@ -117,7 +125,7 @@ async def login(
             detail={**detail, "reason": "invalid credentials"},
         )
         raise Unauthenticated("invalid credentials")
-    if not user.is_active:
+    if not user.is_active or is_assistant(user):
         await record_raw(
             tenant.id,
             "auth.login",
@@ -259,7 +267,9 @@ async def change_password(ctx: ServiceContext, data: PasswordChange) -> None:
 async def list_users(ctx: ServiceContext, *, q: str | None = None, limit: int = 100) -> list[UserRead]:
     if ctx.actor.org_role == OrgRole.GUEST:
         raise PermissionDenied("guests cannot list users")
-    stmt = select(User).order_by(func.lower(User.name)).limit(min(limit, 500))
+    stmt = (
+        select(User).where(User.kind != ASSISTANT_KIND).order_by(func.lower(User.name)).limit(min(limit, 500))
+    )
     if q:
         like = f"%{q.lower()}%"
         stmt = stmt.where(func.lower(User.name).like(like) | func.lower(User.email).like(like))
@@ -293,6 +303,8 @@ async def update_user(ctx: ServiceContext, user_id: uuid.UUID, data: UserUpdate)
     user = await ctx.session.get(User, user_id)
     if user is None:
         raise NotFound("user not found")
+    if is_assistant(user):
+        raise InvalidInput("the project assistant account is managed by Glasshaus")
     changes = data.model_dump(exclude_unset=True)
     if OrgRole.OWNER in (user.org_role, changes.get("org_role")) and ctx.actor.org_role != OrgRole.OWNER:
         raise PermissionDenied("only owners can change owners")
@@ -395,7 +407,8 @@ async def set_workspace_member(
     ctx: ServiceContext, workspace_id: uuid.UUID, data: WorkspaceMemberSet
 ) -> WorkspaceMemberRead:
     await require_workspace(ctx, workspace_id, manage=True)
-    if await ctx.session.get(User, data.user_id) is None:
+    person = await ctx.session.get(User, data.user_id)
+    if person is None or is_assistant(person):
         raise NotFound("user not found")
     member = await ctx.session.get(WorkspaceMember, (workspace_id, data.user_id))
     if member is None:

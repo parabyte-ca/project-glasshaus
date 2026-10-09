@@ -46,6 +46,9 @@ class User(UUIDPk, TenantScoped, TimestampMixin, Base):
     working_days: Mapped[list[int]] = mapped_column(
         ARRAY(SmallInteger), nullable=False, default=lambda: [0, 1, 2, 3, 4], server_default="{0,1,2,3,4}"
     )
+    # "person", or "assistant" for the organization's AI project assistant: it cannot sign in, is
+    # not listed or provisioned as a person and is never assigned work (glasshaus.assistant).
+    kind: Mapped[str] = mapped_column(String(20), nullable=False, default="person", server_default="person")
     # First-run guidance this person has seen or dismissed (product tour, checklist, tips).
     onboarding: Mapped[dict[str, object]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
@@ -103,3 +106,10 @@ class AuthSession(UUIDPk, TenantScoped, Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     user_agent: Mapped[str] = mapped_column(String(300), default="", server_default="")
     ip: Mapped[str] = mapped_column(String(64), default="", server_default="")
+
+
+ASSISTANT_KIND = "assistant"
+
+
+def is_assistant(user: User | None) -> bool:
+    return user is not None and user.kind == ASSISTANT_KIND

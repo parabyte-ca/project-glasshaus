@@ -21,7 +21,7 @@ from glasshaus.core.errors import Conflict, InvalidInput, NotFound, Unauthentica
 from glasshaus.core.rbac import OrgRole, Permission, WorkspaceRole
 from glasshaus.core.schemas import Schema
 from glasshaus.identity import security
-from glasshaus.identity.models import User, Workspace, WorkspaceMember
+from glasshaus.identity.models import ASSISTANT_KIND, User, Workspace, WorkspaceMember, is_assistant
 from glasshaus.scim.models import ScimToken
 
 USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User"
@@ -217,7 +217,7 @@ def _uuid(value: str) -> uuid.UUID:
 
 
 async def list_users(ctx: ServiceContext, filter_: str | None, start: int, count: int) -> dict[str, Any]:
-    stmt = select(User)
+    stmt = select(User).where(User.kind != ASSISTANT_KIND)  # the AI assistant is not provisioned
     if filter_:
         m = FILTER.match(filter_)
         if not m:
@@ -239,7 +239,7 @@ async def list_users(ctx: ServiceContext, filter_: str | None, start: int, count
 
 async def get_user(ctx: ServiceContext, user_id: str) -> dict[str, Any]:
     user = await ctx.session.get(User, _uuid(user_id))
-    if user is None:
+    if user is None or is_assistant(user):
         raise ScimError(404, "user not found")
     return user_resource(user)
 
@@ -323,7 +323,7 @@ async def _set_active(ctx: ServiceContext, user: User, active: bool) -> None:
 
 async def replace_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) -> dict[str, Any]:
     user = await ctx.session.get(User, _uuid(user_id))
-    if user is None:
+    if user is None or is_assistant(user):
         raise ScimError(404, "user not found")
     email = _email_of(body)
     if "externalId" in body:
@@ -338,7 +338,7 @@ async def replace_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) 
 
 async def patch_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) -> dict[str, Any]:
     user = await ctx.session.get(User, _uuid(user_id))
-    if user is None:
+    if user is None or is_assistant(user):
         raise ScimError(404, "user not found")
     for op in body.get("Operations") or []:
         kind = str(op.get("op", "")).lower()
@@ -369,7 +369,7 @@ async def patch_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) ->
 
 async def delete_user(ctx: ServiceContext, user_id: str) -> None:
     user = await ctx.session.get(User, _uuid(user_id))
-    if user is None:
+    if user is None or is_assistant(user):
         raise ScimError(404, "user not found")
     await _set_active(ctx, user, False)
     events.emit(ctx, "user.updated", "user", user.id, {"source": "scim", "active": False})
@@ -389,7 +389,7 @@ async def _set_members(ctx: ServiceContext, ws: Workspace, add: list[str], remov
 
     for raw in add:
         uid = _uuid(raw)
-        if await ctx.session.get(User, uid) is None:
+        if (member := await ctx.session.get(User, uid)) is None or is_assistant(member):
             raise ScimError(400, f"unknown member {raw}", "invalidValue")
         await ctx.session.execute(
             insert(WorkspaceMember)

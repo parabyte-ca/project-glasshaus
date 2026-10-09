@@ -45,7 +45,9 @@ function ProjectPageFor({ projectKey }: { projectKey: string }) {
   const p = project.data;
   usePageTitle(p?.name ?? 'Project');
   const ai = useAiStatus();
-  const aiFeatures = (ai.data?.features ?? []).filter((f) => f !== 'search');
+  const aiFeatures = (ai.data?.features ?? []).filter(
+    (f) => f === 'summaries' || f === 'drafting' || f === 'risks',
+  );
   const [assistant, setAssistant] = useState(false);
 
   const viewId = params.get('view');
@@ -209,6 +211,9 @@ function ProjectPageFor({ projectKey }: { projectKey: string }) {
           )}
           <Link to={`/projects/${p.key}/report`} className={`text-sm ${linkClass}`}>
             Report
+          </Link>
+          <Link to={`/projects/${p.key}/assistant`} className={`text-sm ${linkClass}`}>
+            Digests
           </Link>
           {p.my_role === 'admin' && (
             <span className="flex items-center gap-1">

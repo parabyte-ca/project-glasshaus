@@ -19,6 +19,11 @@ const AI_FEATURES: [Feature, string, string][] = [
     'Questions about reports',
     'Answer a question from a report run with the asker’s access. The question, project keys, people’s names and saved report names are sent, then the report table (group names such as projects, people and tags, and the numbers); never task titles or descriptions.',
   ],
+  [
+    'assistant',
+    'Project assistant',
+    'Add a short AI summary and focus list to the daily stand-up digest, and write the weekly status draft, for projects that turn the assistant on. Sends the open, due, overdue, stale and recently done tasks (keys, titles, statuses, due dates, owners’ names). Without this, digests list the facts only.',
+  ],
 ];
 
 /** Organization switch and per-feature settings for the optional AI assistant. */

@@ -19,9 +19,9 @@ from glasshaus.core.rbac import OrgRole, Permission
 from glasshaus.core.schemas import Schema
 from glasshaus.governance.models import OrgSettings
 from glasshaus.identity import security
-from glasshaus.identity.models import ApiToken, AuthSession, User
+from glasshaus.identity.models import ApiToken, AuthSession, User, is_assistant
 
-AiFeature = Literal["summaries", "drafting", "risks", "search", "reports"]
+AiFeature = Literal["summaries", "drafting", "risks", "search", "reports", "assistant"]
 
 # Columns never exported (credentials and secret hashes).
 EXPORT_EXCLUDED_COLUMNS = {
@@ -144,7 +144,7 @@ async def reset_password(ctx: ServiceContext, user_id: uuid.UUID, data: Password
     if ctx.actor.method != "session":
         raise PermissionDenied("password resets require an interactive session")
     user = await ctx.session.get(User, user_id)
-    if user is None:
+    if user is None or is_assistant(user):
         raise NotFound("user not found")
     if user.org_role == OrgRole.OWNER and ctx.actor.org_role != OrgRole.OWNER:
         raise PermissionDenied("only owners can reset an owner's password")

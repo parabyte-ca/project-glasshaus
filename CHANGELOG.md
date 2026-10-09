@@ -6,6 +6,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-09
+
+The project assistant, phase 1.
+
+### Added
+- **Project assistant** (project → **Digests**). Project admins turn it on per project. It writes a
+  **daily stand-up digest** for everyone on the project (overdue with days late, due today and soon,
+  in-progress work with no update for a set number of days, unassigned work due soon, what was done,
+  schedule warnings) and a **weekly status draft** for project admins, delivered by notification (and
+  phone push), email and, for the digest, a Slack or Teams channel. **Write a digest now** and **Write a
+  weekly draft now** store one on the page without notifying anyone. Details in
+  [docs/assistant.md](docs/assistant.md).
+- **AI write-ups** for the assistant (new AI feature **Project assistant**, off until an organization
+  admin ticks it): a short summary and focus list for the digest, and a headline, write-up, highlights
+  and concerns for the weekly draft. Without it, or if the model fails, briefs still go out with the
+  facts.
+- **The assistant's account:** one *Project assistant (AI)* account per organization, added to a project
+  as a Viewer while the assistant is on. It cannot sign in, is not listed or provisioned as a person,
+  cannot be promoted or assigned tasks, and its AI requests are audited under its name.
+- API: `GET/PUT/DELETE /api/v1/projects/{id}/assistant`, `POST /api/v1/projects/{id}/assistant/run`,
+  `GET /api/v1/projects/{id}/assistant/briefs`, `GET /api/v1/assistant/briefs/{id}`; project members
+  now say which one is the assistant (`assistant`).
+
+### Changed
+- The project's **Assistant** button only appears for the features it holds (status updates, drafting,
+  risks).
+
 ## [0.17.0] - 2026-10-09
 
 Glasshaus on your phone.
@@ -518,7 +545,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.14.0...v0.15.0
