@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import and_, func, or_, select, update
 
 from glasshaus.collab.mentions import extract_mentions
-from glasshaus.collab.models import Comment, Notification
+from glasshaus.collab.models import Comment, Notification, NotificationKind
 from glasshaus.collab.schemas import (
     ActivityItem,
     CommentCreate,
@@ -228,3 +228,44 @@ async def activity(
         items=[ActivityItem.model_validate(_public(envelope(r))) for r in rows[:limit]],
         next_cursor=encode_cursor(offset + limit) if more else None,
     )
+
+
+async def notify_users(
+    ctx: ServiceContext,
+    user_ids: list[uuid.UUID],
+    *,
+    kind: NotificationKind,
+    title: str,
+    link: str | None = None,
+    event_id: uuid.UUID | None = None,
+) -> list[uuid.UUID]:
+    """Notify people about something that is not a task (a report alert, a backup problem).
+
+    With ``event_id`` each person is notified once for it, so a repeated check never piles up
+    duplicates. Returns the people who got a new notification. Callers check access themselves.
+    """
+    from sqlalchemy.dialects.postgresql import insert
+
+    event = event_id or uuid.uuid4()
+    created: list[uuid.UUID] = []
+    for user_id in dict.fromkeys(user_ids):
+        stmt = (
+            insert(Notification)
+            .values(
+                id=uuid.uuid4(),
+                tenant_id=ctx.tenant_id,
+                user_id=user_id,
+                kind=kind,
+                event_id=event,
+                title=title[:300],
+                link=link,
+            )
+            .on_conflict_do_nothing(index_elements=["event_id", "user_id"])
+        )
+        if (await ctx.session.execute(stmt)).rowcount:  # type: ignore[attr-defined]
+            created.append(user_id)
+    if created:
+        from glasshaus.realtime import publish_user_signal
+
+        await publish_user_signal(ctx.tenant_id, [str(u) for u in created], "notification.created")
+    return created

@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.14.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
+> **Status:** v0.15.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -316,6 +316,12 @@ Claude Code and generic clients are in [docs/integrations](docs/integrations/REA
 - On demand: `make backup` (or `scripts/backup.sh [label]`).
 - Restore: `make restore FILE=backups/glasshaus-….dump`. A safety backup is taken first, app services
   are stopped, the database is replaced, and the stack is restarted and health-checked.
+- **Restore drill:** every `GLASSHAUS_BACKUP_DRILL_DAYS` (default 7; 0 turns it off) the backup service
+  restores the newest backup into a scratch database, checks it (schema version, tables, people,
+  projects, tasks), drops it and records the result. Run one now with
+  `docker compose exec backup /bin/sh /scripts/restore-drill.sh [/backups/<file>.dump]`.
+- **Admin → Backups** shows the newest backups and the last drill. Owners and admins get a notification
+  (and an email, if email is set up) once a day while backups are late or a drill failed.
 - Copy the backup directory off-host (for example with restic or rsync) for disaster recovery.
 
 ## Upgrading
@@ -324,14 +330,18 @@ Claude Code and generic clients are in [docs/integrations](docs/integrations/REA
 ./update.sh           # git pull + rebuild;  --pull uses published images;  --no-git skips git pull
 ```
 
-`update.sh` backs up the database, fetches the new version, builds or pulls images, applies migrations,
-restarts and health-checks the stack. If any step fails it restores the pre-update backup and restarts the
-previous version automatically.
+`update.sh` backs up the database, fetches the new version and builds or pulls images. Then a
+**pre-flight check** restores that backup into a scratch database, lets the new release migrate it and
+starts the new API against it; only if the API becomes ready does the real upgrade go ahead. If the
+pre-flight fails, nothing is changed and the running version keeps going (`--skip-preflight` skips it).
+The upgrade then applies migrations, restarts and health-checks the stack; if any step fails it restores
+the pre-update backup and restarts the previous version automatically.
 
 Version-specific upgrade notes:
 
 | Version | Notes |
 | --- | --- |
+| 0.15.0 | The API and worker get a read-only view of the backup folder (Admin → Backups). On TrueNAS or other hosts with custom permissions, make sure uid 10001 can read `GLASSHAUS_BACKUP_DIR`. `./update.sh` as usual (its pre-flight check starts with the next upgrade). |
 | 0.4.0 | New tables for dependencies and baselines; projects gain `auto_schedule` (off). `./update.sh` as usual. |
 | 0.3.0 | New tables (custom fields, comments, notifications, saved views); existing events are backfilled with their project. `./update.sh` as usual. |
 | 0.2.1 | Security patch for container base packages. `./update.sh` as usual. |
@@ -370,7 +380,7 @@ builds, scans and publishes multi-arch (amd64/arm64) images to GHCR.
 | 8 | 0.9.0 | In-app AI layer, polish, accessibility, E2E tests | ✅ |
 | 9 | 0.10.0–0.13.0 | Onboarding, usability and accessibility pass, refreshed theme, custom reports and dashboards, AI questions about reports | ✅ |
 | 10 | 0.14.0 | Release automation, scheduled report emails | ✅ |
-| 11 | 0.15.0 | Report alerts (off-target numbers notify their owner), backup restore drill, upgrade pre-flight check | Planned |
+| 11 | 0.15.0 | Report alerts, backup restore drill and backup health, upgrade pre-flight check | ✅ |
 | 12 | 0.16.0 | Teams and Slack: post reports and status updates, ask the assistant from chat | Planned |
 | 13 | 0.17.0 | Phone: offline "My tasks", push notifications | Planned |
 | 14 | 0.18.0 | Virtual project manager (AI): daily stand-up digest, follow-ups and weekly status, with approval | Proposed |

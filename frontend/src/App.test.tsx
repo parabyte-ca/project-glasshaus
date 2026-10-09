@@ -367,6 +367,43 @@ describe('notifications', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mark all read' }));
     await waitFor(() => expect(calls.some((c) => c.url.endsWith('/api/v1/notifications/read'))).toBe(true));
   });
+
+  it('opens in-app links from report alerts and ignores others', async () => {
+    const note = (id: string, title: string, link: string) => ({
+      id,
+      kind: 'report_alert',
+      task_id: null,
+      project_id: null,
+      actor_id: null,
+      title,
+      link,
+      created_at: '2026-01-01T00:00:00Z',
+      read_at: '2026-01-01T00:00:00Z',
+    });
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/notifications',
+        body: {
+          items: [
+            note('n1', 'Open work: Open is 3, above 2', '/reports/r1'),
+            note('n2', 'Elsewhere', '//evil.example/x'),
+          ],
+          next_cursor: null,
+        },
+      },
+      { method: 'GET', path: '/api/v1/reports/r1', status: 404, body: { detail: 'report not found' } },
+    ]);
+    renderAt('/');
+    await userEvent.click(await screen.findByRole('button', { name: /Notifications/ }));
+    await userEvent.click(await screen.findByText('Elsewhere'));
+    expect(window.location.pathname).toBe('/');
+    await userEvent.click(await screen.findByRole('button', { name: /Notifications/ }));
+    await userEvent.click(await screen.findByText('Open work: Open is 3, above 2'));
+    await waitFor(() => expect(window.location.pathname).toBe('/reports/r1'));
+  });
 });
 
 describe('account', () => {
@@ -537,6 +574,60 @@ describe('connected access', () => {
 
 describe('administration', () => {
   const member = { ...user, id: 'u2', email: 'lin@example.com', name: 'Lin', org_role: 'member' };
+
+  it('shows backup health and the last restore drill', async () => {
+    mockApi([
+      {
+        method: 'GET',
+        path: '/api/v1/admin/backups',
+        body: {
+          available: true,
+          folder: '/backups',
+          interval_hours: 24,
+          drill_days: 7,
+          count: 2,
+          total_bytes: 3 * 1024 * 1024,
+          latest: [
+            {
+              name: 'glasshaus-20261009T020000Z.dump',
+              bytes: 2 * 1024 * 1024,
+              created_at: '2026-10-09T02:00:00Z',
+            },
+            {
+              name: 'glasshaus-20261008T020000Z.dump',
+              bytes: 1024 * 1024,
+              created_at: '2026-10-08T02:00:00Z',
+            },
+          ],
+          drill: {
+            finished_at: '2026-10-09T02:01:00Z',
+            ok: false,
+            dump: 'glasshaus-20261009T020000Z.dump',
+            dump_bytes: 2097152,
+            seconds: 4,
+            tables: 61,
+            revision: 'a',
+            live_revision: 'a',
+            rows: { users: 3, projects: 2, tasks: 40 },
+            error: 'pg_restore failed',
+          },
+          problems: [{ code: 'drill_failed', message: 'The last restore drill failed: pg_restore failed' }],
+        },
+      },
+      ...baseRoutes,
+      signedIn,
+    ]);
+    renderAt('/admin?tab=backups');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The last restore drill failed: pg_restore failed',
+    );
+    expect(
+      screen.getByText(/^Failed .* 61 tables, 3 people, 2 projects, 40 tasks, 4 s$/),
+    ).toBeInTheDocument();
+    const files = screen.getByRole('table', { name: 'Newest backups' });
+    expect(within(files).getAllByRole('row')).toHaveLength(3);
+    expect(within(files).getByText('2.0 MB')).toBeInTheDocument();
+  });
 
   it('deactivates a person after confirming', async () => {
     let people = [user, member];

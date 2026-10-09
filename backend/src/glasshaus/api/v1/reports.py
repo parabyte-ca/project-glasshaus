@@ -5,9 +5,11 @@ from typing import Any
 from fastapi import APIRouter, Response, status
 
 from glasshaus.api.deps import Ctx, CurrentActor
+from glasshaus.reports import alerts, subscriptions
 from glasshaus.reports import service as reports
-from glasshaus.reports import subscriptions
 from glasshaus.reports.schemas import (
+    ReportAlertRead,
+    ReportAlertWrite,
     ReportDefinition,
     ReportEmailStatus,
     ReportOverrides,
@@ -51,6 +53,11 @@ async def create_report(data: SavedReportCreate, ctx: Ctx) -> SavedReportRead:
 )
 async def list_report_emails(ctx: Ctx) -> list[ReportSubscriptionRead]:
     return await subscriptions.list_subscriptions(ctx)
+
+
+@router.get("/reports/alerts", response_model=list[ReportAlertRead], summary="Your report alerts")
+async def list_report_alerts(ctx: Ctx) -> list[ReportAlertRead]:
+    return await alerts.list_alerts(ctx)
 
 
 @router.get("/reports/{report_id}", response_model=SavedReportRead, summary="A saved report's definition")
@@ -141,3 +148,38 @@ async def send_report_now(
     report_id: uuid.UUID, actor: CurrentActor, attach_csv: bool = True
 ) -> dict[str, str]:
     return {"sent_to": await subscriptions.send_now(actor, report_id, attach_csv=attach_csv)}
+
+
+@router.get(
+    "/reports/{report_id}/alert",
+    response_model=ReportAlertRead | None,
+    summary="Your alert on this report, if any",
+)
+async def get_report_alert(report_id: uuid.UUID, ctx: Ctx) -> ReportAlertRead | None:
+    return await alerts.get_alert(ctx, report_id)
+
+
+@router.put(
+    "/reports/{report_id}/alert",
+    response_model=ReportAlertRead,
+    summary="Alert me when this report's total goes above or below a threshold",
+)
+async def set_report_alert(report_id: uuid.UUID, data: ReportAlertWrite, ctx: Ctx) -> ReportAlertRead:
+    return await alerts.set_alert(ctx, report_id, data)
+
+
+@router.delete(
+    "/reports/{report_id}/alert", status_code=status.HTTP_204_NO_CONTENT, summary="Remove your alert"
+)
+async def delete_report_alert(report_id: uuid.UUID, ctx: Ctx) -> Response:
+    await alerts.delete_alert(ctx, report_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/reports/{report_id}/alert/check",
+    response_model=ReportAlertRead,
+    summary="Check your alert now (notifies you if it changed)",
+)
+async def check_report_alert(report_id: uuid.UUID, actor: CurrentActor) -> ReportAlertRead:
+    return await alerts.check_now(actor, report_id)

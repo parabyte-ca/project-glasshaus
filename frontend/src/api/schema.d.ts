@@ -1385,6 +1385,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/reports/alerts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Your report alerts */
+    get: operations['list_report_alerts'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/reports/{report_id}': {
     parameters: {
       query?: never;
@@ -1468,6 +1485,42 @@ export interface paths {
     put?: never;
     /** Email this report to yourself now */
     post: operations['send_report_now'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/reports/{report_id}/alert': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Your alert on this report, if any */
+    get: operations['get_report_alert'];
+    /** Alert me when this report's total goes above or below a threshold */
+    put: operations['set_report_alert'];
+    post?: never;
+    /** Remove your alert */
+    delete: operations['delete_report_alert'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/reports/{report_id}/alert/check': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Check your alert now (notifies you if it changed) */
+    post: operations['check_report_alert'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1704,6 +1757,23 @@ export interface paths {
     head?: never;
     /** Change retention settings */
     patch: operations['update_settings'];
+    trace?: never;
+  };
+  '/api/v1/admin/backups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Backups and the last restore drill (single-organization servers) */
+    get: operations['backup_status'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   '/api/v1/admin/export': {
@@ -2693,6 +2763,44 @@ export interface components {
        */
       created_at: string;
     };
+    /** BackupFile */
+    BackupFile: {
+      /** Name */
+      name: string;
+      /** Bytes */
+      bytes: number;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** BackupStatus */
+    BackupStatus: {
+      /**
+       * Available
+       * @description False when the backup folder is not visible to the app.
+       */
+      available: boolean;
+      /** Folder */
+      folder: string;
+      /** Interval Hours */
+      interval_hours: number;
+      /** Drill Days */
+      drill_days: number;
+      /** Count */
+      count: number;
+      /** Total Bytes */
+      total_bytes: number;
+      /**
+       * Latest
+       * @description Newest first, up to 10.
+       */
+      latest: components['schemas']['BackupFile'][];
+      drill: components['schemas']['DrillResult'] | null;
+      /** Problems */
+      problems: components['schemas']['glasshaus__backups__Problem'][];
+    };
     /** BaselineCreate */
     BaselineCreate: {
       /** Name */
@@ -3225,6 +3333,52 @@ export interface components {
        */
       tags: string[];
     };
+    /** DrillResult */
+    DrillResult: {
+      /**
+       * Finished At
+       * Format: date-time
+       */
+      finished_at: string;
+      /** Ok */
+      ok: boolean;
+      /** Dump */
+      dump: string;
+      /**
+       * Dump Bytes
+       * @default 0
+       */
+      dump_bytes: number;
+      /**
+       * Seconds
+       * @default 0
+       */
+      seconds: number;
+      /**
+       * Tables
+       * @default 0
+       */
+      tables: number;
+      /**
+       * Revision
+       * @default
+       */
+      revision: string;
+      /**
+       * Live Revision
+       * @default
+       */
+      live_revision: string;
+      /** Rows */
+      rows: {
+        [key: string]: number;
+      };
+      /**
+       * Error
+       * @default
+       */
+      error: string;
+    };
     /** EmailConfig */
     'EmailConfig-Input': {
       /** Host */
@@ -3674,7 +3828,7 @@ export interface components {
      * NotificationKind
      * @enum {string}
      */
-    NotificationKind: 'mention' | 'assigned' | 'comment' | 'automation';
+    NotificationKind: 'mention' | 'assigned' | 'comment' | 'automation' | 'report_alert' | 'system';
     /** NotificationRead */
     NotificationRead: {
       /**
@@ -3691,6 +3845,11 @@ export interface components {
       actor_id: string | null;
       /** Title */
       title: string;
+      /**
+       * Link
+       * @description In-app path to open, e.g. /reports/<id>.
+       */
+      link: string | null;
       /**
        * Created At
        * Format: date-time
@@ -4079,25 +4238,6 @@ export interface components {
      * @enum {string}
      */
     Priority: 'none' | 'low' | 'medium' | 'high' | 'urgent';
-    /** Problem */
-    Problem: {
-      /** Type */
-      type: string;
-      /** Title */
-      title: string;
-      /** Status */
-      status: number;
-      /** Detail */
-      detail: string;
-      /** Code */
-      code: string;
-      /** Errors */
-      errors?:
-        | {
-            [key: string]: unknown;
-          }[]
-        | null;
-    };
     /** ProjectCreate */
     ProjectCreate: {
       /**
@@ -4619,6 +4759,71 @@ export interface components {
       enabled?: boolean | null;
       template?: components['schemas']['RecurringTemplate-Input'] | null;
       schedule?: components['schemas']['ScheduleSpec-Input'] | null;
+    };
+    /** ReportAlertRead */
+    ReportAlertRead: {
+      /**
+       * Report Id
+       * Format: uuid
+       */
+      report_id: string;
+      /** Report Name */
+      report_name: string;
+      /** Measure */
+      measure: string;
+      /** Measure Label */
+      measure_label: string;
+      /**
+       * Direction
+       * @enum {string}
+       */
+      direction: 'above' | 'below';
+      /** Threshold */
+      threshold: number;
+      schedule: components['schemas']['ScheduleSpec-Output'];
+      /** Email */
+      email: boolean;
+      /**
+       * State
+       * @description unknown until the first check; triggered while past the threshold.
+       * @enum {string}
+       */
+      state: 'unknown' | 'ok' | 'triggered';
+      /** Last Value */
+      last_value: number | null;
+      /** Last Checked At */
+      last_checked_at: string | null;
+      /** Last Error */
+      last_error: string | null;
+      /**
+       * Next Run At
+       * Format: date-time
+       */
+      next_run_at: string;
+    };
+    /** ReportAlertWrite */
+    ReportAlertWrite: {
+      /**
+       * Measure
+       * @description One of the report's measures; its total is checked.
+       */
+      measure: string;
+      /**
+       * Direction
+       * @description Alert when the total goes above or below the threshold.
+       * @enum {string}
+       */
+      direction: 'above' | 'below';
+      /** Threshold */
+      threshold: number;
+      /** @description When to check, in your time zone. */
+      schedule: components['schemas']['ScheduleSpec-Input'];
+      /**
+       * Email
+       * @description Also send an email (when the server has email).
+       * @default false
+       */
+      email?: boolean;
     };
     /** ReportDefinition */
     'ReportDefinition-Input': {
@@ -6725,6 +6930,32 @@ export interface components {
       /** Description */
       description?: string | null;
     };
+    /** Problem */
+    glasshaus__api__errors__Problem: {
+      /** Type */
+      type: string;
+      /** Title */
+      title: string;
+      /** Status */
+      status: number;
+      /** Detail */
+      detail: string;
+      /** Code */
+      code: string;
+      /** Errors */
+      errors?:
+        | {
+            [key: string]: unknown;
+          }[]
+        | null;
+    };
+    /** Problem */
+    glasshaus__backups__Problem: {
+      /** Code */
+      code: string;
+      /** Message */
+      message: string;
+    };
   };
   responses: never;
   parameters: never;
@@ -6825,7 +7056,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -6835,7 +7066,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -6845,7 +7076,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -6855,7 +7086,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -6885,7 +7116,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -6895,7 +7126,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -6905,7 +7136,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -6915,7 +7146,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -6943,7 +7174,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -6953,7 +7184,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -6963,7 +7194,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -6973,7 +7204,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7005,7 +7236,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7015,7 +7246,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7025,7 +7256,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7035,7 +7266,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7065,7 +7296,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7075,7 +7306,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7085,7 +7316,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7095,7 +7326,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7128,7 +7359,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7138,7 +7369,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7148,7 +7379,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7158,7 +7389,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7192,7 +7423,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7202,7 +7433,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7212,7 +7443,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7222,7 +7453,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7258,7 +7489,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7268,7 +7499,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7278,7 +7509,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7288,7 +7519,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7318,7 +7549,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7328,7 +7559,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7338,7 +7569,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7348,7 +7579,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7382,7 +7613,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7392,7 +7623,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7402,7 +7633,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7412,7 +7643,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7442,7 +7673,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7452,7 +7683,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7462,7 +7693,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7472,7 +7703,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7502,7 +7733,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7512,7 +7743,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7522,7 +7753,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7532,7 +7763,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7566,7 +7797,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7576,7 +7807,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7586,7 +7817,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7596,7 +7827,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7628,7 +7859,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7638,7 +7869,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7648,7 +7879,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7658,7 +7889,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7694,7 +7925,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7704,7 +7935,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7714,7 +7945,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7724,7 +7955,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7756,7 +7987,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7766,7 +7997,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7776,7 +8007,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7786,7 +8017,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7822,7 +8053,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7832,7 +8063,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7842,7 +8073,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7852,7 +8083,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7883,7 +8114,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7893,7 +8124,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7903,7 +8134,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7913,7 +8144,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -7947,7 +8178,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -7957,7 +8188,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -7967,7 +8198,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -7977,7 +8208,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8011,7 +8242,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8021,7 +8252,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8031,7 +8262,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8041,7 +8272,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8073,7 +8304,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8083,7 +8314,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8093,7 +8324,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8103,7 +8334,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8135,7 +8366,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8145,7 +8376,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8155,7 +8386,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8165,7 +8396,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8199,7 +8430,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8209,7 +8440,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8219,7 +8450,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8229,7 +8460,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8265,7 +8496,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8275,7 +8506,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8285,7 +8516,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8295,7 +8526,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8327,7 +8558,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8337,7 +8568,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8347,7 +8578,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8357,7 +8588,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8393,7 +8624,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8403,7 +8634,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8413,7 +8644,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8423,7 +8654,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8454,7 +8685,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8464,7 +8695,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8474,7 +8705,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8484,7 +8715,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8516,7 +8747,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8526,7 +8757,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8536,7 +8767,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8546,7 +8777,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8582,7 +8813,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8592,7 +8823,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8602,7 +8833,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8612,7 +8843,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8645,7 +8876,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8655,7 +8886,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8665,7 +8896,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8675,7 +8906,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8712,7 +8943,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8722,7 +8953,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8732,7 +8963,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8742,7 +8973,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8774,7 +9005,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8784,7 +9015,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8794,7 +9025,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8804,7 +9035,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8840,7 +9071,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8850,7 +9081,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8860,7 +9091,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8870,7 +9101,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8901,7 +9132,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8911,7 +9142,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8921,7 +9152,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8931,7 +9162,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -8968,7 +9199,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -8978,7 +9209,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -8988,7 +9219,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -8998,7 +9229,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9030,7 +9261,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9040,7 +9271,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9050,7 +9281,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9060,7 +9291,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9096,7 +9327,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9106,7 +9337,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9116,7 +9347,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9126,7 +9357,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9158,7 +9389,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9168,7 +9399,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9178,7 +9409,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9188,7 +9419,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9218,7 +9449,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9228,7 +9459,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9238,7 +9469,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9248,7 +9479,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9284,7 +9515,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9294,7 +9525,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9304,7 +9535,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9314,7 +9545,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9349,7 +9580,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9359,7 +9590,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9369,7 +9600,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9379,7 +9610,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9438,7 +9669,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9448,7 +9679,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9458,7 +9689,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9468,7 +9699,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9502,7 +9733,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9512,7 +9743,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9522,7 +9753,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9532,7 +9763,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9566,7 +9797,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9576,7 +9807,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9586,7 +9817,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9596,7 +9827,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9632,7 +9863,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9642,7 +9873,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9652,7 +9883,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9662,7 +9893,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9694,7 +9925,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9704,7 +9935,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9714,7 +9945,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9724,7 +9955,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9754,7 +9985,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9764,7 +9995,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9774,7 +10005,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9784,7 +10015,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9822,7 +10053,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9832,7 +10063,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9842,7 +10073,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9852,7 +10083,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9884,7 +10115,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9894,7 +10125,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9904,7 +10135,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9914,7 +10145,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -9946,7 +10177,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -9956,7 +10187,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -9966,7 +10197,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -9976,7 +10207,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10008,7 +10239,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10018,7 +10249,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10028,7 +10259,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10038,7 +10269,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10070,7 +10301,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10080,7 +10311,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10090,7 +10321,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10100,7 +10331,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10134,7 +10365,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10144,7 +10375,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10154,7 +10385,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10164,7 +10395,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10194,7 +10425,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10204,7 +10435,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10214,7 +10445,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10224,7 +10455,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10260,7 +10491,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10270,7 +10501,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10280,7 +10511,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10290,7 +10521,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10322,7 +10553,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10332,7 +10563,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10342,7 +10573,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10352,7 +10583,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10386,7 +10617,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10396,7 +10627,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10406,7 +10637,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10416,7 +10647,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10450,7 +10681,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10460,7 +10691,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10470,7 +10701,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10480,7 +10711,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10512,7 +10743,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10522,7 +10753,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10532,7 +10763,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10542,7 +10773,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10578,7 +10809,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10588,7 +10819,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10598,7 +10829,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10608,7 +10839,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10640,7 +10871,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10650,7 +10881,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10660,7 +10891,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10670,7 +10901,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10700,7 +10931,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10710,7 +10941,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10720,7 +10951,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10730,7 +10961,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10762,7 +10993,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10772,7 +11003,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10782,7 +11013,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10792,7 +11023,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10828,7 +11059,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10838,7 +11069,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10848,7 +11079,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10858,7 +11089,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10888,7 +11119,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10898,7 +11129,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10908,7 +11139,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10918,7 +11149,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -10954,7 +11185,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -10964,7 +11195,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -10974,7 +11205,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -10984,7 +11215,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11018,7 +11249,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11028,7 +11259,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11038,7 +11269,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11048,7 +11279,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11078,7 +11309,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11088,7 +11319,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11098,7 +11329,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11108,7 +11339,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11142,7 +11373,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11152,7 +11383,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11162,7 +11393,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11172,7 +11403,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11208,7 +11439,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11218,7 +11449,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11228,7 +11459,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11238,7 +11469,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11270,7 +11501,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11280,7 +11511,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11290,7 +11521,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11300,7 +11531,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11336,7 +11567,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11346,7 +11577,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11356,7 +11587,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11366,7 +11597,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11402,7 +11633,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11412,7 +11643,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11422,7 +11653,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11432,7 +11663,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11464,7 +11695,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11474,7 +11705,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11484,7 +11715,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11494,7 +11725,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11524,7 +11755,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11534,7 +11765,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11544,7 +11775,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11554,7 +11785,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11590,7 +11821,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11600,7 +11831,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11610,7 +11841,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11620,7 +11851,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11652,7 +11883,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11662,7 +11893,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11672,7 +11903,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11682,7 +11913,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11718,7 +11949,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11728,7 +11959,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11738,7 +11969,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11748,7 +11979,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11784,7 +12015,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11794,7 +12025,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11804,7 +12035,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11814,7 +12045,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11846,7 +12077,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11856,7 +12087,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11866,7 +12097,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11876,7 +12107,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11908,7 +12139,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11918,7 +12149,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11928,7 +12159,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -11938,7 +12169,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -11974,7 +12205,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -11984,7 +12215,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -11994,7 +12225,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12004,7 +12235,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12034,7 +12265,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12044,7 +12275,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12054,7 +12285,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12064,7 +12295,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12100,7 +12331,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12110,7 +12341,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12120,7 +12351,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12130,7 +12361,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12160,7 +12391,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12170,7 +12401,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12180,7 +12411,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12190,7 +12421,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12224,7 +12455,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12234,7 +12465,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12244,7 +12475,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12254,7 +12485,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12286,7 +12517,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12296,7 +12527,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12306,7 +12537,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12316,7 +12547,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12346,7 +12577,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12356,7 +12587,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12366,7 +12597,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12376,7 +12607,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12412,7 +12643,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12422,7 +12653,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12432,7 +12663,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12442,7 +12673,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12481,7 +12712,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12491,7 +12722,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12501,7 +12732,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12511,7 +12742,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12545,7 +12776,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12555,7 +12786,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12565,7 +12796,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12575,7 +12806,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12610,7 +12841,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12620,7 +12851,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12630,7 +12861,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12640,7 +12871,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12670,7 +12901,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12680,7 +12911,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12690,7 +12921,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12700,7 +12931,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12736,7 +12967,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12746,7 +12977,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12756,7 +12987,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12766,7 +12997,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12796,7 +13027,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12806,7 +13037,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12816,7 +13047,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12826,7 +13057,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12860,7 +13091,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12870,7 +13101,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12880,7 +13111,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12890,7 +13121,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12918,7 +13149,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12928,7 +13159,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -12938,7 +13169,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -12948,7 +13179,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -12982,7 +13213,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -12992,7 +13223,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13002,7 +13233,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13012,7 +13243,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13046,7 +13277,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13056,7 +13287,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13066,7 +13297,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13076,7 +13307,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13111,7 +13342,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13121,7 +13352,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13131,7 +13362,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13141,7 +13372,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13177,7 +13408,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13187,7 +13418,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13197,7 +13428,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13207,7 +13438,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13242,7 +13473,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13252,7 +13483,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13262,7 +13493,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13272,7 +13503,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13306,7 +13537,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13316,7 +13547,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13326,7 +13557,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13336,7 +13567,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13368,7 +13599,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13378,7 +13609,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13388,7 +13619,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13398,7 +13629,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13430,7 +13661,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13440,7 +13671,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13450,7 +13681,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13460,7 +13691,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13490,7 +13721,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13500,7 +13731,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13510,7 +13741,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13520,7 +13751,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13554,7 +13785,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13564,7 +13795,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13574,7 +13805,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13584,7 +13815,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13616,7 +13847,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13626,7 +13857,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13636,7 +13867,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13646,7 +13877,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13676,7 +13907,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13686,7 +13917,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13696,7 +13927,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13706,7 +13937,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13742,7 +13973,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13752,7 +13983,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13762,7 +13993,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13772,7 +14003,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13806,7 +14037,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13816,7 +14047,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13826,7 +14057,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13836,7 +14067,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13866,7 +14097,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13876,7 +14107,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13886,7 +14117,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13896,7 +14127,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13930,7 +14161,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -13940,7 +14171,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -13950,7 +14181,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -13960,7 +14191,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -13990,7 +14221,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14000,7 +14231,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14010,7 +14241,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14020,7 +14251,67 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  list_report_alerts: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReportAlertRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14052,7 +14343,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14062,7 +14353,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14072,7 +14363,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14082,7 +14373,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14112,7 +14403,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14122,7 +14413,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14132,7 +14423,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14142,7 +14433,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14178,7 +14469,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14188,7 +14479,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14198,7 +14489,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14208,7 +14499,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14244,7 +14535,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14254,7 +14545,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14264,7 +14555,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14274,7 +14565,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14306,7 +14597,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14316,7 +14607,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14326,7 +14617,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14336,7 +14627,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14368,7 +14659,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14378,7 +14669,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14388,7 +14679,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14398,7 +14689,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14434,7 +14725,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14444,7 +14735,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14454,7 +14745,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14464,7 +14755,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Email is not configured on this server */
@@ -14501,7 +14792,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14511,7 +14802,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14521,7 +14812,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14531,7 +14822,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14567,7 +14858,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14577,7 +14868,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14587,7 +14878,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14597,7 +14888,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Email is not configured or delivery failed */
@@ -14606,6 +14897,256 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  get_report_alert: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReportAlertRead'] | null;
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  set_report_alert: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ReportAlertWrite'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReportAlertRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  delete_report_alert: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  check_report_alert: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReportAlertRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
       };
     };
   };
@@ -14634,7 +15175,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14644,7 +15185,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14654,7 +15195,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14664,7 +15205,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14698,7 +15239,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14708,7 +15249,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14718,7 +15259,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14728,7 +15269,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14760,7 +15301,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14770,7 +15311,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14780,7 +15321,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14790,7 +15331,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14820,7 +15361,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14830,7 +15371,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14840,7 +15381,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14850,7 +15391,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14886,7 +15427,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14896,7 +15437,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14906,7 +15447,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14916,7 +15457,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -14948,7 +15489,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -14958,7 +15499,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -14968,7 +15509,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -14978,7 +15519,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15012,7 +15553,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15022,7 +15563,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15032,7 +15573,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15042,7 +15583,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15074,7 +15615,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15084,7 +15625,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15094,7 +15635,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15104,7 +15645,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15134,7 +15675,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15144,7 +15685,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15154,7 +15695,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15164,7 +15705,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15200,7 +15741,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15210,7 +15751,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15220,7 +15761,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15230,7 +15771,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15266,7 +15807,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15276,7 +15817,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15286,7 +15827,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15296,7 +15837,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15326,7 +15867,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15336,7 +15877,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15346,7 +15887,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15356,7 +15897,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15392,7 +15933,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15402,7 +15943,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15412,7 +15953,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15422,7 +15963,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15454,7 +15995,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15464,7 +16005,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15474,7 +16015,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15484,7 +16025,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15520,7 +16061,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15530,7 +16071,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15540,7 +16081,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15550,7 +16091,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15582,7 +16123,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15592,7 +16133,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15602,7 +16143,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15612,7 +16153,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15648,7 +16189,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15658,7 +16199,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15668,7 +16209,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15678,7 +16219,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15708,7 +16249,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15718,7 +16259,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15728,7 +16269,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15738,7 +16279,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15768,7 +16309,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15778,7 +16319,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15788,7 +16329,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15798,7 +16339,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15834,7 +16375,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15844,7 +16385,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15854,7 +16395,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15864,7 +16405,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15894,7 +16435,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15904,7 +16445,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15914,7 +16455,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15924,7 +16465,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -15958,7 +16499,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -15968,7 +16509,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -15978,7 +16519,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -15988,7 +16529,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -16018,7 +16559,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16028,7 +16569,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16038,7 +16579,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16048,7 +16589,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -16082,7 +16623,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16092,7 +16633,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16102,7 +16643,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16112,7 +16653,67 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  backup_status: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BackupStatus'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -16142,7 +16743,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16152,7 +16753,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16162,7 +16763,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16172,7 +16773,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -16206,7 +16807,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16216,7 +16817,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16226,7 +16827,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16236,7 +16837,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -16266,7 +16867,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16276,7 +16877,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16286,7 +16887,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16296,7 +16897,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -16326,7 +16927,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16336,7 +16937,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16346,7 +16947,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16356,7 +16957,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -16390,7 +16991,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16400,7 +17001,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16410,7 +17011,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16420,7 +17021,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -16450,7 +17051,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16460,7 +17061,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16470,7 +17071,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16480,7 +17081,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -16510,7 +17111,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16520,7 +17121,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16530,7 +17131,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16540,7 +17141,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -16574,7 +17175,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16584,7 +17185,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16594,7 +17195,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16604,7 +17205,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description AI is not configured, turned off, or the provider failed */
@@ -16647,7 +17248,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16657,7 +17258,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16667,7 +17268,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16677,7 +17278,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description AI is not configured, turned off, or the provider failed */
@@ -16716,7 +17317,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16726,7 +17327,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16736,7 +17337,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16746,7 +17347,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description AI is not configured, turned off, or the provider failed */
@@ -16787,7 +17388,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16797,7 +17398,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16807,7 +17408,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16817,7 +17418,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description AI is not configured, turned off, or the provider failed */
@@ -16858,7 +17459,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16868,7 +17469,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16878,7 +17479,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16888,7 +17489,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description AI is not configured, turned off, or the provider failed */
@@ -16927,7 +17528,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -16937,7 +17538,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -16947,7 +17548,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -16957,7 +17558,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -16992,7 +17593,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17002,7 +17603,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17012,7 +17613,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17022,7 +17623,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17057,7 +17658,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17067,7 +17668,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17077,7 +17678,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17087,7 +17688,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17121,7 +17722,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17131,7 +17732,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17141,7 +17742,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17151,7 +17752,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17184,7 +17785,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17194,7 +17795,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17204,7 +17805,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17214,7 +17815,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17244,7 +17845,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17254,7 +17855,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17264,7 +17865,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17274,7 +17875,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17308,7 +17909,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17318,7 +17919,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17328,7 +17929,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17338,7 +17939,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17368,7 +17969,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17378,7 +17979,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17388,7 +17989,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17398,7 +17999,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17434,7 +18035,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17444,7 +18045,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17454,7 +18055,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17464,7 +18065,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17494,7 +18095,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17504,7 +18105,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17514,7 +18115,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17524,7 +18125,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17554,7 +18155,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17564,7 +18165,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17574,7 +18175,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17584,7 +18185,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17616,7 +18217,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17626,7 +18227,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17636,7 +18237,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17646,7 +18247,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17680,7 +18281,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17690,7 +18291,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17700,7 +18301,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17710,7 +18311,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17742,7 +18343,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17752,7 +18353,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17762,7 +18363,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17772,7 +18373,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17802,7 +18403,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17812,7 +18413,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17822,7 +18423,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17832,7 +18433,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17868,7 +18469,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17878,7 +18479,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17888,7 +18489,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17898,7 +18499,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17930,7 +18531,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -17940,7 +18541,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -17950,7 +18551,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -17960,7 +18561,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -17994,7 +18595,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -18004,7 +18605,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -18014,7 +18615,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -18024,7 +18625,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -18058,7 +18659,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -18068,7 +18669,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -18078,7 +18679,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -18088,7 +18689,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -18118,7 +18719,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -18128,7 +18729,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -18138,7 +18739,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -18148,7 +18749,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -18178,7 +18779,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -18188,7 +18789,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -18198,7 +18799,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -18208,7 +18809,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -18236,7 +18837,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -18246,7 +18847,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -18256,7 +18857,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -18266,7 +18867,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };
@@ -18298,7 +18899,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Permission denied */
@@ -18308,7 +18909,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Not found */
@@ -18318,7 +18919,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
       /** @description Invalid input */
@@ -18328,7 +18929,7 @@ export interface operations {
         };
         content: {
           'application/problem+json': unknown;
-          'application/json': components['schemas']['Problem'];
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
         };
       };
     };

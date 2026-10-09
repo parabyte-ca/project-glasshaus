@@ -66,6 +66,17 @@ GLASSHAUS_SMTP_FROM=Glasshaus <reports@example.com>
 The worker sends due emails once a minute. Office 365 needs SMTP AUTH turned on for the sending
 mailbox; Gmail needs an app password.
 
+## Alerts
+
+**Alert me** on a saved report tells you when one of its totals goes above or below a number: for
+example "Overdue goes above 5" or "% on time goes below 80". The report is checked on the schedule
+you choose (daily, weekly or monthly, in your time zone), with your access. You get a notification
+(and, if you tick it and email is set up, an email) when the alert goes off and again when the
+number is back; never on every check. **Check now** runs a check straight away.
+
+Alerts end on their own if you are deactivated or can no longer see the report. If the report is
+changed so the measure is gone, the alert stays and says why it cannot check.
+
 ## Asking questions (AI assistant)
 
 When the optional [AI assistant](ai.md) is on and an admin has ticked **Questions about reports**, the
@@ -92,6 +103,8 @@ delete with a preview) and `ai_ask_reports`.
 | `GET/PUT/DELETE /api/v1/reports/{id}/email` | Your email schedule for a report |
 | `POST /api/v1/reports/{id}/email/send` | Email it to yourself now |
 | `GET /api/v1/reports/subscriptions` | All your report emails |
+| `GET/PUT/DELETE /api/v1/reports/{id}/alert`, `POST /api/v1/reports/{id}/alert/check` | Your alert on a report |
+| `GET /api/v1/reports/alerts` | All your report alerts |
 | `POST /api/v1/ai/reports` | Ask a question, `{"question": "...", "report_id": null}`; needs the AI assistant's `reports` feature |
 
 ```bash

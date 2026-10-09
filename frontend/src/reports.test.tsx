@@ -359,3 +359,67 @@ describe('report emails', () => {
     await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
   });
 });
+
+describe('report alerts', () => {
+  const alert = {
+    report_id: 'r1',
+    report_name: 'Open work',
+    measure: 'open',
+    measure_label: 'Open',
+    direction: 'above',
+    threshold: 5,
+    schedule: { frequency: 'daily', weekday: null, day: null, hour: 8, minute: 0, timezone: 'UTC' },
+    email: false,
+    state: 'triggered',
+    last_value: 7,
+    last_checked_at: '2026-10-09T08:00:00Z',
+    last_error: null,
+    next_run_at: '2026-10-10T08:00:00Z',
+  };
+  const routes = (current: object | null): Route[] => [
+    { method: 'GET', path: '/api/v1/reports/r1/alert', body: current },
+    ...baseRoutes,
+    signedIn,
+    { method: 'GET', path: '/api/v1/reports/r1', body: saved },
+    { method: 'GET', path: '/api/v1/dashboards', body: [] },
+    { method: 'POST', path: '/api/v1/reports/run', body: result() },
+    { method: 'PUT', path: '/api/v1/reports/r1/alert', body: alert },
+    {
+      method: 'POST',
+      path: '/api/v1/reports/r1/alert/check',
+      body: { ...alert, last_value: 4, state: 'ok' },
+    },
+    { method: 'DELETE', path: '/api/v1/reports/r1/alert', status: 204 },
+  ];
+
+  it('creates an alert on one of the report measures', async () => {
+    const { calls } = mockApi(routes(null));
+    renderAt('/reports/r1');
+    const panel = (await screen.findByRole('heading', { name: 'Alert me' })).closest('section')!;
+    expect(within(panel).getByRole('button', { name: 'Create alert' })).toBeDisabled();
+    expect(within(panel).queryByRole('checkbox', { name: 'Also email me' })).toBeNull(); // no email here
+    await userEvent.selectOptions(within(panel).getByLabelText('Goes'), 'below');
+    await userEvent.type(within(panel).getByLabelText('Number'), '2.5');
+    await userEvent.click(within(panel).getByRole('button', { name: 'Create alert' }));
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true));
+    expect(await calls.find((c) => c.method === 'PUT')!.json()).toMatchObject({
+      measure: 'open',
+      direction: 'below',
+      threshold: 2.5,
+      schedule: { frequency: 'daily', hour: 8 },
+      email: false,
+    });
+  });
+
+  it('shows a triggered alert, checks now and removes it', async () => {
+    const { calls } = mockApi(routes(alert));
+    renderAt('/reports/r1');
+    const panel = (await screen.findByRole('heading', { name: 'Alert me' })).closest('section')!;
+    expect(within(panel).getByText(/Open is above 5/)).toBeInTheDocument();
+    expect(within(panel).getByLabelText('Number')).toHaveValue(5);
+    await userEvent.click(within(panel).getByRole('button', { name: 'Check now' }));
+    expect(await screen.findByText('Open is 4')).toBeInTheDocument();
+    await userEvent.click(within(panel).getByRole('button', { name: 'Remove alert' }));
+    await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
+  });
+});

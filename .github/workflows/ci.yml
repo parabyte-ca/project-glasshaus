@@ -171,6 +171,13 @@ jobs:
         run: |
           dump="$(source scripts/lib.sh && backup_now ci)"
           scripts/restore.sh "$dump" --yes
+      - name: Restore drill
+        run: |
+          docker compose exec -T backup /bin/sh /scripts/restore-drill.sh
+          grep -q '"ok": true' backups/drill-status.json
+          curl -fsS -b /tmp/jar http://localhost:8470/api/v1/admin/backups | grep -q '"drill":{"finished_at"'
+      - name: Upgrade with pre-flight check (same release)
+        run: ./update.sh --no-git
       - name: Logs on failure
         if: failure()
         run: docker compose logs --tail 200

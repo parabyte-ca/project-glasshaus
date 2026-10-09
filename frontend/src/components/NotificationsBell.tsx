@@ -62,6 +62,11 @@ export function NotificationsBell() {
   const go = (n: Notification) => {
     if (!n.read_at) markRead.mutate([n.id]);
     setOpen(false);
+    // Only in-app paths are followed.
+    if (n.link?.startsWith('/') && !n.link.startsWith('//')) {
+      void navigate(n.link);
+      return;
+    }
     const project = queryClient.getQueryData<Project[]>(['projects'])?.find((p) => p.id === n.project_id);
     if (project && n.task_id) void navigate(`/projects/${project.key}?task=${n.task_id}`);
   };

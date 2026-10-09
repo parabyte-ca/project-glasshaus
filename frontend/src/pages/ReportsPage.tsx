@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../auth/useAuth';
 import { AskReports } from '../components/AskReports';
 import { LoadError } from '../components/PageState';
+import { ReportAlert } from '../components/ReportAlert';
 import { ReportEmail } from '../components/ReportEmail';
 import { ReportView } from '../components/ReportView';
 import { Button, ErrorText, Field, GhostButton, Input, linkClass, Select } from '../components/ui';
@@ -742,6 +743,11 @@ function ReportBuilder({ report }: { report?: SavedReport }) {
 }
 
 function SavedReportBuilder({ id }: { id: string }) {
+  const email = useQuery({
+    queryKey: ['report-email', id],
+    queryFn: () =>
+      unwrap(api.GET('/api/v1/reports/{report_id}/email', { params: { path: { report_id: id } } })),
+  });
   const canAsk = useAiStatus().data?.features.includes('reports') ?? false;
   const report = useQuery({
     queryKey: ['report', id],
@@ -754,6 +760,11 @@ function SavedReportBuilder({ id }: { id: string }) {
     <div className="flex flex-col gap-8">
       <ReportBuilder key={report.data.id} report={report.data} />
       <ReportEmail key={`email-${report.data.id}`} reportId={report.data.id} />
+      <ReportAlert
+        key={`alert-${report.data.id}`}
+        report={report.data}
+        emailAvailable={email.data?.available ?? false}
+      />
       {canAsk && (
         <div className="max-w-5xl">
           <AskReports key={report.data.id} reportId={report.data.id} />

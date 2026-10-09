@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Response, status
 
+from glasshaus import backups
 from glasshaus.api.deps import Ctx
 from glasshaus.governance import service as governance
 from glasshaus.governance.service import OrgSettingsRead, OrgSettingsUpdate, PasswordReset
@@ -22,6 +23,15 @@ async def get_settings(ctx: Ctx) -> OrgSettingsRead:
 @router.patch("/settings", response_model=OrgSettingsRead, summary="Change retention settings")
 async def update_settings(ctx: Ctx, data: OrgSettingsUpdate) -> OrgSettingsRead:
     return await governance.update_settings(ctx, data)
+
+
+@router.get(
+    "/backups",
+    response_model=backups.BackupStatus,
+    summary="Backups and the last restore drill (single-organization servers)",
+)
+async def backup_status(ctx: Ctx) -> backups.BackupStatus:
+    return await backups.get_status(ctx)
 
 
 @router.get(
