@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router';
 import { api, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { AccessSettings } from '../components/AccessSettings';
+import { DeviceNotifications } from '../components/DeviceNotifications';
 import { Button, ErrorText, Field, Input } from '../components/ui';
 import { usePageTitle } from '../lib/pageTitle';
 
@@ -109,6 +110,7 @@ export function AccountPage() {
         </form>
       </section>
 
+      <DeviceNotifications />
       <AccessSettings />
     </div>
   );

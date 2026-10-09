@@ -77,6 +77,7 @@ RLS_TABLES = (
     "report_subscriptions",
     "report_alerts",
     "channel_posts",
+    "push_subscriptions",
     "portfolios",
     "portfolio_projects",
     "objectives",

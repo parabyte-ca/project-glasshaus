@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { expectAccessible, makeProject } from './helpers';
+import { api, expectAccessible, makeProject } from './helpers';
 
 // Phone-sized viewport: nothing scrolls sideways and the main screens stay accessible.
 test('phone layout', async ({ page }) => {
@@ -31,4 +31,40 @@ test('phone navigation menu', async ({ page }) => {
   await expect(nav).toBeHidden();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow, 'header scrolls sideways at 375 px').toBeLessThanOrEqual(1);
+});
+
+// My tasks on a phone: opens without a connection and syncs a task ticked offline.
+test('my tasks offline', async ({ page, context }) => {
+  await page.goto('/');
+  const project = await makeProject(page, 'Offline');
+  const call = await api(page);
+  const me = await call<{ id: string }>('GET', '/api/v1/users/me');
+  const today = new Date().toISOString().slice(0, 10);
+  const title = `Pack the tent ${project.key}`;
+  const task = await call<{ id: string; key: string }>('POST', '/api/v1/tasks', {
+    project_id: project.id,
+    title,
+    assignee_id: me.id,
+    due_date: today,
+  });
+
+  await page.goto('/my');
+  await expect(page.getByText(title)).toBeVisible();
+  await expectAccessible(page, 'my tasks (phone)');
+  // Once the service worker controls the page, a reload caches the app's files for offline use.
+  await page.waitForFunction(() => navigator.serviceWorker?.controller !== null);
+  await page.reload();
+  await expect(page.getByText(title)).toBeVisible();
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByText(/You’re offline/)).toBeVisible();
+  await page.getByRole('checkbox', { name: `Mark ${task.key} done` }).click();
+  await expect(page.getByText(title)).toBeHidden();
+  await expect(page.getByText('(1 waiting)', { exact: false })).toBeVisible();
+
+  await context.setOffline(false);
+  await expect(page.getByText(/Synced 1 task/)).toBeVisible({ timeout: 40_000 });
+  const done = await call<{ status: { category: string } }>('GET', `/api/v1/tasks/${task.id}`);
+  expect(done.status.category).toBe('done');
 });

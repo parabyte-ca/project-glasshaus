@@ -711,7 +711,7 @@ wheels = [
 
 [[package]]
 name = "glasshaus"
-version = "0.16.0"
+version = "0.17.0"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
@@ -723,6 +723,7 @@ dependencies = [
     { name = "email-validator" },
     { name = "faker" },
     { name = "fastapi" },
+    { name = "http-ece" },
     { name = "httpx" },
     { name = "lxml" },
     { name = "mcp" },
@@ -763,6 +764,7 @@ requires-dist = [
     { name = "email-validator", specifier = ">=2.3.0" },
     { name = "faker", specifier = ">=40.41.0" },
     { name = "fastapi", specifier = ">=0.142.4" },
+    { name = "http-ece", specifier = ">=1.2" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "lxml", specifier = ">=6" },
     { name = "mcp", specifier = ">=2.3,<3" },
@@ -943,6 +945,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/74/b5/731115a16d97f5eb0af89e60642de9d5e56653ba015f1ec07068c7746120/hiredis-3.4.2-cp314-cp314t-win_amd64.whl", hash = "sha256:452be53d414f3597b9343fbf253863105e55c625df339c65d5d44fc51de30b51", size = 41690, upload-time = "2026-09-22T12:38:48.416Z" },
     { url = "https://files.pythonhosted.org/packages/b2/28/d7d7c986784c835be374046ce9a59bef67e88a3de3f5fe385a6184a85daa/hiredis-3.4.2-cp314-cp314t-win_arm64.whl", hash = "sha256:b9210f8e7f1b9e74b46f6073daec0b35fd670e9595377b4df8f7369083ab9e4d", size = 38067, upload-time = "2026-09-22T12:38:49.304Z" },
 ]
+
+[[package]]
+name = "http-ece"
+version = "1.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7c/af/249d1576653b69c20b9ac30e284b63bd94af6a175d72d87813235caf2482/http_ece-1.2.1.tar.gz", hash = "sha256:8c6ab23116bbf6affda894acfd5f2ca0fb8facbcbb72121c11c75c33e7ce8cff", size = 8830, upload-time = "2024-08-08T00:10:47.301Z" }
 
 [[package]]
 name = "httpcore"

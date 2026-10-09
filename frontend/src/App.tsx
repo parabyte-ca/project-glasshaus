@@ -7,6 +7,8 @@ import { Layout } from './components/Layout';
 import { NotFound } from './components/PageState';
 import { Toaster } from './components/Toaster';
 import { HomePage } from './pages/HomePage';
+// Not lazy: My tasks must open offline even if it was never visited.
+import { MyTasksPage } from './pages/MyTasksPage';
 import { ProjectPage } from './pages/ProjectPage';
 
 const AccountPage = lazy(() => import('./pages/AccountPage').then((m) => ({ default: m.AccountPage })));
@@ -122,6 +124,7 @@ export default function App() {
                   </Lazy>
                 }
               />
+              <Route path="my" element={<MyTasksPage />} />
               <Route
                 path="reports"
                 element={

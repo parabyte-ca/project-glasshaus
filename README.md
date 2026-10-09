@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.16.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
+> **Status:** v0.17.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -268,12 +268,17 @@ every request in the audit log (without content). Details, privacy notes and an 
 ## Keyboard, accessibility and mobile
 
 - **Ctrl K / ⌘ K** opens the command palette: jump to pages and projects, find tasks by key or title, ask
-  the assistant. **?** lists every shortcut (`/` search, `c` new task, `g` then `h`/`d`/`t`/`w`/`p`/`o`/`a`
+  the assistant. **?** lists every shortcut (`/` search, `c` new task, `g` then `h`/`m`/`d`/`r`/`t`/`w`/`p`/`o`/`a`
   to go to a section).
 - Targets **WCAG 2.1 AA**; every screen is checked with axe in light and dark themes in CI. See
   [docs/accessibility.md](docs/accessibility.md).
 - Installable as an app (PWA) on desktop and phones; the app shell opens offline. Only static files are
-  cached, never project data.
+  cached by the service worker, never project data.
+- **My tasks** (`/my`, **G** then **M**): your open tasks across projects by due date. It opens without a
+  connection from a copy kept on the device, and tasks ticked offline are marked done when you are back.
+- **Notifications on this device** (Account): Web Push to phones and desktops for mentions,
+  assignments and alerts (HTTPS required; on iPhone, add to Home Screen first). See
+  [docs/mobile.md](docs/mobile.md).
 - Board cards move with **Alt+arrow keys** or their **Move** menu; filters and search live in the address,
   so a filtered view can be bookmarked or shared.
 - Light and dark themes (black surfaces, blue actions, orange highlights, Inter). Colours are defined
@@ -341,6 +346,7 @@ Version-specific upgrade notes:
 
 | Version | Notes |
 | --- | --- |
+| 0.17.0 | Phone notifications need HTTPS and outbound access from the worker to the browsers' push services ([docs/mobile.md](docs/mobile.md)). `./update.sh` as usual. |
 | 0.15.0 | The API and worker get a read-only view of the backup folder (Admin → Backups). On TrueNAS or other hosts with custom permissions, make sure uid 10001 can read `GLASSHAUS_BACKUP_DIR`. `./update.sh` as usual (its pre-flight check starts with the next upgrade). |
 | 0.4.0 | New tables for dependencies and baselines; projects gain `auto_schedule` (off). `./update.sh` as usual. |
 | 0.3.0 | New tables (custom fields, comments, notifications, saved views); existing events are backfilled with their project. `./update.sh` as usual. |
@@ -382,7 +388,7 @@ builds, scans and publishes multi-arch (amd64/arm64) images to GHCR.
 | 10 | 0.14.0 | Release automation, scheduled report emails | ✅ |
 | 11 | 0.15.0 | Report alerts, backup restore drill and backup health, upgrade pre-flight check | ✅ |
 | 12 | 0.16.0 | Slack and Teams: scheduled report and status posts; `/glasshaus` Slack command | ✅ |
-| 13 | 0.17.0 | Phone: offline "My tasks", push notifications | Planned |
+| 13 | 0.17.0 | Phone: offline "My tasks", push notifications | ✅ |
 | 14 | 0.18.0 | Virtual project manager (AI): daily stand-up digest, follow-ups and weekly status, with approval | Proposed |
 | — | — | Azure AD manager hierarchy and "My team" dashboard | On hold |
 
