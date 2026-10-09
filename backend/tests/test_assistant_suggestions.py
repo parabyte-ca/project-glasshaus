@@ -257,3 +257,76 @@ async def test_ai_suggestions_are_checked_against_the_data(
     assert r.status_code == 200, r.text
     assert r.json()[0]["new_task"]["assignee_id"] == str(editor.id)
     assert "untrusted" in fake.calls[-1]["system"]
+
+
+async def test_trusted_follow_ups_post_themselves_within_limits(client: AsyncClient) -> None:
+    world = await make_world()
+    editor = await make_user(world.tenant)
+    viewer = await make_user(world.tenant)
+    await add_member(client, world, editor, "editor")
+    await add_member(client, world, viewer, "viewer")
+    first = await create_task(
+        client, world, title="Pay supplier", due_date=day(-2), assignee_id=str(world.owner.id)
+    )
+    second = await create_task(
+        client, world, title="Sign lease", due_date=day(-1), assignee_id=str(world.owner.id)
+    )
+    assistant_url = f"/api/v1/projects/{world.project.id}/assistant"
+    body = {
+        "timezone": "UTC",
+        "stale_days": 3,
+        "trusted": ["comment"],
+        "auto_daily_cap": 1,
+    }
+
+    # Projects can only trust what the organization allows.
+    r = await client.put(assistant_url, json=body, headers=world.headers)
+    assert r.status_code == 422 and "organization does not allow" in r.json()["detail"]
+    r = await client.patch(
+        "/api/v1/admin/settings", json={"assistant_trusted": ["comment"]}, headers=world.headers
+    )
+    assert r.status_code == 200 and r.json()["assistant_trusted"] == ["comment"]
+    status = (await client.get(assistant_url, headers=world.headers)).json()
+    assert status["trusted_allowed"] == ["comment"]
+    r = await client.put(assistant_url, json=body, headers=world.headers)
+    assert r.status_code == 200 and r.json()["trusted"] == ["comment"] and r.json()["auto_daily_cap"] == 1
+
+    # One follow-up posts itself (the cap); the other waits for a person.
+    await run_digest(client, world)
+    decided = (await client.get(f"{assistant_url}/suggestions?decided=true", headers=world.headers)).json()
+    auto = [s for s in decided if s["automatic"]]
+    assert len(auto) == 1 and auto[0]["status"] == "approved" and auto[0]["decided_by"] is None
+    assert auto[0]["can_undo"] is True and auto[0]["result"].startswith("Posted automatically on ")
+    posted_on = auto[0]["task"]["id"]
+    waiting = await queue(client, world)
+    assert [s["kind"] for s in waiting] == ["comment"]
+    assert {posted_on, waiting[0]["task"]["id"]} == {first["id"], second["id"]}
+    comments = (await client.get(f"/api/v1/tasks/{posted_on}/comments", headers=world.headers)).json()
+    bot = await account(world)
+    assert comments[-1]["author_id"] == str(bot.id)
+    assert f"(user:{world.owner.id})" in comments[-1]["body"]  # the owner is mentioned, so they hear about it
+    assert "Posted automatically by the project assistant" in comments[-1]["body"]
+    entries = await audit(world, "assistant.action_automatic")
+    assert entries and entries[-1].actor_id == bot.id
+
+    # Viewers cannot undo; an editor can, once.
+    undo_url = url(world, auto[0], "undo")
+    assert (await client.post(undo_url, headers=auth(await token_for(viewer)))).status_code in (403, 404)
+    editor_headers = auth(await token_for(editor))
+    r = await client.post(undo_url, headers=editor_headers)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "undone" and r.json()["result"] == f"Undone by {editor.name}"
+    comments = (await client.get(f"/api/v1/tasks/{posted_on}/comments", headers=world.headers)).json()
+    assert all(c["author_id"] != str(bot.id) for c in comments)
+    assert (await client.post(undo_url, headers=editor_headers)).status_code == 409
+    assert (await audit(world, "assistant.action_undone"))[-1].actor_id == editor.id
+
+    # The day's cap is used (undone actions count), so nothing more posts itself today.
+    await run_digest(client, world)
+    assert [s["status"] for s in await queue(client, world)] == ["open"]
+
+    # Lowering the organization's limit stops automatic actions even where a project trusted them.
+    r = await client.patch("/api/v1/admin/settings", json={"assistant_trusted": []}, headers=world.headers)
+    assert r.status_code == 200 and r.json()["assistant_trusted"] == []
+    r = await client.put(assistant_url, json=body | {"auto_daily_cap": 50}, headers=world.headers)
+    assert r.status_code == 422

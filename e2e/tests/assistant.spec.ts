@@ -47,3 +47,41 @@ test('project assistant digest', async ({ page }) => {
   await page.getByRole('button', { name: /People/ }).click();
   await expect(page.getByRole('region', { name: 'Project people' })).toContainText('Project assistant (AI)');
 });
+
+// Trusted follow-ups: allowed by the organization and the project, posted on their own, undone by a person.
+test('project assistant posts a trusted follow-up and it can be undone', async ({ page }) => {
+  await page.goto('/');
+  const project = await makeProject(page, 'Trusted');
+  const call = await api(page);
+  const me = await call<{ id: string }>('GET', '/api/v1/users/me');
+  const late = new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10);
+  const task = await call<{ id: string; key: string }>('POST', '/api/v1/tasks', {
+    project_id: project.id,
+    title: 'Pay the supplier',
+    due_date: late,
+    assignee_id: me.id,
+  });
+  await call('PATCH', '/api/v1/admin/settings', { assistant_trusted: ['comment'] });
+  try {
+    await page.goto(`/projects/${project.key}/assistant`);
+    await page.getByRole('button', { name: 'Turn on' }).click();
+    await expect(page.getByText(/^On\. Next digest/)).toBeVisible();
+    await page.getByRole('checkbox', { name: /Post follow-up comments without approval/ }).check();
+    const saved = page.waitForResponse(
+      (r) => r.request().method() === 'PUT' && r.url().endsWith(`/projects/${project.id}/assistant`),
+    );
+    await page.getByRole('button', { name: 'Save' }).click();
+    expect((await saved).status()).toBe(200);
+    await page.getByRole('button', { name: 'Write a digest now' }).click();
+
+    const done = page.getByRole('list', { name: 'Done on its own' });
+    await expect(done).toContainText(`Posted automatically on ${task.key}`);
+    await expectAccessible(page, 'digests with automatic follow-ups');
+    await done.getByRole('button', { name: `Undo the follow-up on ${task.key}` }).click();
+    await expect(page.getByText('Follow-up removed')).toBeVisible();
+    const comments = await call<{ body: string }[]>('GET', `/api/v1/tasks/${task.id}/comments`);
+    expect(comments.filter((c) => c.body.includes('Posted automatically'))).toHaveLength(0);
+  } finally {
+    await call('PATCH', '/api/v1/admin/settings', { assistant_trusted: [] });
+  }
+});

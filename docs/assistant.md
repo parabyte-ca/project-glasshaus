@@ -3,8 +3,9 @@
 The project assistant acts like a junior project manager assigned to a project. Every working morning it
 writes a **stand-up digest** for everyone on the project, and once a week a **status draft** for the
 project's admins to edit and send. With the digest it also **suggests** follow-ups, new due dates and
-owners, and it turns meeting notes into proposed tasks. **It changes nothing by itself:** every suggestion
-waits in an approval queue until a project editor or admin approves it.
+owners, and it turns meeting notes into proposed tasks. **By default it changes nothing by itself:** every
+suggestion waits in an approval queue until a project editor or admin approves it. Organizations can let
+projects have its follow-up comments posted automatically, with a daily limit and undo.
 
 ## Turning it on
 
@@ -92,13 +93,35 @@ assistant on. It:
 - appears in the project's **People** list as *Project assistant (AI)*, and its AI requests are in the
   audit log under that name (`ai.assistant`).
 
-## Coming next
+## Trusted actions: follow-ups without approval
 
-- **Phase 3, trusted actions:** admins choose which kinds of suggestion it may apply on its own (for
-  example, follow-up comments), with everything else still waiting for approval.
+By default every suggestion waits for a person. Two switches let the assistant post its **follow-up
+comments** by itself; both must be on:
+
+1. **Organization ceiling.** An organization admin ticks **Post follow-up comments** under **Admin → AI
+   assistant → What the project assistant may do without approval**. Turning it off stops automatic
+   follow-ups in every project at once, whatever the projects chose.
+2. **Project choice.** A project admin ticks **Post follow-up comments without approval** in the
+   project's assistant settings, and sets **At most per day** (default 10, up to 50).
+
+Then, with each digest, waiting follow-ups are posted straight away, oldest first, until the day's limit
+is reached (in the project's time zone; undone ones still count). The rest stay in the queue. Safeguards:
+
+- **The person affected is told.** The task's owner is mentioned, so they get a notification (and a phone
+  push where turned on). The comment says it was posted automatically and how to undo it.
+- **Undo for 7 days.** Automatic follow-ups are listed under **Done on its own** on the Digests page;
+  project editors and admins can **Undo**, which deletes the comment. An undone follow-up is not suggested
+  again for 7 days. Follow-ups a person approved can be undone the same way.
+- **Audited.** Each automatic comment is recorded as `assistant.action_automatic` under the assistant
+  account, and each undo as `assistant.action_undone` under the person who undid it.
+- **Only follow-ups.** New due dates, owners and tasks from notes always wait for approval. A follow-up on
+  a task that was closed or deleted in the meantime is left for a person to look at.
 
 API: `GET/PUT/DELETE /api/v1/projects/{id}/assistant`, `POST /api/v1/projects/{id}/assistant/run`,
 `GET /api/v1/projects/{id}/assistant/briefs`, `GET /api/v1/assistant/briefs/{id}`,
 `GET /api/v1/projects/{id}/assistant/suggestions` (`?decided=true` for recent decisions),
 `POST /api/v1/projects/{id}/assistant/suggestions/{sid}/approve` (optional edits) and `/dismiss`,
-`POST /api/v1/projects/{id}/assistant/notes`.
+`POST /api/v1/projects/{id}/assistant/notes`,
+`POST /api/v1/projects/{id}/assistant/suggestions/{sid}/undo`. The organization ceiling is
+`assistant_trusted` in `PATCH /api/v1/admin/settings`; the project choice is `trusted` and
+`auto_daily_cap` in `PUT /api/v1/projects/{id}/assistant`.

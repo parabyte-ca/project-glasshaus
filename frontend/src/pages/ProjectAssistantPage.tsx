@@ -30,6 +30,8 @@ type Settings = {
   stale_days: number;
   delivery: Schemas['DeliverySettings-Output'];
   suggestions: boolean;
+  trusted: 'comment'[];
+  auto_daily_cap: number;
 };
 type Brief = Schemas['BriefRead'];
 type BriefTask = Schemas['BriefTask'];
@@ -52,6 +54,23 @@ function defaults(): Settings {
     stale_days: 5,
     delivery: { in_app: true, email: false, channel_id: null },
     suggestions: true,
+    trusted: [],
+    auto_daily_cap: 10,
+  };
+}
+
+/** Only the editable settings: the saved settings also carry read-only fields the API rejects. */
+function writable(v: Settings): Settings {
+  return {
+    enabled: v.enabled,
+    timezone: v.timezone,
+    digest: v.digest,
+    weekly: v.weekly,
+    stale_days: v.stale_days,
+    delivery: v.delivery,
+    suggestions: v.suggestions,
+    trusted: v.trusted,
+    auto_daily_cap: v.auto_daily_cap,
   };
 }
 
@@ -352,7 +371,8 @@ function AssistantSettings({
     await queryClient.invalidateQueries({ queryKey: ['suggestions', projectId] });
   };
   const save = useMutation({
-    mutationFn: () => unwrap(api.PUT('/api/v1/projects/{project_id}/assistant', { ...path, body: v })),
+    mutationFn: () =>
+      unwrap(api.PUT('/api/v1/projects/{project_id}/assistant', { ...path, body: writable(v) })),
     onSuccess: async (r) => {
       toast(
         r.enabled
@@ -517,6 +537,36 @@ function AssistantSettings({
           />
           Suggest follow-ups, new dates and owners with each digest (people approve them first)
         </label>
+        {status.trusted_allowed.includes('comment') ? (
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex items-center gap-2 self-center text-sm">
+              <input
+                type="checkbox"
+                checked={v.trusted.includes('comment')}
+                disabled={!v.suggestions}
+                onChange={(e) => set({ trusted: e.target.checked ? ['comment'] : [] })}
+              />
+              Post follow-up comments without approval (editors can undo for 7 days)
+            </label>
+            <Field label="At most per day" id={`${id}-cap`}>
+              <Input
+                id={`${id}-cap`}
+                type="number"
+                min={1}
+                max={50}
+                className="w-20"
+                disabled={!v.trusted.includes('comment')}
+                value={v.auto_daily_cap}
+                onChange={(e) => set({ auto_daily_cap: Number(e.target.value) })}
+              />
+            </Field>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Everything waits for approval. An organization admin can let projects have follow-ups posted
+            automatically (Admin › AI assistant).
+          </p>
+        )}
         <fieldset className="flex flex-wrap items-end gap-3">
           <legend className="mb-1 text-sm font-semibold">Deliver by</legend>
           <label className="flex items-center gap-2 self-center text-sm">

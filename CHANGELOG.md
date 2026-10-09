@@ -6,6 +6,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-09
+
+The project assistant, phase 3: trusted follow-ups.
+
+### Added
+- **Follow-ups without approval, if you choose.** The assistant can post its follow-up comments on its
+  own, but only when both of these are on:
+  - the organization allows it (**Admin → AI assistant → What the project assistant may do without
+    approval**);
+  - the project turns it on (**Post follow-up comments without approval**).
+- **Safeguards:**
+  - a daily limit per project (**At most per day**, default 10), counted in the project's time zone;
+  - the task's owner is mentioned, so they're notified, and the comment says it was automatic and how to
+    undo it;
+  - each automatic action is audited (`assistant.action_automatic`).
+- **Undo for 7 days.** **Done on its own** on the Digests page lists automatic follow-ups. Project editors
+  and admins can undo them, and approved follow-ups too; undoing deletes the comment and is audited.
+- Due dates, owners and tasks from notes always wait for approval.
+- API:
+  - `POST …/assistant/suggestions/{sid}/undo`;
+  - `assistant_trusted` in org settings;
+  - `trusted` and `auto_daily_cap` in project assistant settings;
+  - suggestions show `automatic` and `can_undo`.
+
+### Changed
+- An undone suggestion counts as a decision: the same follow-up isn't suggested again for 7 days.
+- AI settings can be saved without an AI provider configured, so admins can set the assistant's limits
+  either way. The digest rules work without AI.
+
 ## [0.19.0] - 2026-10-09
 
 The project assistant, phase 2: an approval queue.
@@ -572,7 +601,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.16.0...v0.17.0

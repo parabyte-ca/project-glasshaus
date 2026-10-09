@@ -63,6 +63,7 @@ const status = (settings: unknown = null) => ({
   account_name: 'Project assistant (AI)',
   can_manage: true,
   can_approve: true,
+  trusted_allowed: [],
   ai: false,
   email_available: false,
   channels: [{ id: 'i1', name: '#web', kind: 'slack' }],
@@ -158,6 +159,8 @@ describe('project assistant', () => {
       stale_days: 5,
       delivery: { in_app: true, email: false, channel_id: null },
       suggestions: true,
+      trusted: [],
+      auto_daily_cap: 10,
       project_id: 'p1',
       next_digest_at: null,
       next_weekly_at: null,
@@ -186,6 +189,8 @@ describe('project assistant', () => {
       created_at: '2026-10-09T12:00:00Z',
       decided_at: null,
       decided_by: null,
+      automatic: false,
+      can_undo: false,
       result: null,
     };
     const { calls } = mockApi([
@@ -218,5 +223,89 @@ describe('project assistant', () => {
       '@[Ada Lovelace](user:00000000-0000-0000-0000-000000000001) Can you send it today?',
     );
     expect(await screen.findByText('Comment posted on WEB-1')).toBeInTheDocument();
+  });
+
+  it('lists follow-ups it posted on its own, with Undo', async () => {
+    const posted = {
+      id: 's9',
+      project_id: 'p1',
+      kind: 'comment',
+      source: 'rules',
+      status: 'approved',
+      reason: '2 days overdue',
+      task: { id: 't1', key: 'WEB-1', title: 'Pay supplier', due_date: null, assignee: null },
+      comment: 'hello',
+      due_date: null,
+      assignee_id: null,
+      assignee: null,
+      new_task: null,
+      created_at: '2026-10-09T12:00:00Z',
+      decided_at: '2026-10-09T12:00:01Z',
+      decided_by: null,
+      automatic: true,
+      can_undo: true,
+      result: 'Posted automatically on WEB-1',
+    };
+    const { calls } = mockApi([
+      ...baseRoutes,
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/projects/p1/assistant',
+        body: {
+          ...status({
+            enabled: true,
+            timezone: 'UTC',
+            digest: { enabled: true, hour: 8, minute: 0, weekdays_only: true },
+            weekly: { enabled: true, weekday: 4, hour: 14 },
+            stale_days: 5,
+            delivery: { in_app: true, email: false, channel_id: null },
+            suggestions: true,
+            trusted: ['comment'],
+            auto_daily_cap: 5,
+            project_id: 'p1',
+            next_digest_at: null,
+            next_weekly_at: null,
+            last_run_at: null,
+            last_error: null,
+          }),
+          trusted_allowed: ['comment'],
+        },
+      },
+      { method: 'GET', path: '/api/v1/projects/p1/assistant/briefs', body: [] },
+      {
+        method: 'GET',
+        path: '/api/v1/projects/p1/assistant/suggestions',
+        handler: (req) => (new URL(req.url).searchParams.get('decided') ? [posted] : []),
+      },
+      { method: 'PUT', path: '/api/v1/projects/p1/assistant', handler: async (req) => req.json() },
+      {
+        method: 'POST',
+        path: '/api/v1/projects/p1/assistant/suggestions/s9/undo',
+        body: { ...posted, status: 'undone', can_undo: false, result: 'Undone by Ada Lovelace' },
+      },
+    ]);
+    renderAt('/projects/WEB/assistant');
+    const done = await screen.findByRole('list', { name: 'Done on its own' });
+    expect(done).toHaveTextContent('Posted automatically on WEB-1');
+    expect(screen.getByRole('checkbox', { name: /Post follow-up comments without approval/ })).toBeChecked();
+    expect(screen.getByLabelText('At most per day')).toHaveValue(5);
+    // Saving existing settings sends only the editable fields.
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true));
+    const put = (await calls.find((c) => c.method === 'PUT')!.json()) as Record<string, unknown>;
+    expect(Object.keys(put).sort()).toEqual([
+      'auto_daily_cap',
+      'delivery',
+      'digest',
+      'enabled',
+      'stale_days',
+      'suggestions',
+      'timezone',
+      'trusted',
+      'weekly',
+    ]);
+    await userEvent.click(within(done).getByRole('button', { name: 'Undo the follow-up on WEB-1' }));
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith('/s9/undo'))).toBe(true));
   });
 });

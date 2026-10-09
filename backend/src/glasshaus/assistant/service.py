@@ -155,6 +155,8 @@ def _read(a: ProjectAssistant) -> AssistantRead:
         weekly=WeeklySettings(enabled=a.weekly_enabled, weekday=a.weekly_weekday, hour=a.weekly_hour),
         stale_days=a.stale_days,
         suggestions=a.suggest,
+        trusted=list(a.trusted),
+        auto_daily_cap=a.auto_daily_cap,
         delivery=DeliverySettings(in_app=a.notify_in_app, email=a.notify_email, channel_id=a.channel_id),
         next_digest_at=a.next_digest_at,
         next_weekly_at=a.next_weekly_at,
@@ -187,6 +189,13 @@ async def _channels(ctx: ServiceContext, project_id: uuid.UUID) -> list[ChannelO
     return [ChannelOption(id=i.id, name=i.name, kind=i.kind) for i in rows.all()]
 
 
+async def _trusted_allowed(ctx: ServiceContext) -> list[Any]:
+    from glasshaus.governance.models import OrgSettings
+
+    org = await ctx.session.get(OrgSettings, ctx.tenant_id)
+    return sorted(org.assistant_trusted) if org else []
+
+
 async def ai_allowed(ctx: ServiceContext) -> bool:
     from glasshaus.ai import service as ai
 
@@ -204,6 +213,7 @@ async def get_status(ctx: ServiceContext, project_id: uuid.UUID) -> AssistantSta
         account_name=ACCOUNT_NAME,
         can_manage=manage,
         can_approve=await suggestions.can_approve(ctx, project),
+        trusted_allowed=await _trusted_allowed(ctx),
         ai=await ai_allowed(ctx),
         email_available=mail.available(),
         channels=await _channels(ctx, project_id) if manage else [],
@@ -239,6 +249,13 @@ async def configure(ctx: ServiceContext, project_id: uuid.UUID, data: AssistantW
     a.notify_in_app, a.notify_email = data.delivery.in_app, data.delivery.email
     a.channel_id = data.delivery.channel_id
     a.suggest = data.suggestions
+    allowed = await _trusted_allowed(ctx)
+    if not set(data.trusted) <= set(allowed):
+        raise InvalidInput(
+            "your organization does not allow the assistant to do that without approval "
+            "(Admin > AI assistant)"
+        )
+    a.trusted, a.auto_daily_cap = sorted(set(data.trusted)), data.auto_daily_cap
     a.configured_by = ctx.actor.user_id
     now = datetime.now(UTC)
     a.next_digest_at, a.next_weekly_at = next_digest(a, now), next_weekly(a, now)

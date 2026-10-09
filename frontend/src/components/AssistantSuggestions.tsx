@@ -23,6 +23,7 @@ const STATUS: Record<Suggestion['status'], string> = {
   dismissed: 'Dismissed',
   stale: 'Set aside (task changed)',
   expired: 'Expired',
+  undone: 'Undone',
 };
 const MENTION = /^@\[([^\]]+)\]\(user:[0-9a-fA-F-]{36}\)\s*/;
 
@@ -293,6 +294,34 @@ function Notes({ projectId }: { projectId: string }) {
   );
 }
 
+function UndoButton({ s, projectId }: { s: Suggestion; projectId: string }) {
+  const queryClient = useQueryClient();
+  const undo = useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.POST('/api/v1/projects/{project_id}/assistant/suggestions/{suggestion_id}/undo', {
+          params: { path: { project_id: projectId, suggestion_id: s.id } },
+        }),
+      ),
+    onSuccess: async () => {
+      toast('Follow-up removed');
+      await queryClient.invalidateQueries({ queryKey: ['suggestions', projectId] });
+    },
+    onError: (err) => toast(err instanceof Error ? err.message : 'Could not undo', 'error'),
+  });
+  return (
+    <GhostButton
+      type="button"
+      className="ml-2 px-2 py-0.5 text-xs"
+      disabled={undo.isPending}
+      aria-label={`Undo the follow-up on ${s.task?.key ?? 'this task'}`}
+      onClick={() => undo.mutate()}
+    >
+      Undo
+    </GhostButton>
+  );
+}
+
 /** The assistant's approval queue: nothing changes until an editor or admin approves. */
 export function AssistantSuggestions({
   projectId,
@@ -314,7 +343,6 @@ export function AssistantSuggestions({
   });
   const decided = useQuery({
     queryKey: ['suggestions', projectId, 'decided'],
-    enabled: showDecided,
     queryFn: () =>
       unwrap(
         api.GET('/api/v1/projects/{project_id}/assistant/suggestions', {
@@ -323,6 +351,7 @@ export function AssistantSuggestions({
       ),
   });
   const list = open.data ?? [];
+  const automatic = (decided.data ?? []).filter((s) => s.automatic && s.can_undo);
   return (
     <section aria-labelledby={`${id}-h`} className="flex flex-col gap-3">
       <h2 id={`${id}-h`} className="text-lg font-semibold">
@@ -351,6 +380,22 @@ export function AssistantSuggestions({
           />
         ))}
       </ul>
+      {automatic.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <h3 className="font-semibold">Done on its own</h3>
+          <ul aria-label="Done on its own" className="flex flex-col gap-1 text-sm">
+            {automatic.map((s) => (
+              <li key={s.id}>
+                {s.result}
+                {s.decided_at
+                  ? `, ${new Date(s.decided_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`
+                  : ''}
+                {canApprove && <UndoButton s={s} projectId={projectId} />}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {canApprove && <Notes projectId={projectId} />}
       <div>
         <GhostButton type="button" aria-expanded={showDecided} onClick={() => setShowDecided((v) => !v)}>
@@ -364,8 +409,9 @@ export function AssistantSuggestions({
             <li key={s.id}>
               <strong>{STATUS[s.status]}</strong>: {KIND[s.kind]}
               {s.task ? ` · ${s.task.key}` : ''}
-              {s.decided_by ? ` by ${s.decided_by}` : ''}
+              {s.decided_by ? ` by ${s.decided_by}` : s.automatic ? ' automatically' : ''}
               {s.result ? ` (${s.result})` : ''}
+              {canApprove && s.can_undo && <UndoButton s={s} projectId={projectId} />}
             </li>
           ))}
         </ul>

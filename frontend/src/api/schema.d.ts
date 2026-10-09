@@ -1699,6 +1699,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/projects/{project_id}/assistant/suggestions/{suggestion_id}/undo': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Undo a follow-up comment the assistant posted (within 7 days) */
+    post: operations['undo_suggestion'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/portfolios': {
     parameters: {
       query?: never;
@@ -3070,6 +3087,17 @@ export interface components {
        */
       suggestions: boolean;
       /**
+       * Trusted
+       * @description Suggestion kinds it applies without approval (within the organization's limit).
+       */
+      trusted: 'comment'[];
+      /**
+       * Auto Daily Cap
+       * @description Most automatic actions per project per day.
+       * @default 10
+       */
+      auto_daily_cap: number;
+      /**
        * Project Id
        * Format: uuid
        */
@@ -3104,6 +3132,11 @@ export interface components {
        * @description The organization allows AI write-ups by the assistant (Admin > AI).
        */
       ai: boolean;
+      /**
+       * Trusted Allowed
+       * @description What the organization lets projects trust the assistant with (Admin > AI assistant).
+       */
+      trusted_allowed: 'comment'[];
       /** Email Available */
       email_available: boolean;
       /**
@@ -3140,6 +3173,17 @@ export interface components {
        * @default true
        */
       suggestions?: boolean;
+      /**
+       * Trusted
+       * @description Suggestion kinds it applies without approval (within the organization's limit).
+       */
+      trusted?: 'comment'[];
+      /**
+       * Auto Daily Cap
+       * @description Most automatic actions per project per day.
+       * @default 10
+       */
+      auto_daily_cap?: number;
     };
     /** AuditRead */
     AuditRead: {
@@ -4858,6 +4902,11 @@ export interface components {
        * @description AI features people may use when the assistant is on.
        */
       ai_features: ('summaries' | 'drafting' | 'risks' | 'search' | 'reports' | 'assistant')[];
+      /**
+       * Assistant Trusted
+       * @description Project-assistant suggestions projects may let it apply without approval (a ceiling).
+       */
+      assistant_trusted: 'comment'[];
     };
     /** OrgSettingsUpdate */
     OrgSettingsUpdate: {
@@ -4873,6 +4922,8 @@ export interface components {
       ai_enabled?: boolean | null;
       /** Ai Features */
       ai_features?: ('summaries' | 'drafting' | 'risks' | 'search' | 'reports' | 'assistant')[] | null;
+      /** Assistant Trusted */
+      assistant_trusted?: 'comment'[] | null;
     };
     /** Page[ActivityItem] */
     Page_ActivityItem_: {
@@ -6679,7 +6730,7 @@ export interface components {
        * Status
        * @enum {string}
        */
-      status: 'open' | 'approved' | 'dismissed' | 'stale' | 'expired';
+      status: 'open' | 'approved' | 'dismissed' | 'stale' | 'expired' | 'undone';
       /** Reason */
       reason: string;
       /** @description The task it is about (not for new tasks). */
@@ -6712,9 +6763,21 @@ export interface components {
       decided_at: string | null;
       /**
        * Decided By
-       * @description Who approved or dismissed it.
+       * @description Who approved or dismissed it (empty when automatic).
        */
       decided_by: string | null;
+      /**
+       * Automatic
+       * @description Applied without approval (a trusted kind).
+       * @default false
+       */
+      automatic: boolean;
+      /**
+       * Can Undo
+       * @description An applied follow-up comment that can still be undone.
+       * @default false
+       */
+      can_undo: boolean;
       /**
        * Result
        * @description What happened (the task key, or why it could not be applied).
@@ -16830,6 +16893,69 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['SuggestionRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  undo_suggestion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+        suggestion_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SuggestionRead'];
         };
       };
       /** @description Not authenticated */
