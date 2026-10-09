@@ -458,6 +458,7 @@ function AssistantSettings({
               type="time"
               value={hhmm(v.digest.hour ?? 8, v.digest.minute ?? 0)}
               onChange={(e) => {
+                if (!e.target.value) return; // cleared: keep the saved time
                 const [h, m] = e.target.value.split(':').map(Number);
                 set({ digest: { ...v.digest, hour: h ?? 8, minute: m ?? 0 } });
               }}
@@ -501,9 +502,10 @@ function AssistantSettings({
               type="time"
               step={3600}
               value={hhmm(v.weekly.hour ?? 14)}
-              onChange={(e) =>
-                set({ weekly: { ...v.weekly, hour: Number(e.target.value.split(':')[0] ?? 14) } })
-              }
+              onChange={(e) => {
+                if (e.target.value)
+                  set({ weekly: { ...v.weekly, hour: Number(e.target.value.split(':')[0]) } });
+              }}
             />
           </Field>
         </fieldset>

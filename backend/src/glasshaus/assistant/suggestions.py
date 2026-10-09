@@ -45,6 +45,7 @@ OPEN = (StatusCategory.BACKLOG, StatusCategory.TODO, StatusCategory.IN_PROGRESS)
 NOT_STARTED = (StatusCategory.BACKLOG, StatusCategory.TODO)
 MAX_NEW_PER_RUN = 10
 MAX_OPEN = 30
+MAX_OPEN_NOTES = 50  # tasks proposed from notes wait for a person; this many at most
 EXPIRE_DAYS = 7
 QUIET_DAYS = 7  # after a decision, the same suggestion is not made again for this long
 MAX_NOTE_TASKS = 15
@@ -95,9 +96,23 @@ def _mention(user_id: uuid.UUID, name: str) -> str:
     return f"@[{name}](user:{user_id})"
 
 
-def _defang(text: str) -> str:
-    """Model-written text must not mention anyone by itself: neutralise @ tokens and @emails."""
+_MD_IMAGE = re.compile(r"!\[([^\]]*)\]\([^)]*\)")
+_MD_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+_URL = re.compile(r"<?\b(?:https?|ftp|mailto|javascript|data):[^\s>)\]]*>?", re.IGNORECASE)
+_WWW = re.compile(r"\bwww\.[^\s)\]]+", re.IGNORECASE)
+
+
+def defang(text: str) -> str:
+    """Model-written text is plain words: it must not mention anyone by itself (neutralise @ tokens
+    and @emails) or carry links or images, which injected task text could otherwise slip in."""
+    text = _MD_IMAGE.sub(r"\1", text)
+    text = _MD_LINK.sub(r"\1", text)
+    text = _URL.sub("(link removed)", text)
+    text = _WWW.sub("(link removed)", text)
     return text.replace("@", "@​")
+
+
+_defang = defang
 
 
 # --------------------------------------------------------------------------- reading the project
@@ -371,16 +386,31 @@ async def _store(
             await ctx.session.scalars(
                 select(AssistantSuggestion.dedupe_key).where(
                     AssistantSuggestion.project_id == project_id,
-                    AssistantSuggestion.status.in_(("approved", "dismissed", "undone")),
+                    # Expired too: an ignored suggestion is not simply proposed again the same day.
+                    AssistantSuggestion.status.in_(("approved", "dismissed", "undone", "expired")),
                     AssistantSuggestion.decided_at > now - timedelta(days=QUIET_DAYS),
                 )
             )
         ).all()
     )
     room = MAX_OPEN - len(open_keys)
+    notes_room = MAX_OPEN_NOTES - (
+        await ctx.session.scalar(
+            select(func.count()).where(
+                AssistantSuggestion.project_id == project_id,
+                AssistantSuggestion.status == "open",
+                AssistantSuggestion.source == "notes",
+            )
+        )
+        or 0
+    )
     added: list[AssistantSuggestion] = []
     for d in drafts:
-        if len(added) >= min(room, MAX_NEW_PER_RUN) and d.source != "notes":
+        if d.source == "notes":
+            if notes_room <= 0:
+                continue
+            notes_room -= 1
+        elif len(added) >= min(room, MAX_NEW_PER_RUN):
             break
         if d.dedupe_key and (d.dedupe_key in open_keys or d.dedupe_key in quiet):
             continue
@@ -452,6 +482,7 @@ async def refresh(tenant_id: uuid.UUID, project_id: uuid.UUID, *, tz: str, stale
         except Exception:  # the rules still stand when the model fails
             log.exception("assistant.suggest_ai_failed", project=key)
     async with unit_of_work(Actor.system(tenant_id)) as ctx:
+        await _lock(ctx, project_id)
         await _store(ctx, project_id, drafts)
         applied = await _auto_apply(ctx, project_id, account, today=today, tz=tz)
         waiting = await open_count(ctx, project_id)
@@ -483,6 +514,16 @@ async def trusted_kinds(ctx: ServiceContext, project_id: uuid.UUID) -> set[str]:
     if a is None or not a.enabled or org is None:
         return set()
     return set(a.trusted) & set(org.assistant_trusted)
+
+
+async def _lock(ctx: ServiceContext, project_id: uuid.UUID) -> None:
+    """One refresh at a time per project (the worker and "write a digest now" can overlap): the
+    duplicate check and the daily cap count are then exact."""
+    from glasshaus.assistant.models import ProjectAssistant
+
+    await ctx.session.execute(
+        select(ProjectAssistant.project_id).where(ProjectAssistant.project_id == project_id).with_for_update()
+    )
 
 
 async def _auto_apply(
@@ -523,6 +564,9 @@ async def _auto_apply(
                 AssistantSuggestion.project_id == project_id,
                 AssistantSuggestion.status == "open",
                 AssistantSuggestion.kind == "comment",
+                # Only today's: an older follow-up may no longer fit (the date moved, work resumed),
+                # so it waits for a person instead of being posted when trust is turned on.
+                AssistantSuggestion.created_at >= midnight,
             )
             .order_by(AssistantSuggestion.created_at)
             .limit(room)
@@ -613,7 +657,12 @@ async def from_notes(actor: Actor, project_id: uuid.UUID, text: str) -> list[Sug
             "no action items found; with AI off, start lines with '- [ ]', 'TODO:' or 'Action:'"
         )
     async with unit_of_work(Actor.system(actor.tenant_id)) as ctx:
+        await _lock(ctx, project_id)
         rows = await _store(ctx, project_id, drafts)
+        if not rows:
+            raise InvalidInput(
+                f"{MAX_OPEN_NOTES} tasks from notes are already waiting; approve or dismiss some first"
+            )
         return await _reads(ctx, rows, key)
 
 

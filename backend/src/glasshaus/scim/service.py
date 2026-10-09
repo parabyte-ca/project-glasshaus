@@ -21,7 +21,14 @@ from glasshaus.core.errors import Conflict, InvalidInput, NotFound, Unauthentica
 from glasshaus.core.rbac import OrgRole, Permission, WorkspaceRole
 from glasshaus.core.schemas import Schema
 from glasshaus.identity import security
-from glasshaus.identity.models import ASSISTANT_KIND, User, Workspace, WorkspaceMember, is_assistant
+from glasshaus.identity.models import (
+    ASSISTANT_KIND,
+    User,
+    Workspace,
+    WorkspaceMember,
+    is_assistant,
+    reserved_email,
+)
 from glasshaus.scim.models import ScimToken
 
 USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User"
@@ -195,6 +202,8 @@ def _email_of(body: dict[str, Any]) -> str:
     email = (primary or {}).get("value") or body.get("userName")
     if not email or "@" not in str(email):
         raise ScimError(400, "userName or emails must hold an email address", "invalidValue")
+    if reserved_email(str(email)):
+        raise ScimError(400, "this address is reserved for the project assistant", "invalidValue")
     return str(email).strip()
 
 

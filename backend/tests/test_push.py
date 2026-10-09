@@ -197,3 +197,45 @@ def test_only_push_services_are_allowed() -> None:
         "https://push.apple.com.evil/x",
     ):
         assert not push.allowed_endpoint(url), url
+
+
+async def test_bad_devices_cannot_take_over_or_break_delivery(
+    client: AsyncClient, service: PushService
+) -> None:
+    world = await make_world()
+    phone = Device("keys")
+    # 65 bytes that are not a point on the curve would make encryption fail later.
+    bad = phone.body() | {"keys": {"p256dh": b64(b"\x04" + b"\x01" * 64), "auth": b64(os.urandom(16))}}
+    r = await client.post("/api/v1/push/subscriptions", json=bad, headers=world.headers)
+    assert r.status_code == 422
+    assert not push.allowed_endpoint("https://fcm.googleapis.com\t/x")
+
+    # Someone who knows the address but not the device keys cannot move it to themselves.
+    await client.post("/api/v1/push/subscriptions", json=phone.body(), headers=world.headers)
+    intruder = await make_user(world.tenant)
+    guess = Device("other").body() | {"endpoint": phone.endpoint}
+    r = await client.post("/api/v1/push/subscriptions", json=guess, headers=auth(await token_for(intruder)))
+    assert r.status_code == 409
+    assert (await client.get("/api/v1/push", headers=world.headers)).json()["devices"] == 1
+
+    # At most a handful of devices per person: the oldest go.
+    for i in range(push.MAX_DEVICES + 2):
+        await client.post("/api/v1/push/subscriptions", json=Device(f"d{i}").body(), headers=world.headers)
+    assert (await client.get("/api/v1/push", headers=world.headers)).json()["devices"] == push.MAX_DEVICES
+
+    # A deactivated person's devices are forgotten.
+    person = await make_user(world.tenant)
+    await client.post(
+        "/api/v1/push/subscriptions", json=Device("p").body(), headers=auth(await token_for(person))
+    )
+    r = await client.patch(f"/api/v1/users/{person.id}", json={"is_active": False}, headers=world.headers)
+    assert r.status_code == 200
+    async with system_session() as session:
+        from sqlalchemy import func, select
+
+        left = await session.scalar(
+            select(func.count())
+            .select_from(push.PushSubscription)
+            .where(push.PushSubscription.user_id == person.id)
+        )
+    assert left == 0

@@ -62,6 +62,7 @@ describe('live update keys', () => {
   it('invalidates task, comments and activity for task events', () => {
     expect(keysFor({ type: 'task.updated', aggregate_id: 't1', project_id: 'p1' })).toEqual([
       ['tasks', 'p1'],
+      ['my-tasks'],
       ['task', 't1'],
       ['comments', 't1'],
       ['activity', 'task', 't1'],
@@ -81,8 +82,8 @@ describe('live update keys', () => {
       }
       expect(spy).not.toHaveBeenCalled();
       vi.advanceTimersByTime(400);
-      // tasks list and onboarding once, plus task/comments/activity for each of the two tasks.
-      expect(spy).toHaveBeenCalledTimes(8);
+      // tasks list, my tasks and onboarding once, plus task/comments/activity for each of the two tasks.
+      expect(spy).toHaveBeenCalledTimes(9);
       expect(spy).toHaveBeenCalledWith({ queryKey: ['tasks', 'p1'] }, { cancelRefetch: false });
       spy.mockClear();
       batcher.add([['projects']]);

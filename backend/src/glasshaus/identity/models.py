@@ -111,5 +111,12 @@ class AuthSession(UUIDPk, TenantScoped, Base):
 ASSISTANT_KIND = "assistant"
 
 
+RESERVED_DOMAIN = "glasshaus.invalid"  # the assistant's address; no person may take it
+
+
+def reserved_email(email: str) -> bool:
+    return email.strip().lower().endswith("@" + RESERVED_DOMAIN)
+
+
 def is_assistant(user: User | None) -> bool:
     return user is not None and user.kind == ASSISTANT_KIND

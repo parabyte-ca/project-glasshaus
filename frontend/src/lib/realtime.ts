@@ -14,7 +14,7 @@ export function keysFor(event: LiveEvent): unknown[][] {
   const keys: unknown[][] = [];
   const [kind] = event.type.split('.');
   if (kind === 'task' || kind === 'comment') {
-    keys.push(['tasks', event.project_id]);
+    keys.push(['tasks', event.project_id], ['my-tasks']);
     if (event.aggregate_id) {
       keys.push(['task', event.aggregate_id], ['comments', event.aggregate_id]);
       keys.push(['activity', 'task', event.aggregate_id]);

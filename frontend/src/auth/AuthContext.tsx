@@ -19,7 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async () => {
       // A shared device should stop getting this person's notifications and forget their tasks.
       await turnOff().catch(() => undefined);
-      forgetOffline(me.data?.id);
+      forgetOffline(me.data?.id ?? rememberedUser()?.id);
       return unwrap(api.POST('/api/v1/auth/logout'));
     },
     onSettled: () => queryClient.clear(),
@@ -27,6 +27,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (me.data) rememberUser(me.data);
   }, [me.data]);
+  const signedOut = me.isError && me.error instanceof ApiError && me.error.status === 401;
+  useEffect(() => {
+    // The session ended (expired or revoked): forget the offline copy so a later offline start
+    // does not open the app as this person.
+    if (signedOut) forgetOffline(rememberedUser()?.id);
+  }, [signedOut]);
   const cached = me.isSuccess ? null : rememberedUser();
   const unreachable =
     (me.isPending && me.fetchStatus === 'paused') || (me.isError && !(me.error instanceof ApiError));
@@ -59,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
   }
   if (me.isError) {
-    if (me.error instanceof ApiError && me.error.status === 401) return <LoginPage />;
+    if (signedOut) return <LoginPage />;
     return (
       <p role="alert" className="p-8">
         Could not reach the server: {me.error.message}

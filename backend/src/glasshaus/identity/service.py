@@ -32,6 +32,7 @@ from glasshaus.identity.models import (
     Workspace,
     WorkspaceMember,
     is_assistant,
+    reserved_email,
 )
 from glasshaus.identity.schemas import (
     ApiTokenCreate,
@@ -196,12 +197,12 @@ async def actor_from_access_token(session: AsyncSession, token: str) -> Actor:
     await apply_tenant(session, tenant_id)
     row = (
         await session.execute(
-            select(User.org_role, User.is_active, AuthSession.revoked_at)
+            select(User.org_role, User.is_active, User.kind, AuthSession.revoked_at)
             .join(AuthSession, AuthSession.user_id == User.id)
             .where(User.id == user_id, AuthSession.id == session_id)
         )
     ).one_or_none()
-    if row is None or not row.is_active or row.revoked_at is not None:
+    if row is None or not row.is_active or row.revoked_at is not None or row.kind == ASSISTANT_KIND:
         raise Unauthenticated("session revoked")
     return Actor(tenant_id=tenant_id, user_id=user_id, org_role=row.org_role, method="session")
 
@@ -215,7 +216,7 @@ async def actor_from_api_token(session: AsyncSession, raw: str) -> Actor:
         raise Unauthenticated("invalid or expired token")
     await apply_tenant(session, token.tenant_id)
     user = await session.get(User, token.user_id)
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or is_assistant(user):
         raise Unauthenticated("invalid or expired token")
     if token.last_used_at is None or now - token.last_used_at > timedelta(minutes=5):
         token.last_used_at = now
@@ -280,6 +281,8 @@ async def create_user(ctx: ServiceContext, data: UserCreate) -> UserRead:
     require_org(ctx, Permission.USER_MANAGE)
     if data.org_role == OrgRole.OWNER and ctx.actor.org_role != OrgRole.OWNER:
         raise PermissionDenied("only owners can create owners")
+    if reserved_email(data.email):
+        raise InvalidInput("this address is reserved for the project assistant")
     user = User(
         id=uuid.uuid4(),
         tenant_id=ctx.tenant_id,

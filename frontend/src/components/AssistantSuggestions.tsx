@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -37,6 +37,15 @@ const shortDate = (iso: string | null | undefined) =>
     : 'none';
 
 /** Split "@[Name](user:id) text" into the person it addresses and the editable text. */
+/** After a change to a task: its list, its drawer and its comments may be stale. */
+async function refreshTask(queryClient: QueryClient, taskId: string | undefined): Promise<void> {
+  await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+  if (taskId) {
+    await queryClient.invalidateQueries({ queryKey: ['task', taskId] });
+    await queryClient.invalidateQueries({ queryKey: ['comments', taskId] });
+  }
+}
+
 function splitMention(comment: string): { prefix: string; name: string | null; text: string } {
   const m = MENTION.exec(comment);
   return m
@@ -67,7 +76,7 @@ function SuggestionCard({
   const path = { params: { path: { project_id: projectId, suggestion_id: s.id } } };
   const done = async () => {
     await queryClient.invalidateQueries({ queryKey: ['suggestions', projectId] });
-    await queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    await refreshTask(queryClient, s.task?.id);
   };
   const decision = (): Decision => {
     if (s.kind === 'comment' && text !== mention.text) return { comment: `${mention.prefix}${text}` };
@@ -155,6 +164,9 @@ function SuggestionCard({
               disabled={!canApprove}
               onChange={(e) => setOwner(e.target.value)}
             >
+              {!users.some((u) => u.id === owner) && (
+                <option value={owner}>{s.assignee ?? 'Choose a person'}</option>
+              )}
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name}
@@ -306,6 +318,7 @@ function UndoButton({ s, projectId }: { s: Suggestion; projectId: string }) {
     onSuccess: async () => {
       toast('Follow-up removed');
       await queryClient.invalidateQueries({ queryKey: ['suggestions', projectId] });
+      await refreshTask(queryClient, s.task?.id);
     },
     onError: (err) => toast(err instanceof Error ? err.message : 'Could not undo', 'error'),
   });
