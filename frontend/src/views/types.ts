@@ -1,6 +1,7 @@
 import type { CustomField, ProjectDetail, Task, User, ViewConfig } from '../api/client';
+import type { TaskPatch } from '../lib/taskUpdates';
 
-export type TaskPatch = Record<string, unknown>;
+export type { TaskPatch };
 
 export interface ViewProps {
   tasks: Task[];
