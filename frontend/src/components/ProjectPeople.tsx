@@ -4,6 +4,7 @@ import { useId, useState, type FormEvent } from 'react';
 import { api, unwrap, type ProjectDetail, type User } from '../api/client';
 import { ONBOARDING_KEY } from '../lib/onboarding';
 import { Button, ErrorText, GhostButton, Select } from './ui';
+import { useConfirm } from '../lib/confirm';
 
 type Role = 'admin' | 'editor' | 'commenter' | 'viewer';
 const ROLES: [Role, string][] = [
@@ -31,6 +32,7 @@ export function ProjectPeople({
   users: User[];
   defaultOpen?: boolean;
 }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(defaultOpen);
   const [person, setPerson] = useState('');
@@ -118,8 +120,15 @@ export function ProjectPeople({
                   <button
                     type="button"
                     aria-label={`Remove ${names.get(m.user_id) ?? 'person'} from the project`}
-                    onClick={() => remove.mutate(m.user_id)}
-                    className="rounded px-1.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
+                    onClick={async () =>
+                      (await confirm({
+                        title: `Remove ${names.get(m.user_id) ?? 'this person'} from ${project.name}?`,
+                        body: 'They lose access to the project unless the whole organization has it.',
+                        confirmLabel: 'Remove',
+                        danger: true,
+                      })) && remove.mutate(m.user_id)
+                    }
+                    className="min-h-6 rounded px-1.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
                   >
                     Remove
                   </button>

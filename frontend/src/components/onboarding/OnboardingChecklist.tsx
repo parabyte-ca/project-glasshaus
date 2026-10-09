@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 
 import { api, unwrap } from '../../api/client';
 import { MILESTONES, progressOf, useOnboarding } from '../../lib/onboarding';
+import { linkClass } from '../ui';
 
 /**
  * Getting-started checklist docked bottom-right. Items tick from what the person has actually done;
@@ -51,14 +52,14 @@ export function OnboardingChecklist() {
             type="button"
             aria-expanded="true"
             onClick={() => update({ checklist: 'minimized' })}
-            className="rounded px-2 py-0.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
+            className="min-h-6 rounded px-2 py-0.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
           >
             Minimize
           </button>
           <button
             type="button"
             onClick={() => update({ checklist: 'dismissed' })}
-            className="rounded px-2 py-0.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
+            className="min-h-6 rounded px-2 py-0.5 text-xs hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-600 dark:hover:bg-slate-800"
           >
             Dismiss
           </button>
@@ -98,7 +99,7 @@ export function OnboardingChecklist() {
                   <span className="sr-only"> (done)</span>
                 </span>
               ) : (
-                <Link to={targets[m.key]!} className="text-sky-700 hover:underline dark:text-sky-400">
+                <Link to={targets[m.key]!} className={linkClass}>
                   {m.label}
                 </Link>
               )}

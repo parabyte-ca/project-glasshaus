@@ -6,10 +6,12 @@ import { api, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { AccessSettings } from '../components/AccessSettings';
 import { Button, ErrorText, Field, Input } from '../components/ui';
+import { usePageTitle } from '../lib/pageTitle';
 
 export const MIN_PASSWORD_LENGTH = 12;
 
 export function AccountPage() {
+  usePageTitle('Account');
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();

@@ -11,6 +11,7 @@ import { Markdown } from './Markdown';
 import { TaskTime } from './TimeTracking';
 import { useModal } from './useModal';
 import { DateInput, ErrorText, GhostButton, Select } from './ui';
+import { useConfirm } from '../lib/confirm';
 
 interface Props {
   taskRef: string;
@@ -70,12 +71,18 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
   const setCommentDraft = useCallback((text: string) => {
     commentDraft.current = text;
   }, []);
-  const requestClose = useCallback(() => {
+  const confirm = useConfirm();
+  const requestClose = useCallback(async () => {
     const active = document.activeElement;
     if (active instanceof HTMLElement && panel.current?.contains(active)) active.blur();
-    if (commentDraft.current.trim() && !window.confirm('Discard your unsent comment?')) return;
+    if (
+      commentDraft.current.trim() &&
+      !(await confirm({ title: 'Discard your unsent comment?', confirmLabel: 'Discard', danger: true }))
+    ) {
+      return;
+    }
     onClose();
-  }, [onClose]);
+  }, [onClose, confirm]);
   useModal(panel, requestClose);
 
   const t = task.data;

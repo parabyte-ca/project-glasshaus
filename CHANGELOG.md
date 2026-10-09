@@ -6,6 +6,40 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-09
+
+New look, and the remaining usability and accessibility fixes from the code review (U8–U25).
+
+### Changed
+- **New visual style**: black surfaces in dark mode with a faint warm glow, a clearer blue for actions
+  and links, orange for section labels and the current page, and the Inter typeface (served by
+  Glasshaus itself, no outside requests) with heavy headings. New app icon and browser theme colour.
+- Confirmations are an in-app dialog instead of the browser's prompt, and now also guard revoking API
+  and SCIM tokens, disconnecting apps, changing or turning off the calendar link, changing someone's
+  role, removing someone from a project and deleting logged time.
+- Search, priority, grouping, sort and *Show completed* are kept in the address, so links, reloads and
+  Back keep them.
+- Board cards have a **Move** menu, and move with Alt+arrow keys.
+- On phones the calendar is an agenda list, the timeline's label column is narrower, and the dark mode
+  switch is a symbol.
+
+### Fixed
+- Pages name the browser tab, and navigating moves focus to the new page's heading.
+- Unknown addresses show **Not found**; a project, dashboard, portfolio or report that can't be loaded
+  says so (with **Try again**) instead of showing "Loading…" forever.
+- The task list says "Loading tasks…" instead of briefly showing "No tasks match".
+- One Escape closes one thing: popovers and tips no longer close together with the dialog below them.
+- Closing a task goes back in history, so Back no longer reopens it.
+- Timeline bars can be dragged on touch screens; moves of bars and cards are announced to screen
+  readers.
+- Notifications: focus moves into the list, Up/Down move between items, Escape returns focus to the
+  button; links are readable in dark mode (also in comments and descriptions).
+- Tabs (administration, project settings, time, assistant) work with arrow keys.
+- Validation errors name the field, and forms mark the field the server rejected.
+- Copy buttons on shown-once secrets (API, SCIM and webhook secrets, calendar link) and setup URLs.
+- Small controls are at least 24 px; *Reduce motion* is respected everywhere; no 9 px text.
+
+
 ## [0.10.0] - 2026-10-09
 
 First-run onboarding.

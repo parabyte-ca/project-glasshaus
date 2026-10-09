@@ -1,14 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 
-import { api, unwrap, type Schemas, type User } from '../../api/client';
+import { api, fieldError, type Schemas, unwrap, type User } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { Button, ErrorText, Field, GhostButton, Input, ScrollArea, Select } from '../ui';
 import { Section } from './common';
 import { dateTime, table, td, th } from './format';
+import { useConfirm } from '../../lib/confirm';
 
 type Role = Schemas['OrgRole'];
 const ROLES: Role[] = ['owner', 'admin', 'member', 'guest'];
+const ROLE_HELP: Record<Role, string> = {
+  owner: 'Owners have full control, including over other owners and admins.',
+  admin: 'Admins manage people, sign-in, integrations and organization settings.',
+  member: 'Members work in the projects they belong to.',
+  guest: 'Guests see only the projects they are added to, with no organization-wide access.',
+};
 
 function ResetPassword({ user, onDone }: { user: User; onDone: () => void }) {
   const [password, setPassword] = useState('');
@@ -50,6 +57,7 @@ function ResetPassword({ user, onDone }: { user: User; onDone: () => void }) {
 }
 
 export function People() {
+  const confirm = useConfirm();
   const { user: me } = useAuth();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
@@ -142,9 +150,15 @@ export function People() {
                       aria-label={`Role for ${u.name}`}
                       value={u.org_role}
                       disabled={u.id === me.id || (u.org_role === 'owner' && me.org_role !== 'owner')}
-                      onChange={(e) =>
-                        update.mutate({ id: u.id, body: { org_role: e.target.value as Role } })
-                      }
+                      onChange={async (e) => {
+                        const role = e.target.value as Role;
+                        const ok = await confirm({
+                          title: `Make ${u.name} ${role === 'admin' || role === 'owner' ? 'an' : 'a'} ${role}?`,
+                          body: ROLE_HELP[role],
+                          confirmLabel: 'Change role',
+                        });
+                        if (ok) update.mutate({ id: u.id, body: { org_role: role } });
+                      }}
                     >
                       {ROLES.filter(
                         (r) => r !== 'owner' || me.org_role === 'owner' || u.org_role === 'owner',
@@ -162,10 +176,15 @@ export function People() {
                       <div className="flex flex-wrap gap-1">
                         <GhostButton
                           aria-label={`${u.is_active ? 'Deactivate' : 'Reactivate'} ${u.name}`}
-                          onClick={() => {
+                          onClick={async () => {
                             if (
                               !u.is_active ||
-                              window.confirm(`Deactivate ${u.name}? Their sessions end now.`)
+                              (await confirm({
+                                title: `Deactivate ${u.name}?`,
+                                body: 'They are signed out everywhere now and cannot sign in until reactivated.',
+                                confirmLabel: 'Deactivate',
+                                danger: true,
+                              }))
                             )
                               update.mutate({ id: u.id, body: { is_active: !u.is_active } });
                           }}
@@ -210,7 +229,7 @@ export function People() {
         intro="Leave the password empty when they will sign in with single sign-on, or set a temporary one and share it securely."
       >
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-          <Field label="Email" id="new-email">
+          <Field label="Email" id="new-email" error={fieldError(create.error, 'email')}>
             <Input
               id="new-email"
               type="email"
@@ -219,7 +238,7 @@ export function People() {
               onChange={(e) => setDraft({ ...draft, email: e.target.value })}
             />
           </Field>
-          <Field label="Name" id="new-name">
+          <Field label="Name" id="new-name" error={fieldError(create.error, 'name')}>
             <Input
               id="new-name"
               required
@@ -240,7 +259,11 @@ export function People() {
               ))}
             </Select>
           </Field>
-          <Field label="Temporary password (optional)" id="new-password">
+          <Field
+            label="Temporary password (optional)"
+            id="new-password"
+            error={fieldError(create.error, 'password')}
+          >
             <Input
               id="new-password"
               type="password"

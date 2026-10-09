@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { CopyButton } from '../ui';
+
 export function Section({
   title,
   children,
@@ -25,13 +27,19 @@ export function SecretOnce({ label, value }: { label: string; value: string }) {
   return (
     <div role="status" className="rounded border border-amber-400 bg-amber-50 p-3 text-sm dark:bg-amber-950">
       <p className="font-semibold">{label} (shown once; copy it now)</p>
-      <code className="block break-all select-all">{value}</code>
+      <div className="mt-1 flex items-start gap-2">
+        <code className="block flex-1 break-all select-all">{value}</code>
+        <CopyButton value={value} label={`Copy ${label.toLowerCase()}`} />
+      </div>
     </div>
   );
 }
 
 export function Copyable({ value }: { value: string }) {
   return (
-    <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs break-all dark:bg-slate-800">{value}</code>
+    <span className="inline-flex items-center gap-1">
+      <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs break-all dark:bg-slate-800">{value}</code>
+      <CopyButton value={value} aria-label={`Copy ${value}`} />
+    </span>
   );
 }

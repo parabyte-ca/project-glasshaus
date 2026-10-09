@@ -5,8 +5,10 @@ import { api, unwrap } from '../../api/client';
 import { Button, ErrorText, Field, GhostButton, Input } from '../ui';
 import { Copyable, SecretOnce, Section } from './common';
 import { dateTime, table, td, th } from './format';
+import { useConfirm } from '../../lib/confirm';
 
 export function Provisioning() {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [created, setCreated] = useState<{ token: string; base_url: string } | null>(null);
@@ -77,7 +79,17 @@ export function Provisioning() {
                 <td className={`${td} font-mono`}>{t.prefix}…</td>
                 <td className={td}>{dateTime(t.last_used_at)}</td>
                 <td className={td}>
-                  <GhostButton aria-label={`Revoke ${t.name}`} onClick={() => revoke.mutate(t.id)}>
+                  <GhostButton
+                    aria-label={`Revoke ${t.name}`}
+                    onClick={async () =>
+                      (await confirm({
+                        title: `Revoke the SCIM token "${t.name}"?`,
+                        body: 'Provisioning with it stops now.',
+                        confirmLabel: 'Revoke',
+                        danger: true,
+                      })) && revoke.mutate(t.id)
+                    }
+                  >
                     Revoke
                   </GhostButton>
                 </td>

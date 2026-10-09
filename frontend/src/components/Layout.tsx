@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 
 import { api, getVersion, unwrap } from '../api/client';
@@ -45,9 +45,10 @@ export function Layout() {
     setMenuPath(pathname);
     setMenuOpen(false);
   }
+  useFocusOnNavigation(pathname);
 
   return (
-    <div className="flex min-h-screen flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="flex min-h-screen flex-col">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:rounded focus:bg-sky-700 focus:px-3 focus:py-2 focus:text-white"
@@ -64,8 +65,11 @@ export function Layout() {
           >
             Menu
           </GhostButton>
-          <Link to="/" className="truncate text-lg font-semibold">
-            <span className="hidden sm:inline">Project </span>Glasshaus
+          <Link
+            to="/"
+            className="truncate text-lg font-semibold tracking-tight text-sky-700 dark:text-sky-400"
+          >
+            <span className="hidden text-slate-600 sm:inline dark:text-slate-400">Project </span>Glasshaus
           </Link>
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
@@ -109,7 +113,7 @@ export function Layout() {
                   to={to}
                   end={to === '/'}
                   className={({ isActive }) =>
-                    `block rounded px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isActive ? 'bg-slate-100 font-medium dark:bg-slate-800' : ''}`
+                    `block rounded border-l-2 px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isActive ? 'border-accent-500 bg-slate-100 font-semibold dark:bg-slate-800' : 'border-transparent'}`
                   }
                 >
                   {label}
@@ -117,7 +121,7 @@ export function Layout() {
               </li>
             ))}
           </ul>
-          <h2 className="mb-2 text-xs font-semibold tracking-wide text-slate-600 uppercase dark:text-slate-400">
+          <h2 className="mb-2 text-xs font-bold tracking-wide text-accent-700 uppercase dark:text-accent-400">
             Projects
           </h2>
           <ul className="flex flex-col gap-1">
@@ -126,7 +130,7 @@ export function Layout() {
                 <NavLink
                   to={`/projects/${p.key}`}
                   className={({ isActive }) =>
-                    `block rounded px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isActive ? 'bg-slate-100 font-medium dark:bg-slate-800' : ''}`
+                    `block rounded border-l-2 px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isActive ? 'border-accent-500 bg-slate-100 font-semibold dark:bg-slate-800' : 'border-transparent'}`
                   }
                 >
                   <span className="mr-2 font-mono text-xs text-slate-600 dark:text-slate-400">{p.key}</span>
@@ -155,11 +159,11 @@ export function Layout() {
       </Suspense>
       <OnboardingChecklist />
       <footer className="flex gap-3 px-4 py-3 text-xs text-slate-600 dark:text-slate-400" aria-live="polite">
-        <button type="button" onClick={openHelp} className="underline">
+        <button type="button" onClick={openHelp} className="min-h-6 rounded underline">
           Keyboard shortcuts (?)
         </button>
         {startTour && (
-          <button type="button" onClick={startTour} className="underline">
+          <button type="button" onClick={startTour} className="min-h-6 rounded underline">
             Product tour
           </button>
         )}
@@ -172,4 +176,40 @@ export function Layout() {
       </footer>
     </div>
   );
+}
+
+/**
+ * After moving to another page, put focus on its heading (as a full page load would put it at the
+ * top), so keyboard and screen reader users start from the new page instead of the old link.
+ * Pages that load lazily get their heading a moment later; give up if the person has moved on.
+ */
+function useFocusOnNavigation(pathname: string) {
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const main = document.getElementById('main');
+    if (!main) return;
+    const startedOn = document.activeElement;
+    const tryFocus = () => {
+      const moved = document.activeElement !== startedOn && document.activeElement !== document.body;
+      if (moved && !main.contains(document.activeElement)) return true; // the person went elsewhere
+      if (main.querySelector('[role="dialog"]')) return true; // a dialog (task drawer) owns focus
+      const heading = main.querySelector<HTMLElement>('h1');
+      if (!heading) return false;
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+      return true;
+    };
+    if (tryFocus()) return;
+    const observer = new MutationObserver(() => tryFocus() && observer.disconnect());
+    observer.observe(main, { childList: true, subtree: true });
+    const stop = setTimeout(() => observer.disconnect(), 3000);
+    return () => {
+      observer.disconnect();
+      clearTimeout(stop);
+    };
+  }, [pathname]);
 }

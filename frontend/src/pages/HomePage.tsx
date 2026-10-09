@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 
-import { api, unwrap } from '../api/client';
+import { api, fieldError, unwrap } from '../api/client';
 import { Button, ErrorText, Field, Input, Select } from '../components/ui';
+import { usePageTitle } from '../lib/pageTitle';
 
 export function HomePage() {
+  usePageTitle('Home');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const workspaces = useQuery({
@@ -120,7 +122,7 @@ export function HomePage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Key" id="key">
+            <Field label="Key" id="key" error={fieldError(createProject.error, 'key')}>
               <Input
                 id="key"
                 required
@@ -130,7 +132,7 @@ export function HomePage() {
                 onChange={(e) => setKey(e.target.value)}
               />
             </Field>
-            <Field label="Name" id="name">
+            <Field label="Name" id="name" error={fieldError(createProject.error, 'name')}>
               <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
             {!!templates.data?.length && (

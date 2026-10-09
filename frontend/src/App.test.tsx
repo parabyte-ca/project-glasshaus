@@ -528,6 +528,9 @@ describe('connected access', () => {
     expect(await screen.findByRole('button', { name: 'Revoke VS Code' })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Disconnect Claude' }));
+    const ask = await screen.findByRole('dialog', { name: 'Disconnect Claude?' });
+    expect(within(ask).getByText('It loses access to your account now.')).toBeInTheDocument();
+    await userEvent.click(within(ask).getByRole('button', { name: 'Disconnect' }));
     expect(await screen.findByText(/No apps are connected/)).toBeInTheDocument();
   });
 });
@@ -550,9 +553,21 @@ describe('administration', () => {
         },
       },
     ]);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAt('/admin');
     await userEvent.click(await screen.findByRole('button', { name: 'Deactivate Lin' }));
+    // Cancel first: nothing changes, and focus goes back to the button.
+    const ask = await screen.findByRole('dialog', { name: 'Deactivate Lin?' });
+    expect(within(ask).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Deactivate Lin' })).toHaveFocus();
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Deactivate Lin' }));
+    await userEvent.click(
+      within(await screen.findByRole('dialog', { name: 'Deactivate Lin?' })).getByRole('button', {
+        name: 'Deactivate',
+      }),
+    );
     expect(await screen.findByRole('button', { name: 'Reactivate Lin' })).toBeInTheDocument();
     const patch = calls.find((c) => c.method === 'PATCH')!;
     expect(await patch.json()).toEqual({ is_active: false });

@@ -4,8 +4,11 @@ import { Link, useNavigate, useParams } from 'react-router';
 
 import { api, unwrap } from '../api/client';
 import { HealthBadge, ProgressBar } from '../components/charts';
-import { Button, ErrorText, Field, GhostButton, Input } from '../components/ui';
+import { Button, ErrorText, Field, GhostButton, Input, linkClass } from '../components/ui';
 import { formatMinutes, shortDate } from '../lib/format';
+import { usePageTitle } from '../lib/pageTitle';
+import { LoadError } from '../components/PageState';
+import { useConfirm } from '../lib/confirm';
 
 function ProjectPicker({ selected, onChange }: { selected: string[]; onChange: (ids: string[]) => void }) {
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => unwrap(api.GET('/api/v1/projects')) });
@@ -29,6 +32,7 @@ function ProjectPicker({ selected, onChange }: { selected: string[]; onChange: (
 }
 
 function PortfolioList() {
+  usePageTitle('Portfolios');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const portfolios = useQuery({
@@ -95,6 +99,7 @@ function PortfolioList() {
 }
 
 function PortfolioDetailView({ id }: { id: string }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const portfolio = useQuery({
@@ -125,13 +130,16 @@ function PortfolioDetailView({ id }: { id: string }) {
       void navigate('/portfolios');
     },
   });
-  if (portfolio.error) return <ErrorText error={portfolio.error} />;
+  usePageTitle(portfolio.data?.name ?? 'Portfolio');
+  if (portfolio.error) {
+    return <LoadError error={portfolio.error} what="portfolio" onRetry={() => void portfolio.refetch()} />;
+  }
   if (!portfolio.data) return <p role="status">Loading…</p>;
   const p = portfolio.data;
   return (
     <div className="flex max-w-5xl flex-col gap-4">
       <div>
-        <Link to="/portfolios" className="text-sm text-sky-700 hover:underline dark:text-sky-400">
+        <Link to="/portfolios" className={`text-sm ${linkClass}`}>
           ← Portfolios
         </Link>
         <div className="flex flex-wrap items-center gap-3">
@@ -194,7 +202,16 @@ function PortfolioDetailView({ id }: { id: string }) {
           <GhostButton onClick={() => setEditing(p.projects.map((x) => x.project_id))}>
             Edit projects
           </GhostButton>
-          <GhostButton onClick={() => window.confirm(`Delete the portfolio "${p.name}"?`) && remove.mutate()}>
+          <GhostButton
+            onClick={async () =>
+              (await confirm({
+                title: `Delete the portfolio "${p.name}"?`,
+                body: 'Its projects are not affected.',
+                confirmLabel: 'Delete',
+                danger: true,
+              })) && remove.mutate()
+            }
+          >
             Delete
           </GhostButton>
         </div>

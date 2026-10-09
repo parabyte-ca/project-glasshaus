@@ -25,17 +25,29 @@ Automated tools find roughly a third of issues. Before a release, also check by 
 
 ## Built in
 
-- Landmarks, a skip link, one `h1` per page and labelled form controls.
-- Visible focus indicators; dialogs (task drawer, palette, shortcut help) trap focus and return it.
-  Escape closes only the topmost one, and leaving the task drawer saves the field being edited.
+- Landmarks, a skip link, one `h1` per page and labelled form controls. Each page names the browser
+  tab, and moving to another page puts focus on its heading.
+- Visible focus indicators; dialogs (task drawer, palette, shortcut help, confirmations) trap focus and
+  return it. Escape closes only the topmost layer, popovers and tips included, and leaving the task
+  drawer saves the field being edited.
+- Destructive or far-reaching actions (deletes, revoking tokens, role changes, removing people) ask
+  first in an in-app dialog whose button names the action.
+- Short confirmations and background errors appear as toasts in always-present live regions.
+- Tabs use arrow keys, Home and End with a single tab stop.
+- Errors from the server mark the field they belong to (`aria-invalid`, message linked with
+  `aria-describedby`).
 - Date fields save when you leave them or press Enter (Escape restores the saved date), so partly
   typed dates are never stored.
 - On phones the navigation sits behind a **Menu** button (`aria-expanded`) instead of above every page.
-- Board cards move with the keyboard; timeline bars move and resize with arrow keys; charts have data
-  tables.
+- Board cards move with Alt+arrow keys or each card's **Move** menu (which also works on touch); focus
+  follows the card and the move is announced. Timeline bars move and resize with arrow keys or by
+  dragging on touch screens, and each move is announced. On phones the calendar is an agenda list.
+  Charts have data tables.
+- Small controls are at least 24 × 24 px; *Reduce motion* turns off animation and smooth scrolling.
 - Scrolling regions (board, table, timeline, wide tables) are focusable so they scroll with the keyboard.
 - Colour is never the only signal (status names, severity labels, text with every chart colour); text
-  contrast is at least 4.5:1 in both themes.
+  contrast is at least 4.5:1 in both themes. The palette lives in `frontend/src/index.css` (`@theme`);
+  the comment there lists the text and background pairs it was checked for.
 - Keyboard shortcuts are single keys only outside text fields and can be ignored entirely; everything
   has a visible control too. Press **?** for the list.
 

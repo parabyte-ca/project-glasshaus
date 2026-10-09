@@ -16,6 +16,7 @@ import {
 } from '../api/client';
 import { TRIGGERS, triggerLabel, WEEKDAYS } from '../lib/automation';
 import { Button, ErrorText, Field, GhostButton, Input, Select } from './ui';
+import { useConfirm } from '../lib/confirm';
 
 type ActionType = Schemas['ActionType'];
 type Operator = Schemas['Operator'];
@@ -598,6 +599,7 @@ export function AutomationRules({
   fields: CustomField[];
   users: User[];
 }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const key = ['automation-rules', project.id];
   const rules = useQuery({
@@ -743,7 +745,13 @@ export function AutomationRules({
               </GhostButton>
               <GhostButton
                 aria-label={`Delete ${r.name}`}
-                onClick={() => window.confirm(`Delete the rule "${r.name}"?`) && remove.mutate(r.id)}
+                onClick={async () =>
+                  (await confirm({
+                    title: `Delete the rule "${r.name}"?`,
+                    confirmLabel: 'Delete',
+                    danger: true,
+                  })) && remove.mutate(r.id)
+                }
               >
                 Delete
               </GhostButton>

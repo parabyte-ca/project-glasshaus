@@ -6,6 +6,8 @@ import { useAuth } from '../auth/useAuth';
 import { HealthBadge, ProgressBar } from '../components/charts';
 import { Button, ErrorText, Field, GhostButton, Input, Select } from '../components/ui';
 import { currentQuarter } from '../lib/format';
+import { usePageTitle } from '../lib/pageTitle';
+import { useConfirm } from '../lib/confirm';
 
 type KrInput = Schemas['KeyResultCreate'];
 type Confidence = Schemas['Confidence'];
@@ -110,6 +112,7 @@ function ObjectiveCard({
   ownerName: string;
   canEdit: boolean;
 }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const remove = useMutation({
     mutationFn: () =>
@@ -133,7 +136,14 @@ function ObjectiveCard({
             <GhostButton
               className="px-2 py-0.5 text-xs"
               aria-label={`Delete objective ${objective.title}`}
-              onClick={() => window.confirm(`Delete "${objective.title}"?`) && remove.mutate()}
+              onClick={async () =>
+                (await confirm({
+                  title: `Delete the objective "${objective.title}"?`,
+                  body: 'Its key results and check-ins are deleted too.',
+                  confirmLabel: 'Delete',
+                  danger: true,
+                })) && remove.mutate()
+              }
             >
               Delete
             </GhostButton>
@@ -300,6 +310,7 @@ function NewObjective({ period, onCreated }: { period: string; onCreated: () => 
 }
 
 export function GoalsPage() {
+  usePageTitle('Goals');
   const { user } = useAuth();
   const [period, setPeriod] = useState(currentQuarter);
   const [creating, setCreating] = useState(false);

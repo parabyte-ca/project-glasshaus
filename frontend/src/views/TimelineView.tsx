@@ -5,10 +5,10 @@ import { api, unwrap, type Task } from '../api/client';
 import { GhostButton, Select } from '../components/ui';
 import { formatDay, isWeekend, monthLabel, parseDay, todayIso } from '../lib/dates';
 import { shiftPatch } from '../lib/schedule';
+import { toast } from '../lib/toast';
 import type { ViewProps } from './types';
 
 const ROW = 36;
-const LABEL_W = 260;
 const ZOOM = { day: 28, week: 10 } as const;
 
 interface Drag {
@@ -130,9 +130,17 @@ export function TimelineView({ tasks, project, onOpen, onUpdate }: ViewProps) {
   const onPointerMove = (e: PointerEvent) => {
     if (drag) setDrag({ ...drag, deltaDays: Math.round((e.clientX - drag.originX) / dayW) });
   };
+  // Say where a bar went (for screen readers and as a check after dragging).
+  const announceMove = (task: Task, days: number, mode: Drag['mode']) => {
+    const patch = shiftPatch(task, days, mode);
+    onUpdate(task, patch);
+    const start = 'start_date' in patch ? patch.start_date : task.start_date;
+    const due = 'due_date' in patch ? patch.due_date : task.due_date;
+    toast(`${task.key}: ${start ?? due} to ${due ?? start}`);
+  };
   const onPointerUp = (task: Task) => {
     if (drag && drag.taskId === task.id) {
-      if (drag.deltaDays !== 0) onUpdate(task, shiftPatch(task, drag.deltaDays, drag.mode));
+      if (drag.deltaDays !== 0) announceMove(task, drag.deltaDays, drag.mode);
       else onOpen(task);
     }
     setDrag(null);
@@ -141,7 +149,7 @@ export function TimelineView({ tasks, project, onOpen, onUpdate }: ViewProps) {
     const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
     if (step) {
       e.preventDefault();
-      onUpdate(task, shiftPatch(task, step, e.shiftKey ? 'resize' : 'move'));
+      announceMove(task, step, e.shiftKey ? 'resize' : 'move');
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       onOpen(task);
@@ -238,13 +246,12 @@ export function TimelineView({ tasks, project, onOpen, onUpdate }: ViewProps) {
         tabIndex={0}
         className="flex overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800"
       >
-        <ul
-          className="sticky left-0 z-10 shrink-0 border-r border-slate-200 bg-white pt-6 dark:border-slate-800 dark:bg-slate-950"
-          style={{ width: LABEL_W }}
-        >
+        <ul className="sticky left-0 z-10 w-32 shrink-0 border-r border-slate-200 bg-white pt-6 sm:w-64 dark:border-slate-800 dark:bg-slate-950">
           {scheduled.map((t) => (
             <li key={t.id} style={{ height: ROW }} className="flex items-center gap-2 truncate px-2 text-sm">
-              <span className="font-mono text-xs text-slate-600 dark:text-slate-400">{t.key}</span>
+              <span className="hidden font-mono text-xs text-slate-600 sm:inline dark:text-slate-400">
+                {t.key}
+              </span>
               <button type="button" className="truncate text-left hover:underline" onClick={() => onOpen(t)}>
                 {t.title}
               </button>
@@ -258,6 +265,7 @@ export function TimelineView({ tasks, project, onOpen, onUpdate }: ViewProps) {
           role="group"
           aria-label="Timeline. Focus a bar and use arrow keys to move it a day; Shift+arrows change its length."
           onPointerMove={onPointerMove}
+          onPointerCancel={() => setDrag(null)}
           className="shrink-0 select-none"
         >
           <defs>
@@ -359,12 +367,14 @@ export function TimelineView({ tasks, project, onOpen, onUpdate }: ViewProps) {
                     onPointerDown={(e) => onPointerDown(e, t, 'move')}
                     onPointerUp={() => onPointerUp(t)}
                     onKeyDown={(e) => onKeyDown(e, t)}
+                    style={{ touchAction: 'none' }}
                     className={`cursor-grab focus:outline-2 focus:outline-sky-600 ${isCritical ? 'fill-rose-500' : 'fill-sky-600'} ${t.completed_at ? 'opacity-50' : ''}`}
                   />
                   <rect
-                    x={b.x + b.w - 6}
+                    x={b.x + b.w - 10}
                     y={8}
-                    width={6}
+                    width={12}
+                    style={{ touchAction: 'none' }}
                     height={ROW - 18}
                     className="cursor-ew-resize fill-transparent"
                     onPointerDown={(e) => onPointerDown(e, t, 'resize')}

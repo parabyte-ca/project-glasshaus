@@ -4,9 +4,10 @@ import { useSearchParams } from 'react-router';
 
 import { api, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
-import { ErrorText, Field, GhostButton, Input, ScrollArea, Select } from '../components/ui';
+import { ErrorText, Field, GhostButton, Input, ScrollArea, Select, TabPanel, Tabs } from '../components/ui';
 import { addDays, todayIso } from '../lib/dates';
 import { formatMinutes, hours, mondayOf, shortDay } from '../lib/format';
+import { usePageTitle } from '../lib/pageTitle';
 
 function exportUrl(params: Record<string, string | undefined>): string {
   const q = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1]));
@@ -202,39 +203,25 @@ function TeamReport() {
 }
 
 export function TimePage() {
+  usePageTitle('Time');
   const [params, setParams] = useSearchParams();
   const tab = params.get('tab') === 'team' ? 'team' : 'mine';
   return (
     <div className="flex max-w-5xl flex-col gap-4">
       <h1 className="text-2xl font-bold">Time</h1>
-      <div
-        role="tablist"
-        aria-label="Time views"
-        className="flex gap-1 border-b border-slate-200 dark:border-slate-800"
-      >
-        {(
-          [
-            ['mine', 'Timesheet'],
-            ['team', 'Team report'],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            role="tab"
-            type="button"
-            aria-selected={tab === id}
-            onClick={() => setParams(id === 'mine' ? {} : { tab: id }, { replace: true })}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm ${
-              tab === id
-                ? 'border-sky-700 font-medium text-sky-800 dark:border-sky-400 dark:text-sky-300'
-                : 'border-transparent text-slate-600 dark:text-slate-400'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel">{tab === 'mine' ? <TimesheetView /> : <TeamReport />}</div>
+      <Tabs
+        label="Time views"
+        idBase="time"
+        tabs={[
+          ['mine', 'Timesheet'],
+          ['team', 'Team report'],
+        ]}
+        selected={tab}
+        onSelect={(id) => setParams(id === 'mine' ? {} : { tab: id }, { replace: true })}
+      />
+      <TabPanel idBase="time" selected={tab}>
+        {tab === 'mine' ? <TimesheetView /> : <TeamReport />}
+      </TabPanel>
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 
-import { api, unwrap, type Schemas } from '../api/client';
+import { api, fieldError, type Schemas, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
-import { Button, ErrorText, Field, GhostButton, Input, Select } from './ui';
+import { Button, CopyButton, ErrorText, Field, GhostButton, Input, Select } from './ui';
+import { useConfirm } from '../lib/confirm';
 
 type Scope = Schemas['Scope'];
 
@@ -12,6 +13,7 @@ const shortDate = (iso: string | null | undefined) =>
 
 /** Personal API tokens (REST, webhooks, MCP clients without OAuth) and apps connected with OAuth. */
 export function AccessSettings() {
+  const confirm = useConfirm();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = user.org_role === 'owner' || user.org_role === 'admin';
@@ -67,7 +69,7 @@ export function AccessSettings() {
           guide). Tokens act as you and expire after 90 days.
         </p>
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-          <Field label="Token name" id="token-name">
+          <Field label="Token name" id="token-name" error={fieldError(create.error, 'name')}>
             <Input
               id="token-name"
               required
@@ -99,7 +101,10 @@ export function AccessSettings() {
             className="rounded border border-amber-400 bg-amber-50 p-3 text-sm dark:bg-amber-950"
           >
             <p className="font-semibold">Copy this token now; it will not be shown again.</p>
-            <code className="block break-all select-all">{secret}</code>
+            <div className="mt-1 flex items-start gap-2">
+              <code className="block flex-1 break-all select-all">{secret}</code>
+              <CopyButton value={secret} label="Copy token" />
+            </div>
           </div>
         )}
         {active.length > 0 && (
@@ -116,7 +121,14 @@ export function AccessSettings() {
                 </span>
                 <GhostButton
                   aria-label={`Revoke ${t.name}`}
-                  onClick={() => revoke.mutate(t.id)}
+                  onClick={async () =>
+                    (await confirm({
+                      title: `Revoke the token "${t.name}"?`,
+                      body: 'Scripts and apps using it stop working now.',
+                      confirmLabel: 'Revoke',
+                      danger: true,
+                    })) && revoke.mutate(t.id)
+                  }
                   disabled={revoke.isPending}
                 >
                   Revoke
@@ -153,7 +165,14 @@ export function AccessSettings() {
               </span>
               <GhostButton
                 aria-label={`Disconnect ${a.client_name}`}
-                onClick={() => disconnect.mutate(a.id)}
+                onClick={async () =>
+                  (await confirm({
+                    title: `Disconnect ${a.client_name}?`,
+                    body: 'It loses access to your account now.',
+                    confirmLabel: 'Disconnect',
+                    danger: true,
+                  })) && disconnect.mutate(a.id)
+                }
                 disabled={disconnect.isPending}
               >
                 Disconnect
@@ -167,6 +186,7 @@ export function AccessSettings() {
 }
 
 function CalendarFeed() {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [url, setUrl] = useState<string | null>(null);
   const feed = useQuery({
@@ -198,10 +218,34 @@ function CalendarFeed() {
         link is private: anyone with it can see those task titles. Creating a new link turns off the old one.
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => reset.mutate()} disabled={reset.isPending}>
+        <Button
+          onClick={async () =>
+            (!active ||
+              (await confirm({
+                title: 'Create a new calendar link?',
+                body: 'Calendars subscribed to the current link stop updating.',
+                confirmLabel: 'Create new link',
+              }))) &&
+            reset.mutate()
+          }
+          disabled={reset.isPending}
+        >
           {active ? 'Create a new link' : 'Create calendar link'}
         </Button>
-        {active && <GhostButton onClick={() => off.mutate()}>Turn off</GhostButton>}
+        {active && (
+          <GhostButton
+            onClick={async () =>
+              (await confirm({
+                title: 'Turn off the calendar feed?',
+                body: 'Subscribed calendars stop updating.',
+                confirmLabel: 'Turn off',
+                danger: true,
+              })) && off.mutate()
+            }
+          >
+            Turn off
+          </GhostButton>
+        )}
       </div>
       {url && (
         <div
@@ -209,7 +253,10 @@ function CalendarFeed() {
           className="rounded border border-amber-400 bg-amber-50 p-3 text-sm dark:bg-amber-950"
         >
           <p className="font-semibold">Your calendar link (copy it now; it is shown once)</p>
-          <code className="block break-all select-all">{url}</code>
+          <div className="mt-1 flex items-start gap-2">
+            <code className="block flex-1 break-all select-all">{url}</code>
+            <CopyButton value={url} label="Copy link" />
+          </div>
         </div>
       )}
       {active && !url && (

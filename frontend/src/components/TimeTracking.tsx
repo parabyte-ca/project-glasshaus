@@ -5,6 +5,7 @@ import { api, unwrap, type User } from '../api/client';
 import { formatMinutes, parseDuration } from '../lib/format';
 import { useTimer } from '../lib/timer';
 import { ErrorText, GhostButton, Input } from './ui';
+import { useConfirm } from '../lib/confirm';
 
 function useTick(active: boolean): number {
   const [now, setNow] = useState(() => Date.now());
@@ -48,7 +49,7 @@ export function TimerIndicator() {
       </span>
       <button
         type="button"
-        className="rounded px-1 text-xs font-medium text-sky-700 hover:underline dark:text-sky-400"
+        className="min-h-6 rounded px-1 text-xs font-medium text-sky-700 hover:underline dark:text-sky-400"
         onClick={() => stop.mutate()}
         disabled={stop.isPending}
       >
@@ -60,6 +61,7 @@ export function TimerIndicator() {
 
 /** Task drawer section: total logged, entries, quick log form and timer start. */
 export function TaskTime({ taskId, taskKey, users }: { taskId: string; taskKey: string; users: User[] }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const names = new Map(users.map((u) => [u.id, u.name]));
   const entries = useQuery({
@@ -170,9 +172,15 @@ export function TaskTime({ taskId, taskKey, users }: { taskId: string; taskKey: 
             </span>
             <button
               type="button"
-              className="text-slate-500 dark:text-slate-400 hover:text-red-700"
+              className="flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-sky-600 dark:text-slate-400"
               aria-label={`Delete ${formatMinutes(e.minutes)} logged on ${e.spent_on}`}
-              onClick={() => remove.mutate(e.id)}
+              onClick={async () =>
+                (await confirm({
+                  title: `Delete ${formatMinutes(e.minutes)} logged on ${e.spent_on}?`,
+                  confirmLabel: 'Delete',
+                  danger: true,
+                })) && remove.mutate(e.id)
+              }
             >
               ✕
             </button>

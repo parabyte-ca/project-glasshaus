@@ -4,8 +4,10 @@ import { useSearchParams } from 'react-router';
 
 import { api, unwrap } from '../api/client';
 import { Button, ErrorText, Field, Input } from '../components/ui';
+import { usePageTitle } from '../lib/pageTitle';
 
 export function LoginPage() {
+  usePageTitle('Sign in');
   const queryClient = useQueryClient();
   const [params] = useSearchParams();
   const [email, setEmail] = useState('');

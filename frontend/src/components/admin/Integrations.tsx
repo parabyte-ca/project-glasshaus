@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 
-import { api, unwrap, type Schemas } from '../../api/client';
+import { api, fieldError, type Schemas, unwrap } from '../../api/client';
 import { Button, ErrorText, Field, GhostButton, Input, ScrollArea, Select } from '../ui';
 import { Copyable, SecretOnce, Section } from './common';
 import { dateTime, table, td, th } from './format';
+import { useConfirm } from '../../lib/confirm';
 
 type Integration = Schemas['IntegrationRead'];
 type Kind = Integration['kind'];
@@ -74,6 +75,7 @@ function Deliveries({ id }: { id: string }) {
 }
 
 function Row({ i, projects }: { i: Integration; projects: Map<string, string> }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['integrations'] });
@@ -132,7 +134,14 @@ function Row({ i, projects }: { i: Integration; projects: Map<string, string> })
             )}
             <GhostButton
               aria-label={`Remove ${i.name}`}
-              onClick={() => window.confirm(`Remove ${i.name}?`) && remove.mutate()}
+              onClick={async () =>
+                (await confirm({
+                  title: `Remove ${i.name}?`,
+                  body: 'Its deliveries stop now.',
+                  confirmLabel: 'Remove',
+                  danger: true,
+                })) && remove.mutate()
+              }
             >
               Remove
             </GhostButton>
@@ -264,7 +273,7 @@ export function Integrations() {
               ))}
             </Select>
           </Field>
-          <Field label="Name" id="int-name">
+          <Field label="Name" id="int-name" error={fieldError(create.error, 'name')}>
             <Input
               id="int-name"
               required
@@ -292,16 +301,16 @@ export function Integrations() {
             </Select>
           </Field>
           {OUTBOUND.includes(kind) && (
-            <Field label="Webhook URL" id="int-url">
+            <Field label="Webhook URL" id="int-url" error={fieldError(create.error, 'url')}>
               <Input id="int-url" type="url" required value={form.url} onChange={set('url')} />
             </Field>
           )}
           {kind === 'email' && (
             <>
-              <Field label="IMAP host (TLS, port 993)" id="int-host">
+              <Field label="IMAP host (TLS, port 993)" id="int-host" error={fieldError(create.error, 'host')}>
                 <Input id="int-host" required value={form.host} onChange={set('host')} />
               </Field>
-              <Field label="Username" id="int-user">
+              <Field label="Username" id="int-user" error={fieldError(create.error, 'username')}>
                 <Input id="int-user" required value={form.username} onChange={set('username')} />
               </Field>
               <Field label="Allowed senders (addresses or @domains, comma-separated)" id="int-senders">

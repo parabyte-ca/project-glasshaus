@@ -2,6 +2,45 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * House style: near-black surfaces, a clear blue for actions and links, orange for highlights, and
+ * Inter with heavy headings. The app's slate and sky utilities are remapped here, so every screen
+ * picks the palette up without per-component changes. Text pairs keep WCAG AA contrast:
+ * slate-600 and slate-500 on white, slate-400 on black, sky-700 under white text, sky-400 on black.
+ */
+@theme static {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+
+  --color-slate-50: #f7f7f7;
+  --color-slate-100: #efefef;
+  --color-slate-200: #e2e2e2;
+  --color-slate-300: #cdcdcd;
+  --color-slate-400: #a3a3a3;
+  --color-slate-500: #737373;
+  --color-slate-600: #575757;
+  --color-slate-700: #3b3b3b;
+  --color-slate-800: #262626;
+  --color-slate-900: #151515;
+  --color-slate-950: #000000;
+
+  --color-sky-50: #eef7fe;
+  --color-sky-100: #d8ecfc;
+  --color-sky-200: #b3dbf9;
+  --color-sky-300: #7cc3f4;
+  --color-sky-400: #3fa9ee;
+  --color-sky-500: #1a91e0;
+  --color-sky-600: #0f78c4;
+  --color-sky-700: #0b64a8;
+  --color-sky-800: #0d5289;
+  --color-sky-900: #10436e;
+  --color-sky-950: #0a2a47;
+
+  /* Highlight: section labels and the active page. Light text needs the darker shade for contrast. */
+  --color-accent-400: #ff9a2e;
+  --color-accent-500: #ff8a00;
+  --color-accent-700: #b45309;
+}
+
 :root {
   color-scheme: light dark;
 }
@@ -9,7 +48,35 @@
 /* The page background follows the theme even where content is wider than the layout. */
 @layer base {
   body {
-    @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+    @apply bg-white font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  }
+
+  /* Bold, tight headings. */
+  h1 {
+    @apply font-extrabold tracking-tight;
+  }
+
+  /* Dark mode: a faint warm glow behind the page, as on the house site. */
+  .dark body {
+    background-image: radial-gradient(60rem 40rem at -10% 45%, rgb(255 138 0 / 0.1), transparent 70%);
+    background-attachment: fixed;
+  }
+
+  /* Headings get focus after navigation (for screen readers); no ring for something not clickable. */
+  h1[tabindex='-1']:focus {
+    outline: none;
+  }
+
+  /* People who ask for less motion get none: no spinners, pings, slides or smooth scrolling. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -31,7 +98,7 @@
   --status-critical: #d03b3b;
 }
 .dark {
-  --chart-surface: #020617;
+  --chart-surface: #000000;
   --series-1: #3987e5;
   --series-2: #d95926;
   --chart-grid: #2c2c2a;
