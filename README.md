@@ -269,6 +269,10 @@ every request in the audit log (without content). Details, privacy notes and an 
   [docs/accessibility.md](docs/accessibility.md).
 - Installable as an app (PWA) on desktop and phones; the app shell opens offline. Only static files are
   cached, never project data.
+- Board cards move with **Alt+arrow keys** or their **Move** menu; filters and search live in the address,
+  so a filtered view can be bookmarked or shared.
+- Light and dark themes (black surfaces, blue actions, orange highlights, Inter). Colours are defined
+  once in `frontend/src/index.css`.
 
 ## Onboarding
 

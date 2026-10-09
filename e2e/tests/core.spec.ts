@@ -56,7 +56,7 @@ test('every layout renders the same tasks', async ({ page }) => {
   for (const kind of ['list', 'board', 'table', 'timeline', 'calendar']) {
     await page.goto(`/projects/${project.key}?kind=${kind}`);
     await expect(page.getByRole('button', { name: kind[0]!.toUpperCase() + kind.slice(1), pressed: true })).toBeVisible();
-    await expect(page.getByText('Build').first()).toBeVisible();
+    await expect(page.getByText('Build').filter({ visible: true }).first()).toBeVisible();
   }
 });
 
