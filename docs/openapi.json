@@ -11234,6 +11234,144 @@
         }
       }
     },
+    "/api/v1/users/me/onboarding": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Your product tour and checklist progress",
+        "operationId": "get_onboarding",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Record the tour as finished or skipped, hide the checklist, dismiss a tip, or start over",
+        "operationId": "update_onboarding",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/settings": {
       "get": {
         "tags": [
@@ -17865,6 +18003,40 @@
         ],
         "title": "MarkedRead"
       },
+      "Milestones": {
+        "properties": {
+          "created_work": {
+            "type": "boolean",
+            "title": "Created Work",
+            "description": "Created a project or a task."
+          },
+          "added_collaborator": {
+            "type": "boolean",
+            "title": "Added Collaborator",
+            "description": "Assigned a task to someone else or added a member to a project they created."
+          },
+          "set_due_date": {
+            "type": "boolean",
+            "title": "Set Due Date",
+            "description": "Created a task with a due date."
+          },
+          "toured": {
+            "type": "boolean",
+            "title": "Toured",
+            "description": "Finished the product tour."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "created_work",
+          "added_collaborator",
+          "set_due_date",
+          "toured"
+        ],
+        "title": "Milestones",
+        "description": "Derived from what the person has actually done, so they tick themselves."
+      },
       "NotificationKind": {
         "type": "string",
         "enum": [
@@ -18368,6 +18540,124 @@
           "name_claim"
         ],
         "title": "OidcConfig"
+      },
+      "OnboardingRead": {
+        "properties": {
+          "tour": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "completed",
+                  "skipped"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tour",
+            "description": "null until the tour is finished or skipped."
+          },
+          "tour_finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tour Finished At"
+          },
+          "checklist": {
+            "type": "string",
+            "enum": [
+              "open",
+              "minimized",
+              "dismissed"
+            ],
+            "title": "Checklist"
+          },
+          "dismissed_tips": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dismissed Tips"
+          },
+          "milestones": {
+            "$ref": "#/components/schemas/Milestones"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tour",
+          "tour_finished_at",
+          "checklist",
+          "dismissed_tips",
+          "milestones"
+        ],
+        "title": "OnboardingRead"
+      },
+      "OnboardingUpdate": {
+        "properties": {
+          "tour": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "completed",
+                  "skipped"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tour"
+          },
+          "checklist": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "minimized",
+                  "dismissed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checklist"
+          },
+          "dismiss_tip": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z0-9-]{1,40}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismiss Tip",
+            "description": "Hide this feature tip for good."
+          },
+          "reset": {
+            "type": "boolean",
+            "title": "Reset",
+            "description": "Start over: show the tour, checklist and tips again.",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OnboardingUpdate"
       },
       "Operator": {
         "type": "string",

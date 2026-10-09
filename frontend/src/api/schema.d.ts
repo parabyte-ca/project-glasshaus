@@ -1529,6 +1529,24 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/users/me/onboarding': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Your product tour and checklist progress */
+    get: operations['get_onboarding'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Record the tour as finished or skipped, hide the checklist, dismiss a tip, or start over */
+    patch: operations['update_onboarding'];
+    trace?: never;
+  };
   '/api/v1/admin/settings': {
     parameters: {
       query?: never;
@@ -3346,6 +3364,32 @@ export interface components {
       updated: number;
     };
     /**
+     * Milestones
+     * @description Derived from what the person has actually done, so they tick themselves.
+     */
+    Milestones: {
+      /**
+       * Created Work
+       * @description Created a project or a task.
+       */
+      created_work: boolean;
+      /**
+       * Added Collaborator
+       * @description Assigned a task to someone else or added a member to a project they created.
+       */
+      added_collaborator: boolean;
+      /**
+       * Set Due Date
+       * @description Created a task with a due date.
+       */
+      set_due_date: boolean;
+      /**
+       * Toured
+       * @description Finished the product tour.
+       */
+      toured: boolean;
+    };
+    /**
      * NotificationKind
      * @enum {string}
      */
@@ -3517,6 +3561,42 @@ export interface components {
        * @default name
        */
       name_claim: string;
+    };
+    /** OnboardingRead */
+    OnboardingRead: {
+      /**
+       * Tour
+       * @description null until the tour is finished or skipped.
+       */
+      tour: ('completed' | 'skipped') | null;
+      /** Tour Finished At */
+      tour_finished_at: string | null;
+      /**
+       * Checklist
+       * @enum {string}
+       */
+      checklist: 'open' | 'minimized' | 'dismissed';
+      /** Dismissed Tips */
+      dismissed_tips: string[];
+      milestones: components['schemas']['Milestones'];
+    };
+    /** OnboardingUpdate */
+    OnboardingUpdate: {
+      /** Tour */
+      tour?: ('completed' | 'skipped') | null;
+      /** Checklist */
+      checklist?: ('open' | 'minimized' | 'dismissed') | null;
+      /**
+       * Dismiss Tip
+       * @description Hide this feature tip for good.
+       */
+      dismiss_tip?: string | null;
+      /**
+       * Reset
+       * @description Start over: show the tour, checklist and tips again.
+       * @default false
+       */
+      reset?: boolean;
     };
     /**
      * Operator
@@ -14302,6 +14382,130 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['AuditRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_onboarding: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OnboardingRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  update_onboarding: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['OnboardingUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OnboardingRead'];
         };
       };
       /** @description Not authenticated */

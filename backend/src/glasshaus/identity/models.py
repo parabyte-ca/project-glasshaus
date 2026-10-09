@@ -14,7 +14,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from glasshaus.core.orm import Base, TenantScoped, TimestampMixin, UUIDPk, utcnow
@@ -45,6 +45,10 @@ class User(UUIDPk, TenantScoped, TimestampMixin, Base):
     capacity_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=480, server_default="480")
     working_days: Mapped[list[int]] = mapped_column(
         ARRAY(SmallInteger), nullable=False, default=lambda: [0, 1, 2, 3, 4], server_default="{0,1,2,3,4}"
+    )
+    # First-run guidance this person has seen or dismissed (product tour, checklist, tips).
+    onboarding: Mapped[dict[str, object]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
 
 
