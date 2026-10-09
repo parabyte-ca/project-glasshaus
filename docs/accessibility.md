@@ -27,6 +27,10 @@ Automated tools find roughly a third of issues. Before a release, also check by 
 
 - Landmarks, a skip link, one `h1` per page and labelled form controls.
 - Visible focus indicators; dialogs (task drawer, palette, shortcut help) trap focus and return it.
+  Escape closes only the topmost one, and leaving the task drawer saves the field being edited.
+- Date fields save when you leave them or press Enter (Escape restores the saved date), so partly
+  typed dates are never stored.
+- On phones the navigation sits behind a **Menu** button (`aria-expanded`) instead of above every page.
 - Board cards move with the keyboard; timeline bars move and resize with arrow keys; charts have data
   tables.
 - Scrolling regions (board, table, timeline, wide tables) are focusable so they scroll with the keyboard.

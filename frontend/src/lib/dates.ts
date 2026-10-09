@@ -45,3 +45,12 @@ export function monthGrid(iso: string): string[][] {
   }
   return weeks;
 }
+
+/** A YYYY-MM-DD date the app accepts (years 1900–2200), or empty. */
+export function isSaneDate(value: string) {
+  if (value === '') return true;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!m) return false;
+  const year = Number(m[1]);
+  return year >= 1900 && year <= 2200 && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+}

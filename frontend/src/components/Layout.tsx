@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router';
+import { Link, NavLink, Outlet, useLocation } from 'react-router';
 
 import { api, getVersion, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
@@ -34,6 +34,14 @@ export function Layout() {
   const closeOverlay = useCallback(() => setOverlay(null), []);
   useShortcuts({ palette: openPalette, help: openHelp });
   const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+  // Phones: the navigation is a menu behind a button instead of a list above every page.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { pathname } = useLocation();
+  const [menuPath, setMenuPath] = useState(pathname);
+  if (menuPath !== pathname) {
+    setMenuPath(pathname);
+    setMenuOpen(false);
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
@@ -43,12 +51,26 @@ export function Layout() {
       >
         Skip to content
       </a>
-      <header className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-        <Link to="/" className="text-lg font-semibold">
-          Project Glasshaus
-        </Link>
-        <div className="flex items-center gap-2">
-          <GhostButton onClick={openPalette} aria-keyshortcuts={mac ? 'Meta+K' : 'Control+K'}>
+      <header className="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3 dark:border-slate-800">
+        <div className="flex min-w-0 items-center gap-2">
+          <GhostButton
+            className="md:hidden"
+            aria-expanded={menuOpen}
+            aria-controls="main-nav"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            Menu
+          </GhostButton>
+          <Link to="/" className="truncate text-lg font-semibold">
+            <span className="hidden sm:inline">Project </span>Glasshaus
+          </Link>
+        </div>
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <GhostButton
+            onClick={openPalette}
+            aria-keyshortcuts={mac ? 'Meta+K' : 'Control+K'}
+            className="px-2 sm:px-3"
+          >
             Search <kbd className="ml-1 hidden font-mono text-xs sm:inline">{mac ? '⌘K' : 'Ctrl K'}</kbd>
           </GhostButton>
           <Link
@@ -61,13 +83,16 @@ export function Layout() {
           <TimerIndicator />
           <NotificationsBell />
           <ThemeToggle />
-          <GhostButton onClick={logout}>Sign out</GhostButton>
+          <GhostButton onClick={logout} className="hidden sm:inline-block">
+            Sign out
+          </GhostButton>
         </div>
       </header>
       <div className="flex flex-1 flex-col md:flex-row">
         <nav
+          id="main-nav"
           aria-label="Projects"
-          className="border-b border-slate-200 p-4 md:w-60 md:border-r md:border-b-0 dark:border-slate-800"
+          className={`${menuOpen ? 'block' : 'hidden'} border-b border-slate-200 p-4 md:block md:w-60 md:border-r md:border-b-0 dark:border-slate-800`}
         >
           <ul className="mb-4 flex flex-col gap-1">
             {[
@@ -107,6 +132,15 @@ export function Layout() {
               </li>
             ))}
           </ul>
+          <div className="mt-4 flex flex-col gap-2 border-t border-slate-200 pt-4 sm:hidden dark:border-slate-800">
+            <Link
+              to="/account"
+              className="rounded px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              Account ({user.name})
+            </Link>
+            <GhostButton onClick={logout}>Sign out</GhostButton>
+          </div>
         </nav>
         <main id="main" className="min-w-0 flex-1 p-4 md:p-6">
           <Outlet />

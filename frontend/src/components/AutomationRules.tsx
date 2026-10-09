@@ -59,6 +59,14 @@ const blankRule = (): RuleInput => ({
   actions: [{ type: 'add_tags', tags: [] }],
 });
 
+let nextRowKey = 0;
+/** Keep one key per row: existing keys stay with their rows, new rows get new keys. */
+function fitKeys(keys: string[], length: number): string[] {
+  const out = keys.slice(0, length);
+  while (out.length < length) out.push(`row-${++nextRowKey}`);
+  return out;
+}
+
 function splitList(text: string): string[] {
   return text
     .split(',')
@@ -66,7 +74,7 @@ function splitList(text: string): string[] {
     .filter(Boolean);
 }
 
-/** Comma-separated list input that keeps the raw text while typing. */
+/** Comma-separated list input that keeps the raw text while typing and follows outside changes. */
 function ListInput({
   id,
   value,
@@ -79,6 +87,12 @@ function ListInput({
   onChange: (items: string[]) => void;
 }) {
   const [text, setText] = useState(value.join(', '));
+  const joined = value.join('\n');
+  const [seen, setSeen] = useState(joined);
+  if (joined !== seen) {
+    setSeen(joined);
+    if (splitList(text).join('\n') !== joined) setText(value.join(', '));
+  }
   return (
     <Input
       id={id}
@@ -595,7 +609,30 @@ export function AutomationRules({
         }),
       ),
   });
-  const [draft, setDraft] = useState<RuleInput | null>(null);
+  const [draft, setDraftState] = useState<RuleInput | null>(null);
+  // Stable keys for condition and action rows, so removing one never shows another's values.
+  const [rowKeys, setRowKeys] = useState<{ conditions: string[]; actions: string[] }>({
+    conditions: [],
+    actions: [],
+  });
+  const setDraft = (next: RuleInput | null) => {
+    setDraftState(next);
+    setRowKeys((keys) => ({
+      conditions: fitKeys(keys.conditions, next?.conditions?.length ?? 0),
+      actions: fitKeys(keys.actions, next?.actions.length ?? 0),
+    }));
+  };
+  const startDraft = (next: RuleInput) => {
+    setDraftState(next);
+    setRowKeys({
+      conditions: fitKeys([], next.conditions?.length ?? 0),
+      actions: fitKeys([], next.actions.length),
+    });
+  };
+  const removeRow = (list: 'conditions' | 'actions', index: number, next: RuleInput) => {
+    setDraftState(next);
+    setRowKeys((keys) => ({ ...keys, [list]: keys[list].filter((_, j) => j !== index) }));
+  };
   const [editing, setEditing] = useState<string | null>(null);
   const [testTask, setTestTask] = useState('');
   const refresh = () => void queryClient.invalidateQueries({ queryKey: key });
@@ -692,7 +729,7 @@ export function AutomationRules({
                 aria-label={`Edit ${r.name}`}
                 onClick={() => {
                   setEditing(r.id);
-                  setDraft({
+                  startDraft({
                     name: r.name,
                     enabled: r.enabled,
                     trigger: r.trigger,
@@ -721,7 +758,7 @@ export function AutomationRules({
           <Button
             onClick={() => {
               setEditing(null);
-              setDraft(blankRule());
+              startDraft(blankRule());
             }}
           >
             New rule
@@ -751,7 +788,7 @@ export function AutomationRules({
             <ul className="flex flex-col gap-2">
               {(draft.conditions ?? []).map((c, i) => (
                 <ConditionRow
-                  key={i}
+                  key={rowKeys.conditions[i] ?? i}
                   index={i}
                   value={c}
                   fields={fields}
@@ -762,7 +799,10 @@ export function AutomationRules({
                     })
                   }
                   onRemove={() =>
-                    setDraft({ ...draft, conditions: (draft.conditions ?? []).filter((_, j) => j !== i) })
+                    removeRow('conditions', i, {
+                      ...draft,
+                      conditions: (draft.conditions ?? []).filter((_, j) => j !== i),
+                    })
                   }
                 />
               ))}
@@ -785,7 +825,7 @@ export function AutomationRules({
             <ul className="flex flex-col gap-2">
               {draft.actions.map((a, i) => (
                 <ActionRow
-                  key={i}
+                  key={rowKeys.actions[i] ?? i}
                   index={i}
                   value={a}
                   project={project}
@@ -794,7 +834,9 @@ export function AutomationRules({
                   onChange={(next) =>
                     setDraft({ ...draft, actions: draft.actions.map((x, j) => (j === i ? next : x)) })
                   }
-                  onRemove={() => setDraft({ ...draft, actions: draft.actions.filter((_, j) => j !== i) })}
+                  onRemove={() =>
+                    removeRow('actions', i, { ...draft, actions: draft.actions.filter((_, j) => j !== i) })
+                  }
                 />
               ))}
             </ul>

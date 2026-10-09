@@ -1,14 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { api, unwrap, type CustomField, type ProjectDetail, type User } from '../api/client';
 import { PRIORITIES } from '../lib/grouping';
+import { useTaskUpdate } from '../lib/taskUpdates';
 import { CommentComposer } from './CommentComposer';
 import { DependencyEditor } from './DependencyEditor';
 import { FieldEditor } from './FieldEditor';
 import { Markdown } from './Markdown';
 import { TaskTime } from './TimeTracking';
-import { ErrorText, GhostButton, Input, Select } from './ui';
+import { useModal } from './useModal';
+import { DateInput, ErrorText, GhostButton, Select } from './ui';
 
 interface Props {
   taskRef: string;
@@ -48,22 +50,11 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
     queryFn: () => unwrap(api.GET('/api/v1/activity', { params: { query: { task: id!, limit: 30 } } })),
   });
 
-  const refresh = () => {
-    void queryClient.invalidateQueries({ queryKey: ['task'] });
-    void queryClient.invalidateQueries({ queryKey: ['tasks', project.id] });
-    void queryClient.invalidateQueries({ queryKey: ['activity'] });
+  const taskUpdate = useTaskUpdate(project.id, project.statuses);
+  const update = {
+    mutate: (patch: Record<string, unknown>) => task.data && taskUpdate.mutate({ task: task.data, patch }),
+    error: taskUpdate.error,
   };
-  const update = useMutation({
-    mutationFn: (patch: Record<string, unknown>) =>
-      unwrap(
-        api.PATCH('/api/v1/tasks/{ref}', {
-          params: { path: { ref: id! } },
-          body: { ...patch, expected_version: task.data!.version },
-        }),
-      ),
-    onSuccess: (data) => queryClient.setQueryData(['task', taskRef], data),
-    onSettled: refresh,
-  });
   const comment = useMutation({
     mutationFn: (body: string) =>
       unwrap(api.POST('/api/v1/tasks/{ref}/comments', { params: { path: { ref: id! } }, body: { body } })),
@@ -73,21 +64,24 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
     },
   });
 
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    panel.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      previous?.focus();
-    };
+  // Leaving the drawer (Escape, Close, the backdrop) first blurs the field being edited, which saves
+  // it (title, description, dates, custom fields), and asks before dropping an unsent comment.
+  const commentDraft = useRef('');
+  const setCommentDraft = useCallback((text: string) => {
+    commentDraft.current = text;
+  }, []);
+  const requestClose = useCallback(() => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && panel.current?.contains(active)) active.blur();
+    if (commentDraft.current.trim() && !window.confirm('Discard your unsent comment?')) return;
+    onClose();
   }, [onClose]);
+  useModal(panel, requestClose);
 
   const t = task.data;
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
-      <div role="presentation" className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div role="presentation" className="absolute inset-0 bg-slate-900/40" onClick={requestClose} />
       <div
         ref={panel}
         role="dialog"
@@ -98,7 +92,7 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
       >
         <div className="flex items-start justify-between gap-2">
           <span className="font-mono text-xs text-slate-600 dark:text-slate-400">{t?.key ?? taskRef}</span>
-          <GhostButton onClick={onClose} aria-label="Close task">
+          <GhostButton onClick={requestClose} aria-label="Close task">
             Close
           </GhostButton>
         </div>
@@ -110,14 +104,20 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
             </label>
             <input
               id="task-title"
-              key={`title-${t.version}`}
+              key={`title-${t.title}`}
               defaultValue={t.title}
               maxLength={500}
-              onBlur={(e) =>
-                e.target.value.trim() &&
-                e.target.value !== t.title &&
-                update.mutate({ title: e.target.value })
-              }
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }
+              }}
+              onBlur={(e) => {
+                const title = e.target.value.trim();
+                if (!title) e.target.value = t.title;
+                else if (title !== t.title) update.mutate({ title });
+              }}
               className="rounded border border-transparent px-1 text-xl font-semibold hover:border-slate-300 focus:border-sky-600 dark:bg-slate-950"
             />
             <ErrorText error={update.error} />
@@ -176,26 +176,24 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
                 <label htmlFor="d-start">Start</label>
               </dt>
               <dd>
-                <Input
+                <DateInput
                   id="d-start"
-                  type="date"
-                  value={t.start_date ?? ''}
-                  onChange={(e) => update.mutate({ start_date: e.target.value || null })}
+                  value={t.start_date}
+                  onCommit={(start_date) => update.mutate({ start_date })}
                 />
               </dd>
               <dt>
                 <label htmlFor="d-due">Due</label>
               </dt>
               <dd>
-                <Input
+                <DateInput
                   id="d-due"
-                  type="date"
-                  value={t.due_date ?? ''}
-                  onChange={(e) => update.mutate({ due_date: e.target.value || null })}
+                  value={t.due_date}
+                  onCommit={(due_date) => update.mutate({ due_date })}
                 />
               </dd>
               {fields.map((f) => (
-                <div key={`${f.id}-${t.version}`} className="contents">
+                <div key={`${f.id}-${JSON.stringify(t.custom_fields[f.id] ?? null)}`} className="contents">
                   <dt>
                     <label htmlFor={`cf-${f.id}`}>{f.name}</label>
                   </dt>
@@ -268,7 +266,8 @@ export function TaskDrawer({ taskRef, project, fields, users, onClose }: Props) 
               <CommentComposer
                 users={users}
                 busy={comment.isPending}
-                onSubmit={(body) => comment.mutate(body)}
+                onSubmit={(body) => comment.mutateAsync(body)}
+                onDraftChange={setCommentDraft}
               />
               <ErrorText error={comment.error} />
             </section>

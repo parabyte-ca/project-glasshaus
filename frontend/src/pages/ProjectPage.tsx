@@ -9,7 +9,7 @@ import { defaultConfig, OPEN } from '../lib/views';
 import { useAiStatus } from '../lib/ai';
 import { useProject } from '../lib/useProject';
 import { ListView } from '../views/ListView';
-import type { TaskPatch } from '../views/types';
+import { useTaskUpdate, type TaskPatch } from '../lib/taskUpdates';
 
 // Layouts and the task drawer load on demand to keep the first page small.
 const TaskDrawer = lazy(() => import('../components/TaskDrawer').then((m) => ({ default: m.TaskDrawer })));
@@ -28,6 +28,11 @@ const KINDS: { kind: ViewKind; label: string }[] = [
 ];
 export function ProjectPage() {
   const { projectKey = '' } = useParams();
+  // A fresh page per project: filters, search and a half-typed task never carry over to another one.
+  return <ProjectPageFor key={projectKey} projectKey={projectKey} />;
+}
+
+function ProjectPageFor({ projectKey }: { projectKey: string }) {
   const [params, setParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { project, fields, views, users } = useProject(projectKey);
@@ -74,16 +79,7 @@ export function ProjectPage() {
   const tasks = useMemo(() => tasksQuery.data?.items ?? [], [tasksQuery.data]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['tasks', p?.id] });
-  const update = useMutation({
-    mutationFn: ({ task, patch }: { task: Task; patch: TaskPatch }) =>
-      unwrap(
-        api.PATCH('/api/v1/tasks/{ref}', {
-          params: { path: { ref: task.id } },
-          body: { ...patch, expected_version: task.version },
-        }),
-      ),
-    onSettled: () => void invalidate(),
-  });
+  const update = useTaskUpdate(p?.id, p?.statuses);
   const [title, setTitle] = useState('');
   const create = useMutation({
     mutationFn: () => unwrap(api.POST('/api/v1/tasks', { body: { project_id: p!.id, title } })),
