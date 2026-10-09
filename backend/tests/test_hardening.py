@@ -134,7 +134,7 @@ async def test_slow_dns_never_delays_a_request(monkeypatch: pytest.MonkeyPatch) 
         time.sleep(1.5)
         raise socket.gaierror("no such host")
 
-    monkeypatch.setattr(proxy.socket, "getaddrinfo", hang)
+    monkeypatch.setattr(socket, "getaddrinfo", hang)
     monkeypatch.setattr(proxy, "RESOLVE_TIMEOUT_SECONDS", 0.2)
     seen: list[str] = []
 
