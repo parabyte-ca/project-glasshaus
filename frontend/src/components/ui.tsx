@@ -22,7 +22,7 @@ export function TextLink({ className = '', ...props }: LinkProps) {
 }
 
 const field =
-  'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 ' +
+  'rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900 ' +
   focus;
 
 export function Button({
@@ -34,7 +34,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`rounded-md px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${tone} ${focus} ${className}`}
+      className={`rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${tone} ${focus} ${className}`}
       {...props}
     />
   );
@@ -44,7 +44,7 @@ export function GhostButton({ className = '', ...props }: ComponentProps<'button
   return (
     <button
       type="button"
-      className={`rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800 ${focus} ${className}`}
+      className={`rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800 ${focus} ${className}`}
       {...props}
     />
   );

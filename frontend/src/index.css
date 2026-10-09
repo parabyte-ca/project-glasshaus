@@ -3,7 +3,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * House style: near-black surfaces, a clear blue for actions and links, orange for highlights, and
+ * House style (from ghsystems.com: #000 page, #121212/#212121/#303030 panels, #1c75bc buttons,
+ * #00aeef bright blue, #ff8900 orange, Inter): near-black surfaces, a clear blue for actions and links, orange for highlights, and
  * Inter with heavy headings. The app's slate and sky utilities are remapped here, so every screen
  * picks the palette up without per-component changes. Text pairs keep WCAG AA contrast:
  * slate-600 and slate-500 on white, slate-400 on black, sky-700 under white text, sky-400 on black.
@@ -17,27 +18,27 @@
   --color-slate-300: #cdcdcd;
   --color-slate-400: #a3a3a3;
   --color-slate-500: #737373;
-  --color-slate-600: #575757;
-  --color-slate-700: #3b3b3b;
-  --color-slate-800: #262626;
-  --color-slate-900: #151515;
+  --color-slate-600: #525252;
+  --color-slate-700: #303030;
+  --color-slate-800: #212121;
+  --color-slate-900: #121212;
   --color-slate-950: #000000;
 
   --color-sky-50: #eef7fe;
   --color-sky-100: #d8ecfc;
   --color-sky-200: #b3dbf9;
-  --color-sky-300: #7cc3f4;
-  --color-sky-400: #3fa9ee;
-  --color-sky-500: #1a91e0;
-  --color-sky-600: #0f78c4;
-  --color-sky-700: #0b64a8;
-  --color-sky-800: #0d5289;
-  --color-sky-900: #10436e;
+  --color-sky-300: #5cc8f5;
+  --color-sky-400: #00aeef;
+  --color-sky-500: #1690d6;
+  --color-sky-600: #1a82c8;
+  --color-sky-700: #1c75bc;
+  --color-sky-800: #155d96;
+  --color-sky-900: #114a78;
   --color-sky-950: #0a2a47;
 
   /* Highlight: section labels and the active page. Light text needs the darker shade for contrast. */
-  --color-accent-400: #ff9a2e;
-  --color-accent-500: #ff8a00;
+  --color-accent-400: #ff8900;
+  --color-accent-500: #ff8900;
   --color-accent-700: #b45309;
 }
 
