@@ -1,6 +1,7 @@
 """Integrations: Slack / Teams / signed webhooks (outbound), GitHub / GitLab (inbound), email-to-task,
 and personal calendar feeds."""
 
+import asyncio
 import email.message
 import hashlib
 import hmac
@@ -340,3 +341,73 @@ async def test_email_integration_cannot_probe_internal_hosts(
             "email": {"host": "imap.example.com", "username": "tasks"}}  # fmt: skip
     r = await client.post("/api/v1/integrations", json=body, headers=auth(await token_for(lead)))
     assert r.status_code == 403
+
+
+async def test_deliveries_are_sent_outside_transactions(
+    client: AsyncClient, outbox: Outbox, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from sqlalchemy import select
+
+    from glasshaus.db import get_engine
+
+    world = await make_world()
+    hooks = [
+        await connect(
+            client,
+            world,
+            kind="webhook",
+            name=f"Hook {n}",
+            url=f"https://h{n}.example.com/x",
+            events=["task.created"],
+        )
+        for n in range(3)
+    ]
+    held: list[int] = []
+    in_flight = 0
+    peak = 0
+    send = outbox.send
+
+    async def slow(url: str, payload: dict[str, Any], *, secret: str | None, event: str = "") -> Delivery:
+        nonlocal in_flight, peak
+        held.append(get_engine().pool.checkedout())  # type: ignore[attr-defined]
+        in_flight += 1
+        peak = max(peak, in_flight)
+        await asyncio.sleep(0.05)
+        in_flight -= 1
+        # The row is already committed, with its first retry a lease away (a crash mid-send is retried).
+        async with system_session() as session:
+            row = (
+                await session.scalars(
+                    select(IntegrationDelivery).where(IntegrationDelivery.payload == payload)
+                )
+            ).first()
+        assert row is not None and row.next_attempt_at is not None
+        assert row.next_attempt_at > datetime.now(UTC) + timedelta(minutes=1)
+        return await send(url, payload, secret=secret, event=event)
+
+    monkeypatch.setattr(webhooks, "send", slow)
+    task = await create_task(client, world)
+    await publish(task["id"], "task.created")
+    assert held == [0, 0, 0] and peak == 3
+    for hook in hooks:
+        log = (
+            await client.get(f"/api/v1/integrations/{hook['id']}/deliveries", headers=world.headers)
+        ).json()
+        assert log[0]["status"] == "success" and log[0]["attempts"] == 1
+
+    # A claimed retry is not picked up again while its send is in flight.
+    outbox.status = 503
+    other = await create_task(client, world)
+    monkeypatch.setattr(webhooks, "send", outbox.send)
+    await publish(other["id"], "task.created")
+    async with system_session() as session:
+        await session.execute(
+            update(IntegrationDelivery)
+            .where(IntegrationDelivery.status == "pending", IntegrationDelivery.tenant_id == world.tenant.id)
+            .values(next_attempt_at=datetime.now(UTC) - timedelta(seconds=1))
+        )
+    outbox.sent.clear()
+    outbox.status = 200
+    first, second = await asyncio.gather(delivery_mod.retry_due(), delivery_mod.retry_due())
+    assert first + second >= 3 and len(outbox.sent) == first + second
+    assert len({s["url"] for s in outbox.sent}) == len(outbox.sent)
