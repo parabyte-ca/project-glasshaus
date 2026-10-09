@@ -125,6 +125,7 @@ WidgetType = Literal[
     "time_by_project",
     "portfolio",
     "objective",
+    "report",
 ]
 
 
@@ -134,7 +135,11 @@ class Widget(Schema):
     title: str = Field("", max_length=100)
     width: int = Field(1, ge=1, le=3, description="Columns spanned in a 3-column grid.")
     config: dict[str, Any] = Field(
-        default_factory=dict, description="project_id, portfolio_id or objective_id, depending on the type."
+        default_factory=dict,
+        description=(
+            "project_id, portfolio_id or objective_id, depending on the type. A report tile: report_id, and "
+            "for a single-number report optionally target (number) and good ('up' or 'down')."
+        ),
     )
 
 

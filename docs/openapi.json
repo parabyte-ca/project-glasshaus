@@ -9618,6 +9618,620 @@
         }
       }
     },
+    "/api/v1/reports/run": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Run a report definition without saving it (the report builder's preview)",
+        "operationId": "run_definition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportDefinition-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Your and shared saved reports",
+        "operationId": "list_reports",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SavedReportRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Reports"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Save a report",
+        "operationId": "create_report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedReportCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedReportRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "A saved report's definition",
+        "operationId": "get_report",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedReportRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Rename, share or change a saved report",
+        "operationId": "update_report",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedReportUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedReportRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Delete a saved report",
+        "operationId": "delete_report",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}/run": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Run a saved report with your access, optionally with dashboard filters",
+        "operationId": "run_report",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReportOverrides"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Overrides"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}/export": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Download a saved report as CSV (up to 500 rows)",
+        "operationId": "export_report",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV file",
+            "content": {
+              "text/csv": {}
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
     "/api/v1/portfolios": {
       "get": {
         "tags": [
@@ -16037,6 +16651,47 @@
         ],
         "title": "CheckInRead"
       },
+      "Column": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "dimension",
+              "measure"
+            ],
+            "title": "Kind"
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "text",
+              "date",
+              "count",
+              "hours",
+              "days",
+              "percent"
+            ],
+            "title": "Unit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "kind",
+          "unit"
+        ],
+        "title": "Column"
+      },
       "CommentCreate": {
         "properties": {
           "body": {
@@ -16474,6 +17129,134 @@
         "additionalProperties": false,
         "type": "object",
         "title": "DashboardUpdate"
+      },
+      "DateFilter-Input": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "created",
+              "completed",
+              "due",
+              "spent"
+            ],
+            "title": "Field",
+            "description": "Tasks: created, completed or due. Time: always the day the time was spent.",
+            "default": "created"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "last_7_days",
+              "last_30_days",
+              "last_90_days",
+              "this_month",
+              "last_month",
+              "this_quarter",
+              "this_year",
+              "next_30_days",
+              "custom"
+            ],
+            "title": "Preset",
+            "default": "last_30_days"
+          },
+          "date_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From",
+            "description": "With preset=custom."
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To",
+            "description": "With preset=custom."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DateFilter"
+      },
+      "DateFilter-Output": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "created",
+              "completed",
+              "due",
+              "spent"
+            ],
+            "title": "Field",
+            "description": "Tasks: created, completed or due. Time: always the day the time was spent.",
+            "default": "created"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "last_7_days",
+              "last_30_days",
+              "last_90_days",
+              "this_month",
+              "last_month",
+              "this_quarter",
+              "this_year",
+              "next_30_days",
+              "custom"
+            ],
+            "title": "Preset",
+            "default": "last_30_days"
+          },
+          "date_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From",
+            "description": "With preset=custom."
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To",
+            "description": "With preset=custom."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "field",
+          "preset",
+          "date_from",
+          "date_to"
+        ],
+        "title": "DateFilter"
       },
       "DeletePreview": {
         "properties": {
@@ -20508,6 +21291,427 @@
         "type": "object",
         "title": "RecurringUpdate"
       },
+      "ReportDefinition-Input": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "tasks",
+              "time"
+            ],
+            "title": "Source",
+            "default": "tasks"
+          },
+          "group_by": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 2,
+            "title": "Group By",
+            "description": "Up to two groupings."
+          },
+          "measures": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "count",
+                "open",
+                "done",
+                "overdue",
+                "estimate_hours",
+                "avg_age_days",
+                "avg_cycle_days",
+                "on_time_pct",
+                "hours",
+                "billable_hours",
+                "entries",
+                "people"
+              ]
+            },
+            "type": "array",
+            "maxItems": 6,
+            "title": "Measures",
+            "description": "Default: count (tasks) or hours (time)."
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ReportFilters-Input"
+          },
+          "chart": {
+            "type": "string",
+            "enum": [
+              "table",
+              "bar",
+              "line",
+              "kpi"
+            ],
+            "title": "Chart",
+            "default": "table"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortSpec-Input"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Rows shown (the rest are counted in the totals).",
+            "default": 50
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReportDefinition"
+      },
+      "ReportDefinition-Output": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "tasks",
+              "time"
+            ],
+            "title": "Source",
+            "default": "tasks"
+          },
+          "group_by": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 2,
+            "title": "Group By",
+            "description": "Up to two groupings."
+          },
+          "measures": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "count",
+                "open",
+                "done",
+                "overdue",
+                "estimate_hours",
+                "avg_age_days",
+                "avg_cycle_days",
+                "on_time_pct",
+                "hours",
+                "billable_hours",
+                "entries",
+                "people"
+              ]
+            },
+            "type": "array",
+            "maxItems": 6,
+            "title": "Measures",
+            "description": "Default: count (tasks) or hours (time)."
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ReportFilters-Output"
+          },
+          "chart": {
+            "type": "string",
+            "enum": [
+              "table",
+              "bar",
+              "line",
+              "kpi"
+            ],
+            "title": "Chart",
+            "default": "table"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SortSpec-Output"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Rows shown (the rest are counted in the totals).",
+            "default": 50
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "group_by",
+          "measures",
+          "filters",
+          "chart",
+          "sort",
+          "limit"
+        ],
+        "title": "ReportDefinition"
+      },
+      "ReportFilters-Input": {
+        "properties": {
+          "project_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Project Ids"
+          },
+          "status_categories": {
+            "items": {
+              "$ref": "#/components/schemas/StatusCategory"
+            },
+            "type": "array",
+            "title": "Status Categories",
+            "description": "Tasks only."
+          },
+          "priorities": {
+            "items": {
+              "$ref": "#/components/schemas/Priority"
+            },
+            "type": "array",
+            "title": "Priorities",
+            "description": "Tasks only."
+          },
+          "people": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "People",
+            "description": "Tasks: assignee. Time: who logged it."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Tags",
+            "description": "Tasks only (any of)."
+          },
+          "billable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billable",
+            "description": "Time only."
+          },
+          "date": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DateFilter-Input"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReportFilters"
+      },
+      "ReportFilters-Output": {
+        "properties": {
+          "project_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Project Ids"
+          },
+          "status_categories": {
+            "items": {
+              "$ref": "#/components/schemas/StatusCategory"
+            },
+            "type": "array",
+            "title": "Status Categories",
+            "description": "Tasks only."
+          },
+          "priorities": {
+            "items": {
+              "$ref": "#/components/schemas/Priority"
+            },
+            "type": "array",
+            "title": "Priorities",
+            "description": "Tasks only."
+          },
+          "people": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "People",
+            "description": "Tasks: assignee. Time: who logged it."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Tags",
+            "description": "Tasks only (any of)."
+          },
+          "billable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billable",
+            "description": "Time only."
+          },
+          "date": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DateFilter-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_ids",
+          "status_categories",
+          "priorities",
+          "people",
+          "tags",
+          "billable",
+          "date"
+        ],
+        "title": "ReportFilters"
+      },
+      "ReportOverrides": {
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DateFilter-Input"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Replaces the report's own date range."
+          },
+          "project_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Project Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReportOverrides",
+        "description": "Dashboard-wide filters applied on top of a saved report when it runs as a tile."
+      },
+      "ReportResult": {
+        "properties": {
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/Column"
+            },
+            "type": "array",
+            "title": "Columns"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/Row"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "totals": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Totals"
+          },
+          "total_groups": {
+            "type": "integer",
+            "title": "Total Groups",
+            "description": "Groups before the row limit."
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "date_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date From"
+          },
+          "date_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date To"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "columns",
+          "rows",
+          "totals",
+          "total_groups",
+          "truncated",
+          "date_from",
+          "date_to",
+          "generated_at"
+        ],
+        "title": "ReportResult"
+      },
       "RescheduleResult": {
         "properties": {
           "executed": {
@@ -20578,6 +21782,54 @@
           "suggestion"
         ],
         "title": "RiskFlag"
+      },
+      "Row": {
+        "properties": {
+          "keys": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Keys",
+            "description": "Raw grouping values (ids, dates), for linking."
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Labels"
+          },
+          "values": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Values"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "keys",
+          "labels",
+          "values"
+        ],
+        "title": "Row"
       },
       "RuleBase": {
         "properties": {
@@ -21168,6 +22420,150 @@
           "name_attribute"
         ],
         "title": "SamlConfig"
+      },
+      "SavedReportCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Description",
+            "default": ""
+          },
+          "shared": {
+            "type": "boolean",
+            "title": "Shared",
+            "description": "Visible to everyone in the organization (not guests).",
+            "default": false
+          },
+          "definition": {
+            "$ref": "#/components/schemas/ReportDefinition-Input"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "definition"
+        ],
+        "title": "SavedReportCreate"
+      },
+      "SavedReportRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "shared": {
+            "type": "boolean",
+            "title": "Shared"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/ReportDefinition-Output"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "owner_id",
+          "name",
+          "description",
+          "shared",
+          "definition",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SavedReportRead"
+      },
+      "SavedReportUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shared"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportDefinition-Input"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SavedReportUpdate"
       },
       "ScheduleRead": {
         "properties": {
@@ -21810,6 +23206,48 @@
           "color"
         ],
         "title": "SelectOption"
+      },
+      "SortSpec-Input": {
+        "properties": {
+          "by": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "By",
+            "description": "\"label\" or one of the report's measures.",
+            "default": "label"
+          },
+          "descending": {
+            "type": "boolean",
+            "title": "Descending",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SortSpec"
+      },
+      "SortSpec-Output": {
+        "properties": {
+          "by": {
+            "type": "string",
+            "maxLength": 40,
+            "title": "By",
+            "description": "\"label\" or one of the report's measures.",
+            "default": "label"
+          },
+          "descending": {
+            "type": "boolean",
+            "title": "Descending",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "by",
+          "descending"
+        ],
+        "title": "SortSpec"
       },
       "StatusCategory": {
         "type": "string",
@@ -24805,7 +26243,8 @@
               "workload",
               "time_by_project",
               "portfolio",
-              "objective"
+              "objective",
+              "report"
             ],
             "title": "Type"
           },
@@ -24827,7 +26266,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Config",
-            "description": "project_id, portfolio_id or objective_id, depending on the type."
+            "description": "project_id, portfolio_id or objective_id, depending on the type. A report tile: report_id, and for a single-number report optionally target (number) and good ('up' or 'down')."
           }
         },
         "additionalProperties": false,
@@ -24856,7 +26295,8 @@
               "workload",
               "time_by_project",
               "portfolio",
-              "objective"
+              "objective",
+              "report"
             ],
             "title": "Type"
           },
@@ -24878,7 +26318,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Config",
-            "description": "project_id, portfolio_id or objective_id, depending on the type."
+            "description": "project_id, portfolio_id or objective_id, depending on the type. A report tile: report_id, and for a single-number report optionally target (number) and good ('up' or 'down')."
           }
         },
         "additionalProperties": false,
