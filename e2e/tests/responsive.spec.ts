@@ -26,7 +26,7 @@ test('phone navigation menu', async ({ page }) => {
   await menu.click();
   await expect(nav).toBeVisible();
   await expectAccessible(page, 'open menu (phone)');
-  await nav.getByRole('link', { name: 'Home' }).click();
+  await nav.getByRole('link', { name: 'Home', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Projects', level: 1 })).toBeVisible();
   await expect(nav).toBeHidden();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
