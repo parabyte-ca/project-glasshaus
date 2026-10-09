@@ -73,6 +73,7 @@ RLS_TABLES = (
     "time_entries",
     "running_timers",
     "dashboards",
+    "saved_reports",
     "portfolios",
     "portfolio_projects",
     "objectives",

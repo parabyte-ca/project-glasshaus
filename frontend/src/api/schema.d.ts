@@ -1333,6 +1333,94 @@ export interface paths {
     patch: operations['update_dashboard'];
     trace?: never;
   };
+  '/api/v1/reports/run': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Run a report definition without saving it (the report builder's preview) */
+    post: operations['run_definition'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/reports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Your and shared saved reports */
+    get: operations['list_reports'];
+    put?: never;
+    /** Save a report */
+    post: operations['create_report'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/reports/{report_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** A saved report's definition */
+    get: operations['get_report'];
+    put?: never;
+    post?: never;
+    /** Delete a saved report */
+    delete: operations['delete_report'];
+    options?: never;
+    head?: never;
+    /** Rename, share or change a saved report */
+    patch: operations['update_report'];
+    trace?: never;
+  };
+  '/api/v1/reports/{report_id}/run': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Run a saved report with your access, optionally with dashboard filters */
+    post: operations['run_report'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/reports/{report_id}/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Download a saved report as CSV (up to 500 rows) */
+    get: operations['export_report'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/portfolios': {
     parameters: {
       query?: never;
@@ -2619,6 +2707,23 @@ export interface components {
        */
       created_at: string;
     };
+    /** Column */
+    Column: {
+      /** Key */
+      key: string;
+      /** Label */
+      label: string;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: 'dimension' | 'measure';
+      /**
+       * Unit
+       * @enum {string}
+       */
+      unit: 'text' | 'date' | 'count' | 'hours' | 'days' | 'percent';
+    };
     /** CommentCreate */
     CommentCreate: {
       /** Body */
@@ -2785,6 +2890,76 @@ export interface components {
       shared?: boolean | null;
       /** Widgets */
       widgets?: components['schemas']['Widget-Input'][] | null;
+    };
+    /** DateFilter */
+    'DateFilter-Input': {
+      /**
+       * Field
+       * @description Tasks: created, completed or due. Time: always the day the time was spent.
+       * @default created
+       * @enum {string}
+       */
+      field?: 'created' | 'completed' | 'due' | 'spent';
+      /**
+       * Preset
+       * @default last_30_days
+       * @enum {string}
+       */
+      preset?:
+        | 'last_7_days'
+        | 'last_30_days'
+        | 'last_90_days'
+        | 'this_month'
+        | 'last_month'
+        | 'this_quarter'
+        | 'this_year'
+        | 'next_30_days'
+        | 'custom';
+      /**
+       * Date From
+       * @description With preset=custom.
+       */
+      date_from?: string | null;
+      /**
+       * Date To
+       * @description With preset=custom.
+       */
+      date_to?: string | null;
+    };
+    /** DateFilter */
+    'DateFilter-Output': {
+      /**
+       * Field
+       * @description Tasks: created, completed or due. Time: always the day the time was spent.
+       * @default created
+       * @enum {string}
+       */
+      field: 'created' | 'completed' | 'due' | 'spent';
+      /**
+       * Preset
+       * @default last_30_days
+       * @enum {string}
+       */
+      preset:
+        | 'last_7_days'
+        | 'last_30_days'
+        | 'last_90_days'
+        | 'this_month'
+        | 'last_month'
+        | 'this_quarter'
+        | 'this_year'
+        | 'next_30_days'
+        | 'custom';
+      /**
+       * Date From
+       * @description With preset=custom.
+       */
+      date_from: string | null;
+      /**
+       * Date To
+       * @description With preset=custom.
+       */
+      date_to: string | null;
     };
     /**
      * DeletePreview
@@ -4339,6 +4514,195 @@ export interface components {
       template?: components['schemas']['RecurringTemplate-Input'] | null;
       schedule?: components['schemas']['ScheduleSpec-Input'] | null;
     };
+    /** ReportDefinition */
+    'ReportDefinition-Input': {
+      /**
+       * Source
+       * @default tasks
+       * @enum {string}
+       */
+      source?: 'tasks' | 'time';
+      /**
+       * Group By
+       * @description Up to two groupings.
+       */
+      group_by?: string[];
+      /**
+       * Measures
+       * @description Default: count (tasks) or hours (time).
+       */
+      measures?: (
+        | 'count'
+        | 'open'
+        | 'done'
+        | 'overdue'
+        | 'estimate_hours'
+        | 'avg_age_days'
+        | 'avg_cycle_days'
+        | 'on_time_pct'
+        | 'hours'
+        | 'billable_hours'
+        | 'entries'
+        | 'people'
+      )[];
+      filters?: components['schemas']['ReportFilters-Input'];
+      /**
+       * Chart
+       * @default table
+       * @enum {string}
+       */
+      chart?: 'table' | 'bar' | 'line' | 'kpi';
+      sort?: components['schemas']['SortSpec-Input'];
+      /**
+       * Limit
+       * @description Rows shown (the rest are counted in the totals).
+       * @default 50
+       */
+      limit?: number;
+    };
+    /** ReportDefinition */
+    'ReportDefinition-Output': {
+      /**
+       * Source
+       * @default tasks
+       * @enum {string}
+       */
+      source: 'tasks' | 'time';
+      /**
+       * Group By
+       * @description Up to two groupings.
+       */
+      group_by: string[];
+      /**
+       * Measures
+       * @description Default: count (tasks) or hours (time).
+       */
+      measures: (
+        | 'count'
+        | 'open'
+        | 'done'
+        | 'overdue'
+        | 'estimate_hours'
+        | 'avg_age_days'
+        | 'avg_cycle_days'
+        | 'on_time_pct'
+        | 'hours'
+        | 'billable_hours'
+        | 'entries'
+        | 'people'
+      )[];
+      filters: components['schemas']['ReportFilters-Output'];
+      /**
+       * Chart
+       * @default table
+       * @enum {string}
+       */
+      chart: 'table' | 'bar' | 'line' | 'kpi';
+      sort: components['schemas']['SortSpec-Output'];
+      /**
+       * Limit
+       * @description Rows shown (the rest are counted in the totals).
+       * @default 50
+       */
+      limit: number;
+    };
+    /** ReportFilters */
+    'ReportFilters-Input': {
+      /** Project Ids */
+      project_ids?: string[];
+      /**
+       * Status Categories
+       * @description Tasks only.
+       */
+      status_categories?: components['schemas']['StatusCategory'][];
+      /**
+       * Priorities
+       * @description Tasks only.
+       */
+      priorities?: components['schemas']['Priority'][];
+      /**
+       * People
+       * @description Tasks: assignee. Time: who logged it.
+       */
+      people?: string[];
+      /**
+       * Tags
+       * @description Tasks only (any of).
+       */
+      tags?: string[];
+      /**
+       * Billable
+       * @description Time only.
+       */
+      billable?: boolean | null;
+      date?: components['schemas']['DateFilter-Input'] | null;
+    };
+    /** ReportFilters */
+    'ReportFilters-Output': {
+      /** Project Ids */
+      project_ids: string[];
+      /**
+       * Status Categories
+       * @description Tasks only.
+       */
+      status_categories: components['schemas']['StatusCategory'][];
+      /**
+       * Priorities
+       * @description Tasks only.
+       */
+      priorities: components['schemas']['Priority'][];
+      /**
+       * People
+       * @description Tasks: assignee. Time: who logged it.
+       */
+      people: string[];
+      /**
+       * Tags
+       * @description Tasks only (any of).
+       */
+      tags: string[];
+      /**
+       * Billable
+       * @description Time only.
+       */
+      billable: boolean | null;
+      date: components['schemas']['DateFilter-Output'] | null;
+    };
+    /**
+     * ReportOverrides
+     * @description Dashboard-wide filters applied on top of a saved report when it runs as a tile.
+     */
+    ReportOverrides: {
+      /** @description Replaces the report's own date range. */
+      date?: components['schemas']['DateFilter-Input'] | null;
+      /** Project Ids */
+      project_ids?: string[];
+    };
+    /** ReportResult */
+    ReportResult: {
+      /** Columns */
+      columns: components['schemas']['Column'][];
+      /** Rows */
+      rows: components['schemas']['Row'][];
+      /** Totals */
+      totals: (number | null)[];
+      /**
+       * Total Groups
+       * @description Groups before the row limit.
+       */
+      total_groups: number;
+      /** Truncated */
+      truncated: boolean;
+      /** Date From */
+      date_from: string | null;
+      /** Date To */
+      date_to: string | null;
+      /**
+       * Generated At
+       * Format: date-time
+       */
+      generated_at: string;
+    };
     /** RescheduleResult */
     RescheduleResult: {
       /** Executed */
@@ -4373,6 +4737,18 @@ export interface components {
        * @description One concrete next step.
        */
       suggestion: string;
+    };
+    /** Row */
+    Row: {
+      /**
+       * Keys
+       * @description Raw grouping values (ids, dates), for linking.
+       */
+      keys: (string | null)[];
+      /** Labels */
+      labels: string[];
+      /** Values */
+      values: (number | null)[];
     };
     /** RuleBase */
     RuleBase: {
@@ -4593,6 +4969,60 @@ export interface components {
       email_attribute: string | null;
       /** Name Attribute */
       name_attribute: string | null;
+    };
+    /** SavedReportCreate */
+    SavedReportCreate: {
+      /** Name */
+      name: string;
+      /**
+       * Description
+       * @default
+       */
+      description?: string;
+      /**
+       * Shared
+       * @description Visible to everyone in the organization (not guests).
+       * @default false
+       */
+      shared?: boolean;
+      definition: components['schemas']['ReportDefinition-Input'];
+    };
+    /** SavedReportRead */
+    SavedReportRead: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Owner Id */
+      owner_id: string | null;
+      /** Name */
+      name: string;
+      /** Description */
+      description: string;
+      /** Shared */
+      shared: boolean;
+      definition: components['schemas']['ReportDefinition-Output'];
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /** SavedReportUpdate */
+    SavedReportUpdate: {
+      /** Name */
+      name?: string | null;
+      /** Description */
+      description?: string | null;
+      /** Shared */
+      shared?: boolean | null;
+      definition?: components['schemas']['ReportDefinition-Input'] | null;
     };
     /** ScheduleRead */
     ScheduleRead: {
@@ -4871,6 +5301,34 @@ export interface components {
        * @default #64748b
        */
       color: string;
+    };
+    /** SortSpec */
+    'SortSpec-Input': {
+      /**
+       * By
+       * @description "label" or one of the report's measures.
+       * @default label
+       */
+      by?: string;
+      /**
+       * Descending
+       * @default false
+       */
+      descending?: boolean;
+    };
+    /** SortSpec */
+    'SortSpec-Output': {
+      /**
+       * By
+       * @description "label" or one of the report's measures.
+       * @default label
+       */
+      by: string;
+      /**
+       * Descending
+       * @default false
+       */
+      descending: boolean;
     };
     /**
      * StatusCategory
@@ -5908,7 +6366,8 @@ export interface components {
         | 'workload'
         | 'time_by_project'
         | 'portfolio'
-        | 'objective';
+        | 'objective'
+        | 'report';
       /**
        * Title
        * @default
@@ -5922,7 +6381,7 @@ export interface components {
       width?: number;
       /**
        * Config
-       * @description project_id, portfolio_id or objective_id, depending on the type.
+       * @description project_id, portfolio_id or objective_id, depending on the type. A report tile: report_id, and for a single-number report optionally target (number) and good ('up' or 'down').
        */
       config?: {
         [key: string]: unknown;
@@ -5945,7 +6404,8 @@ export interface components {
         | 'workload'
         | 'time_by_project'
         | 'portfolio'
-        | 'objective';
+        | 'objective'
+        | 'report';
       /**
        * Title
        * @default
@@ -5959,7 +6419,7 @@ export interface components {
       width: number;
       /**
        * Config
-       * @description project_id, portfolio_id or objective_id, depending on the type.
+       * @description project_id, portfolio_id or objective_id, depending on the type. A report tile: report_id, and for a single-number report optionally target (number) and good ('up' or 'down').
        */
       config: {
         [key: string]: unknown;
@@ -13122,6 +13582,510 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['DashboardRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  run_definition: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ReportDefinition-Input'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReportResult'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  list_reports: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SavedReportRead'][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  create_report: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SavedReportCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SavedReportRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  get_report: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SavedReportRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  delete_report: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  update_report: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SavedReportUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SavedReportRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  run_report: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['ReportOverrides'] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReportResult'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  export_report: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description CSV file */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/csv': unknown;
         };
       };
       /** @description Not authenticated */

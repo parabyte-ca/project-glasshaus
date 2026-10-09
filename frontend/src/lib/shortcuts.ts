@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router';
 export const GO_TO: Record<string, [string, string]> = {
   h: ['/', 'Home'],
   d: ['/dashboards', 'Dashboards'],
+  r: ['/reports', 'Reports'],
   t: ['/time', 'Time'],
   w: ['/workload', 'Workload'],
   p: ['/portfolios', 'Portfolios'],
