@@ -6,6 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-10-09
+
+Patch release: editing fixes from the code review (UX batch).
+
+### Fixed
+- **Switching projects** starts with a clean page: search, filters and a half-typed task no longer
+  carry over, so Enter can't create a task in the wrong project.
+- **Edits show at once** (board drops, status and priority selects, timeline moves) and are put back if
+  the server refuses them. Quick successive edits to one task are sent in order with the latest
+  version, so they no longer fail with "the task changed".
+- **Date fields** save when you leave them or press Enter, not on every keystroke (typing a year used to
+  save 0002, 0020, 0202…). Years outside 1900–2200 are refused and the saved date comes back.
+- **Task drawer:** Escape, Close or a click outside save the field being edited instead of discarding
+  it, and ask before dropping an unsent comment. Enter in the title saves it. Focus stays inside the
+  drawer, and Escape in a palette or menu opened over it closes only that.
+- **Comments** stay in the box until the server has saved them; a failed send keeps the text.
+- **Automation editor:** removing a condition or action no longer shows the removed row's values in
+  the next one (what you see is what is saved).
+- **Phones:** the navigation is a **Menu** button instead of a list above every page, and the header
+  fits at 375 px (Account and Sign out move into the menu).
+
 ## [0.9.2] - 2026-10-09
 
 Patch release: performance fixes from the code review.
@@ -307,7 +328,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.2...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.3...HEAD
+[0.9.3]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.8.0...v0.9.0
