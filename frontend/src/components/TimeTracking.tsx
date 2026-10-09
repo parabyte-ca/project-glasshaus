@@ -5,6 +5,7 @@ import { api, unwrap, type User } from '../api/client';
 import { formatMinutes, parseDuration } from '../lib/format';
 import { useTimer } from '../lib/timer';
 import { ErrorText, GhostButton, Input } from './ui';
+import { useConfirm } from '../lib/confirm';
 
 function useTick(active: boolean): number {
   const [now, setNow] = useState(() => Date.now());
@@ -60,6 +61,7 @@ export function TimerIndicator() {
 
 /** Task drawer section: total logged, entries, quick log form and timer start. */
 export function TaskTime({ taskId, taskKey, users }: { taskId: string; taskKey: string; users: User[] }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const names = new Map(users.map((u) => [u.id, u.name]));
   const entries = useQuery({
@@ -172,7 +174,13 @@ export function TaskTime({ taskId, taskKey, users }: { taskId: string; taskKey: 
               type="button"
               className="text-slate-500 dark:text-slate-400 hover:text-red-700"
               aria-label={`Delete ${formatMinutes(e.minutes)} logged on ${e.spent_on}`}
-              onClick={() => remove.mutate(e.id)}
+              onClick={async () =>
+                (await confirm({
+                  title: `Delete ${formatMinutes(e.minutes)} logged on ${e.spent_on}?`,
+                  confirmLabel: 'Delete',
+                  danger: true,
+                })) && remove.mutate(e.id)
+              }
             >
               ✕
             </button>

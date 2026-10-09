@@ -5,6 +5,7 @@ import { api, unwrap, type Schemas } from '../../api/client';
 import { Button, ErrorText, Field, GhostButton, Input, ScrollArea, Select } from '../ui';
 import { Copyable, SecretOnce, Section } from './common';
 import { dateTime, table, td, th } from './format';
+import { useConfirm } from '../../lib/confirm';
 
 type Integration = Schemas['IntegrationRead'];
 type Kind = Integration['kind'];
@@ -74,6 +75,7 @@ function Deliveries({ id }: { id: string }) {
 }
 
 function Row({ i, projects }: { i: Integration; projects: Map<string, string> }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['integrations'] });
@@ -132,7 +134,14 @@ function Row({ i, projects }: { i: Integration; projects: Map<string, string> })
             )}
             <GhostButton
               aria-label={`Remove ${i.name}`}
-              onClick={() => window.confirm(`Remove ${i.name}?`) && remove.mutate()}
+              onClick={async () =>
+                (await confirm({
+                  title: `Remove ${i.name}?`,
+                  body: 'Its deliveries stop now.',
+                  confirmLabel: 'Remove',
+                  danger: true,
+                })) && remove.mutate()
+              }
             >
               Remove
             </GhostButton>

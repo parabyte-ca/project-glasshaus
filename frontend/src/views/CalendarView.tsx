@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { GhostButton } from '../components/ui';
+import { GhostButton, linkClass } from '../components/ui';
 import { monthGrid, todayIso } from '../lib/dates';
 import { tasksOn } from '../lib/schedule';
 import type { ViewProps } from './types';
@@ -88,7 +88,7 @@ export function CalendarView({ tasks, onOpen }: ViewProps) {
                         <li>
                           <button
                             type="button"
-                            className="text-xs text-sky-700 hover:underline dark:text-sky-400"
+                            className={`text-xs ${linkClass}`}
                             aria-expanded={expanded === day}
                             onClick={() => setExpanded(expanded === day ? null : day)}
                           >

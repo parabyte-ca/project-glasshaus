@@ -11,6 +11,23 @@
   body {
     @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100;
   }
+
+  /* Headings get focus after navigation (for screen readers); no ring for something not clickable. */
+  h1[tabindex='-1']:focus {
+    outline: none;
+  }
+
+  /* People who ask for less motion get none: no spinners, pings, slides or smooth scrolling. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 /* Chart tokens (dataviz reference palette; validated light on #fcfcfb and dark on slate-950). */

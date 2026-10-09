@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 import { useOnboarding } from '../../lib/onboarding';
+import { useEscapeLayer } from '../useModal';
 
 /**
  * A pulsing hotspot next to an advanced feature, for people who skipped the tour. Hover, focus or
@@ -13,27 +14,20 @@ export function Beacon({ id, title, children }: { id: string; title: string; chi
   const tipId = useId();
   const root = useRef<HTMLSpanElement>(null);
 
+  useEscapeLayer(open, () => {
+    setOpen(false);
+    setPinned(false);
+  });
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        setOpen(false);
-        setPinned(false);
-      }
-    };
     const onClick = (e: MouseEvent) => {
       if (!root.current?.contains(e.target as Node)) {
         setOpen(false);
         setPinned(false);
       }
     };
-    document.addEventListener('keydown', onKey, true);
     document.addEventListener('mousedown', onClick);
-    return () => {
-      document.removeEventListener('keydown', onKey, true);
-      document.removeEventListener('mousedown', onClick);
-    };
+    return () => document.removeEventListener('mousedown', onClick);
   }, [open]);
 
   if (!state || state.tour !== 'skipped' || state.dismissed_tips.includes(id)) return null;

@@ -4,8 +4,10 @@ import { Link, useNavigate } from 'react-router';
 
 import { api, unwrap } from '../api/client';
 import { Button, ErrorText, Field, Input, Select } from '../components/ui';
+import { usePageTitle } from '../lib/pageTitle';
 
 export function HomePage() {
+  usePageTitle('Home');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const workspaces = useQuery({

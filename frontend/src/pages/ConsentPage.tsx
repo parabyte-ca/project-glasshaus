@@ -5,10 +5,12 @@ import { useSearchParams } from 'react-router';
 import { api, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { Button, ErrorText, GhostButton } from '../components/ui';
+import { usePageTitle } from '../lib/pageTitle';
 
 /** OAuth consent for MCP clients (VS Code, Claude, Copilot): the MCP server's /authorize sends the
  * browser here; approving issues a one-time code and returns the browser to the client. */
 export function ConsentPage() {
+  usePageTitle('Authorize an app');
   const { user } = useAuth();
   const [params] = useSearchParams();
   const requestId = params.get('request') ?? '';

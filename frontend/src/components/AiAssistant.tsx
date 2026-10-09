@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 
 import { api, unwrap, type ProjectDetail, type Schemas } from '../api/client';
 import { Markdown } from './Markdown';
-import { Button, ErrorText, Field, GhostButton } from './ui';
+import { Button, CopyButton, ErrorText, Field, GhostButton, TabPanel, Tabs } from './ui';
 
 type Feature = Schemas['AiStatus']['features'][number];
 type Draft = Schemas['DraftTask'];
@@ -37,34 +37,25 @@ export function AiAssistant({ project, features }: { project: ProjectDetail; fea
       <h2 id={`${base}-h`} className="text-lg font-semibold">
         Assistant
       </h2>
-      <div role="tablist" aria-label="Assistant tools" className="flex flex-wrap gap-1">
-        {tabs.map(([key, label]) => (
-          <button
-            key={key}
-            id={`${base}-tab-${key}`}
-            type="button"
-            role="tab"
-            aria-selected={tab === key}
-            aria-controls={`${base}-panel`}
-            onClick={() => setTab(key)}
-            className={`rounded-md px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-sky-600 ${tab === key ? 'bg-sky-700 text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div id={`${base}-panel`} role="tabpanel" aria-labelledby={`${base}-tab-${tab}`}>
+      <Tabs
+        label="Assistant tools"
+        idBase={base}
+        tabs={tabs}
+        selected={tab}
+        onSelect={setTab}
+        variant="pill"
+      />
+      <TabPanel idBase={base} selected={tab}>
         {tab === 'summaries' && <StatusUpdate project={project} />}
         {tab === 'drafting' && <DraftTasks project={project} />}
         {tab === 'risks' && <Risks project={project} />}
-      </div>
+      </TabPanel>
     </section>
   );
 }
 
 function StatusUpdate({ project }: { project: ProjectDetail }) {
   const [days, setDays] = useState(7);
-  const [copied, setCopied] = useState(false);
   const run = useMutation({
     mutationFn: () =>
       unwrap(
@@ -128,19 +119,8 @@ function StatusUpdate({ project }: { project: ProjectDetail }) {
               </ul>
             </>
           )}
-          <div className="flex items-center gap-3">
-            <GhostButton
-              onClick={() => {
-                void navigator.clipboard?.writeText(text).then(() => setCopied(true));
-              }}
-            >
-              Copy as text
-            </GhostButton>
-            {copied && (
-              <span role="status" className="text-sm">
-                Copied
-              </span>
-            )}
+          <div>
+            <CopyButton value={text} label="Copy as text" />
           </div>
           <Notice />
         </article>

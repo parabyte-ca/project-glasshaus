@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 
 import { api, unwrap } from '../../api/client';
 import { MILESTONES, progressOf, useOnboarding } from '../../lib/onboarding';
+import { linkClass } from '../ui';
 
 /**
  * Getting-started checklist docked bottom-right. Items tick from what the person has actually done;
@@ -98,7 +99,7 @@ export function OnboardingChecklist() {
                   <span className="sr-only"> (done)</span>
                 </span>
               ) : (
-                <Link to={targets[m.key]!} className="text-sky-700 hover:underline dark:text-sky-400">
+                <Link to={targets[m.key]!} className={linkClass}>
                   {m.label}
                 </Link>
               )}

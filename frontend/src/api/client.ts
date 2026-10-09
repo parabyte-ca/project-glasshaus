@@ -54,9 +54,32 @@ export class ApiError extends Error {
     public readonly status: number,
     message: string,
     public readonly code?: string,
+    /** Problems with individual request fields, by field name (a 422 from request validation). */
+    public readonly fields: Record<string, string> = {},
   ) {
     super(message);
   }
+}
+
+type FieldProblem = { loc?: unknown[]; msg?: string };
+
+/** Map validation errors ({loc: ["body", "name"], msg}) to {name: msg}. */
+function fieldProblems(errors: unknown): Record<string, string> {
+  const fields: Record<string, string> = {};
+  if (!Array.isArray(errors)) return fields;
+  for (const e of errors as FieldProblem[]) {
+    const loc = (e.loc ?? []).filter((part) => typeof part === 'string' && part !== 'body');
+    const name = loc[loc.length - 1];
+    if (typeof name === 'string' && e.msg && !fields[name]) {
+      fields[name] = e.msg.replace(/^Value error, /, '');
+    }
+  }
+  return fields;
+}
+
+/** The server's message for one form field, if the last request failed because of it. */
+export function fieldError(error: unknown, name: string): string | undefined {
+  return error instanceof ApiError ? error.fields[name] : undefined;
 }
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -98,9 +121,17 @@ export async function unwrap<T>(
 ): Promise<T> {
   const { data, error, response } = await call;
   if (error !== undefined || !response.ok) {
-    const problem = (error ?? {}) as { detail?: unknown; code?: string };
-    const detail = typeof problem.detail === 'string' ? problem.detail : response.statusText;
-    throw new ApiError(response.status, detail || `HTTP ${response.status}`, problem.code);
+    const problem = (error ?? {}) as { detail?: unknown; code?: string; errors?: unknown };
+    const fields = fieldProblems(problem.errors);
+    const named = Object.keys(fields).length > 0;
+    let detail = typeof problem.detail === 'string' ? problem.detail : response.statusText;
+    if (named && detail === 'request validation failed') {
+      // Name the fields, so the message helps even where a form doesn't mark the field itself.
+      detail = Object.entries(fields)
+        .map(([name, msg]) => `${name.charAt(0).toUpperCase()}${name.slice(1).replace(/_/g, ' ')}: ${msg}`)
+        .join('; ');
+    }
+    throw new ApiError(response.status, detail || `HTTP ${response.status}`, problem.code, fields);
   }
   return data as T;
 }

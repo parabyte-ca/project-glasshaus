@@ -3,9 +3,10 @@ import { useState } from 'react';
 
 import { api, unwrap, type Workload } from '../api/client';
 import { useAuth } from '../auth/useAuth';
-import { ErrorText, Field, GhostButton, Input, ScrollArea, Select } from '../components/ui';
+import { ErrorText, Field, GhostButton, Input, linkClass, ScrollArea, Select } from '../components/ui';
 import { addDays, todayIso } from '../lib/dates';
 import { formatMinutes, hours, mondayOf, shortDate } from '../lib/format';
+import { usePageTitle } from '../lib/pageTitle';
 
 type Person = Workload['users'][number];
 type Cell = Person['buckets'][number];
@@ -28,10 +29,10 @@ function LoadCell({ cell }: { cell: Cell }) {
         />
       </div>
       {over && (
-        <div className="mt-0.5 flex items-center gap-1 text-[11px] font-medium">
+        <div className="mt-0.5 flex items-center gap-1 text-xs font-medium">
           <span
             aria-hidden
-            className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] font-bold text-white"
+            className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
             style={{ backgroundColor: 'var(--status-critical)' }}
           >
             !
@@ -40,7 +41,7 @@ function LoadCell({ cell }: { cell: Cell }) {
         </div>
       )}
       {cell.logged > 0 && (
-        <div className="text-[11px] text-slate-600 dark:text-slate-400">{hours(cell.logged)}h logged</div>
+        <div className="text-xs text-slate-600 dark:text-slate-400">{hours(cell.logged)}h logged</div>
       )}
     </td>
   );
@@ -67,7 +68,7 @@ function CapacityEditor({ person }: { person: Person }) {
     return (
       <button
         type="button"
-        className="text-xs text-sky-700 hover:underline dark:text-sky-400"
+        className={`text-xs ${linkClass}`}
         aria-label={`Change capacity for ${person.name}`}
         onClick={() => setEditing(true)}
       >
@@ -101,6 +102,7 @@ function CapacityEditor({ person }: { person: Person }) {
 }
 
 export function WorkloadPage() {
+  usePageTitle('Workload');
   const { user } = useAuth();
   const isAdmin = user.org_role === 'owner' || user.org_role === 'admin';
   const [start, setStart] = useState(() => mondayOf(todayIso()));

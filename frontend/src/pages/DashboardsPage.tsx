@@ -7,9 +7,12 @@ import { useAuth } from '../auth/useAuth';
 import { HealthBadge, ProgressBar } from '../components/charts';
 import { Burnup, ProjectHealthCard, StatusMix, Throughput } from '../components/ReportWidgets';
 import { useReport } from '../lib/reports';
-import { Button, ErrorText, Field, GhostButton, Input, Select } from '../components/ui';
+import { Button, ErrorText, Field, GhostButton, Input, linkClass, Select } from '../components/ui';
 import { addDays, todayIso } from '../lib/dates';
 import { formatMinutes, hours, mondayOf } from '../lib/format';
+import { usePageTitle } from '../lib/pageTitle';
+import { LoadError } from '../components/PageState';
+import { useConfirm } from '../lib/confirm';
 
 type WidgetType = Widget['type'];
 
@@ -356,6 +359,7 @@ function AddWidget({ onAdd }: { onAdd: (w: Widget) => void }) {
 }
 
 function DashboardView({ id }: { id: string }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -386,7 +390,10 @@ function DashboardView({ id }: { id: string }) {
       void navigate('/dashboards');
     },
   });
-  if (dashboard.error) return <ErrorText error={dashboard.error} />;
+  usePageTitle(dashboard.data?.name ?? 'Dashboard');
+  if (dashboard.error) {
+    return <LoadError error={dashboard.error} what="dashboard" onRetry={() => void dashboard.refetch()} />;
+  }
   if (!dashboard.data) return <p role="status">Loading…</p>;
   const d = dashboard.data;
   const widgets = d.widgets as Widget[];
@@ -401,7 +408,7 @@ function DashboardView({ id }: { id: string }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link to="/dashboards" className="text-sm text-sky-700 hover:underline dark:text-sky-400">
+          <Link to="/dashboards" className={`text-sm ${linkClass}`}>
             ← Dashboards
           </Link>
           <h1 className="text-2xl font-bold">{d.name}</h1>
@@ -419,7 +426,15 @@ function DashboardView({ id }: { id: string }) {
             <GhostButton aria-pressed={editing} onClick={() => setEditing(!editing)}>
               {editing ? 'Done' : 'Edit'}
             </GhostButton>
-            <GhostButton onClick={() => window.confirm(`Delete "${d.name}"?`) && remove.mutate()}>
+            <GhostButton
+              onClick={async () =>
+                (await confirm({
+                  title: `Delete the dashboard "${d.name}"?`,
+                  confirmLabel: 'Delete',
+                  danger: true,
+                })) && remove.mutate()
+              }
+            >
               Delete
             </GhostButton>
           </div>
@@ -483,6 +498,7 @@ const STARTER: Widget[] = [
 ];
 
 function DashboardList() {
+  usePageTitle('Dashboards');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const dashboards = useQuery({

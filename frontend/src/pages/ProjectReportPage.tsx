@@ -3,10 +3,12 @@ import { Link, useParams } from 'react-router';
 
 import { Burnup, ProjectHealthCard, StatTile, StatusMix, Throughput } from '../components/ReportWidgets';
 import { useReport } from '../lib/reports';
-import { ErrorText, Field, Select } from '../components/ui';
+import { ErrorText, Field, linkClass, Select } from '../components/ui';
 import { addDays, todayIso } from '../lib/dates';
 import { formatMinutes } from '../lib/format';
 import { useProject } from '../lib/useProject';
+import { usePageTitle } from '../lib/pageTitle';
+import { LoadError } from '../components/PageState';
 
 export function ProjectReportPage() {
   const { projectKey = '' } = useParams();
@@ -16,16 +18,16 @@ export function ProjectReportPage() {
   const from = addDays(to, -(days - 1));
   const report = useReport(project.data?.id ?? '', from, to);
   const names = new Map(users.map((u) => [u.id, u.name]));
+  usePageTitle(project.data ? `Report · ${project.data.name}` : 'Report');
+  if (project.isError)
+    return <LoadError error={project.error} what="project" onRetry={() => void project.refetch()} />;
   if (!project.data) return <p role="status">Loading…</p>;
   const r = report.data;
   return (
     <div className="flex max-w-5xl flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link
-            to={`/projects/${projectKey}`}
-            className="text-sm text-sky-700 hover:underline dark:text-sky-400"
-          >
+          <Link to={`/projects/${projectKey}`} className={`text-sm ${linkClass}`}>
             ← {project.data.name}
           </Link>
           <h1 className="text-2xl font-bold">Report</h1>
@@ -39,10 +41,7 @@ export function ProjectReportPage() {
               <option value={180}>Last 180 days</option>
             </Select>
           </Field>
-          <a
-            className="text-sm text-sky-700 hover:underline dark:text-sky-400"
-            href={`/api/v1/projects/${project.data.id}/tasks/export`}
-          >
+          <a className={`text-sm ${linkClass}`} href={`/api/v1/projects/${project.data.id}/tasks/export`}>
             Export tasks (CSV)
           </a>
         </div>

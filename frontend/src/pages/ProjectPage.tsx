@@ -5,7 +5,7 @@ import { Link, useParams, useSearchParams } from 'react-router';
 import { api, unwrap, type Task, type ViewConfig, type ViewKind } from '../api/client';
 import { Beacon } from '../components/onboarding/Beacon';
 import { ProjectPeople } from '../components/ProjectPeople';
-import { Button, ErrorText, GhostButton, Input, Select } from '../components/ui';
+import { Button, ErrorText, GhostButton, Input, linkClass, Select } from '../components/ui';
 import { PRIORITIES } from '../lib/grouping';
 import { defaultConfig, OPEN } from '../lib/views';
 import { useAiStatus } from '../lib/ai';
@@ -13,6 +13,7 @@ import { useOnboarding } from '../lib/onboarding';
 import { useProject } from '../lib/useProject';
 import { ListView } from '../views/ListView';
 import { useTaskUpdate, type TaskPatch } from '../lib/taskUpdates';
+import { LoadError } from '../components/PageState';
 
 // Layouts and the task drawer load on demand to keep the first page small.
 const TaskDrawer = lazy(() => import('../components/TaskDrawer').then((m) => ({ default: m.TaskDrawer })));
@@ -143,7 +144,9 @@ function ProjectPageFor({ projectKey }: { projectKey: string }) {
   const openTask = useCallback((task: Task) => setParam('task', task.key), []); // eslint-disable-line react-hooks/exhaustive-deps
   const closeTask = useCallback(() => setParam('task', null), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (project.isError) return <ErrorText error={project.error} />;
+  if (project.isError) {
+    return <LoadError error={project.error} what="project" onRetry={() => void project.refetch()} />;
+  }
   if (!p) return <p role="status">Loading…</p>;
 
   const showCompleted = !filters.status_categories;
@@ -171,18 +174,12 @@ function ProjectPageFor({ projectKey }: { projectKey: string }) {
               Assistant
             </GhostButton>
           )}
-          <Link
-            to={`/projects/${p.key}/report`}
-            className="text-sm text-sky-700 hover:underline dark:text-sky-400"
-          >
+          <Link to={`/projects/${p.key}/report`} className={`text-sm ${linkClass}`}>
             Report
           </Link>
           {p.my_role === 'admin' && (
             <span className="flex items-center gap-1">
-              <Link
-                to={`/projects/${p.key}/settings`}
-                className="text-sm text-sky-700 hover:underline dark:text-sky-400"
-              >
+              <Link to={`/projects/${p.key}/settings`} className={`text-sm ${linkClass}`}>
                 Project settings
               </Link>
               <Beacon id="automations" title="Automations">

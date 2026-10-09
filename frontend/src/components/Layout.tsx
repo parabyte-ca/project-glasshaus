@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 
 import { api, getVersion, unwrap } from '../api/client';
@@ -45,6 +45,7 @@ export function Layout() {
     setMenuPath(pathname);
     setMenuOpen(false);
   }
+  useFocusOnNavigation(pathname);
 
   return (
     <div className="flex min-h-screen flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
@@ -172,4 +173,40 @@ export function Layout() {
       </footer>
     </div>
   );
+}
+
+/**
+ * After moving to another page, put focus on its heading (as a full page load would put it at the
+ * top), so keyboard and screen reader users start from the new page instead of the old link.
+ * Pages that load lazily get their heading a moment later; give up if the person has moved on.
+ */
+function useFocusOnNavigation(pathname: string) {
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const main = document.getElementById('main');
+    if (!main) return;
+    const startedOn = document.activeElement;
+    const tryFocus = () => {
+      const moved = document.activeElement !== startedOn && document.activeElement !== document.body;
+      if (moved && !main.contains(document.activeElement)) return true; // the person went elsewhere
+      if (main.querySelector('[role="dialog"]')) return true; // a dialog (task drawer) owns focus
+      const heading = main.querySelector<HTMLElement>('h1');
+      if (!heading) return false;
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+      return true;
+    };
+    if (tryFocus()) return;
+    const observer = new MutationObserver(() => tryFocus() && observer.disconnect());
+    observer.observe(main, { childList: true, subtree: true });
+    const stop = setTimeout(() => observer.disconnect(), 3000);
+    return () => {
+      observer.disconnect();
+      clearTimeout(stop);
+    };
+  }, [pathname]);
 }

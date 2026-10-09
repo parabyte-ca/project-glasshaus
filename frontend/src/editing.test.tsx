@@ -176,16 +176,24 @@ describe('task drawer edits', () => {
 
     await userEvent.type(within(dialog).getByLabelText('Title'), ' again');
     await userEvent.type(within(dialog).getByLabelText('Add a comment'), 'half a thought');
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     await userEvent.click(within(dialog).getByLabelText('Title'));
     await userEvent.keyboard('{Escape}');
     // The title was saved on the way out; the comment kept the drawer open.
     await waitFor(() => expect(patches(calls)).toHaveLength(2));
     expect(await patches(calls)[1]!.json()).toEqual({ title: 'Renamed again', expected_version: 2 });
-    expect(confirm).toHaveBeenCalledWith('Discard your unsent comment?');
+    const ask = await screen.findByRole('dialog', { name: 'Discard your unsent comment?' });
+    await userEvent.keyboard('{Escape}'); // closes the question only
+    await waitFor(() => expect(ask).not.toBeInTheDocument());
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    confirm.mockReturnValue(true);
     await userEvent.keyboard('{Escape}');
+    await userEvent.click(
+      within(await screen.findByRole('dialog', { name: 'Discard your unsent comment?' })).getByRole(
+        'button',
+        {
+          name: 'Discard',
+        },
+      ),
+    );
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
