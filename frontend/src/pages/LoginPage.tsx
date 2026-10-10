@@ -18,7 +18,11 @@ export function LoginPage() {
       unwrap(
         api.POST('/api/v1/auth/login', { body: { email, password, organization: organization || null } }),
       ),
-    onSuccess: (user) => queryClient.setQueryData(['me'], user),
+    onSuccess: async (user) => {
+      queryClient.setQueryData(['me'], user);
+      // The sign-in answer is the bare account; /users/me adds what depends on it (direct reports).
+      await queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
   });
 
   const providers = useQuery({

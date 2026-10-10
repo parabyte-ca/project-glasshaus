@@ -20,6 +20,7 @@ from glasshaus.api.v1 import (
     scheduling,
     sso,
     tasks,
+    team,
     timetracking,
     users,
     views,
@@ -50,5 +51,6 @@ for module in (
     ai,
     sso,
     integrations,
+    team,
 ):
     api_router.include_router(module.router)

@@ -3,7 +3,7 @@
   "info": {
     "title": "Project Glasshaus API",
     "description": "REST API for Project Glasshaus. Every capability is also available as an MCP tool. Authenticate with `Authorization: Bearer <api token>` or the browser session cookies (unsafe methods then need the `X-CSRF-Token` header). Errors use RFC 9457 problem details.",
-    "version": "0.20.1"
+    "version": "0.21.0"
   },
   "paths": {
     "/healthz": {
@@ -17492,6 +17492,377 @@
         }
       }
     },
+    "/api/v1/team": {
+      "get": {
+        "tags": [
+          "team"
+        ],
+        "summary": "The people who report to you, with their work",
+        "operationId": "my_team",
+        "parameters": [
+          {
+            "name": "everyone",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include everyone further down, not only direct reports.",
+              "default": false,
+              "title": "Everyone"
+            },
+            "description": "Include everyone further down, not only direct reports."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/team/{person_id}/tasks": {
+      "get": {
+        "tags": [
+          "team"
+        ],
+        "summary": "One of your reports' open tasks, or those finished in the last 30 days (audited)",
+        "operationId": "report_tasks",
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Person Id"
+            }
+          },
+          {
+            "name": "done",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Finished work instead.",
+              "default": false,
+              "title": "Done"
+            },
+            "description": "Finished work instead."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamTasks"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/directory-sync": {
+      "get": {
+        "tags": [
+          "team"
+        ],
+        "summary": "Microsoft Graph directory sync settings",
+        "operationId": "get_directory_sync",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectorySyncRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "team"
+        ],
+        "summary": "Set up or change the Microsoft Graph directory sync",
+        "operationId": "update_directory_sync",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectorySyncWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectorySyncRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/directory-sync/run": {
+      "post": {
+        "tags": [
+          "team"
+        ],
+        "summary": "Sync managers, job titles and departments from Microsoft Graph now",
+        "operationId": "run_directory_sync",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectorySyncRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scim/v2/ServiceProviderConfig": {
       "get": {
         "tags": [
@@ -21423,6 +21794,115 @@
         ],
         "title": "DigestSettings"
       },
+      "DirectorySyncRead": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "directory_id": {
+            "type": "string",
+            "title": "Directory Id"
+          },
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret",
+            "description": "Whether a secret is stored (never its value)."
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_result": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Last Result"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "enabled",
+          "directory_id",
+          "client_id",
+          "client_secret",
+          "last_run_at",
+          "last_error",
+          "last_result"
+        ],
+        "title": "DirectorySyncRead"
+      },
+      "DirectorySyncWrite": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          },
+          "directory_id": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Directory Id",
+            "description": "Directory (tenant) ID or primary domain in Microsoft Entra ID.",
+            "default": ""
+          },
+          "client_id": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Client Id",
+            "description": "Application (client) ID of the app registration.",
+            "default": ""
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret",
+            "description": "Leave out to keep the stored secret; empty string removes it."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DirectorySyncWrite"
+      },
       "DraftTask": {
         "properties": {
           "title": {
@@ -23645,6 +24125,15 @@
             "type": "array",
             "title": "Assistant Trusted",
             "description": "Project-assistant suggestions projects may let it apply without approval (a ceiling)."
+          },
+          "manager_visibility": {
+            "type": "string",
+            "enum": [
+              "all",
+              "shared"
+            ],
+            "title": "Manager Visibility",
+            "description": "My team: 'all' shows managers their reports' work in every project; 'shared' only in projects the manager can open (elsewhere just counts)."
           }
         },
         "additionalProperties": false,
@@ -23656,7 +24145,8 @@
           "deleted_task_retention_days",
           "ai_enabled",
           "ai_features",
-          "assistant_trusted"
+          "assistant_trusted",
+          "manager_visibility"
         ],
         "title": "OrgSettingsRead"
       },
@@ -23761,6 +24251,21 @@
               }
             ],
             "title": "Assistant Trusted"
+          },
+          "manager_visibility": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "all",
+                  "shared"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manager Visibility"
           }
         },
         "additionalProperties": false,
@@ -29207,6 +29712,340 @@
         ],
         "title": "TaskVariance"
       },
+      "TeamMember": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "manager_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manager Id"
+          },
+          "level": {
+            "type": "integer",
+            "title": "Level",
+            "description": "1 for a direct report, 2 for their reports, and so on."
+          },
+          "open": {
+            "type": "integer",
+            "title": "Open"
+          },
+          "in_progress": {
+            "type": "integer",
+            "title": "In Progress"
+          },
+          "overdue": {
+            "type": "integer",
+            "title": "Overdue"
+          },
+          "due_this_week": {
+            "type": "integer",
+            "title": "Due This Week"
+          },
+          "logged_this_week": {
+            "type": "integer",
+            "title": "Logged This Week"
+          },
+          "logged_last_week": {
+            "type": "integer",
+            "title": "Logged Last Week"
+          },
+          "capacity_week": {
+            "type": "integer",
+            "title": "Capacity Week"
+          },
+          "completed_last_7_days": {
+            "type": "integer",
+            "title": "Completed Last 7 Days"
+          },
+          "stale": {
+            "type": "integer",
+            "title": "Stale",
+            "description": "In-progress tasks without an update for 5 days or more."
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/TeamTask"
+            },
+            "type": "array",
+            "title": "Recent",
+            "description": "Up to 3 tasks finished in the last 7 days."
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/TeamProject"
+            },
+            "type": "array",
+            "title": "Projects"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "job_title",
+          "department",
+          "manager_id",
+          "level",
+          "open",
+          "in_progress",
+          "overdue",
+          "due_this_week",
+          "logged_this_week",
+          "logged_last_week",
+          "capacity_week",
+          "completed_last_7_days",
+          "stale",
+          "recent",
+          "projects"
+        ],
+        "title": "TeamMember"
+      },
+      "TeamProject": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key",
+            "description": "Empty when you cannot open the project (visibility 'shared')."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Empty when you cannot open the project (visibility 'shared')."
+          },
+          "health": {
+            "type": "string",
+            "title": "Health",
+            "description": "on_track, at_risk or off_track (from the project's overdue work)."
+          },
+          "open_tasks": {
+            "type": "integer",
+            "title": "Open Tasks",
+            "description": "This person's open tasks in the project."
+          },
+          "visible": {
+            "type": "boolean",
+            "title": "Visible",
+            "description": "You can open this project yourself."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "key",
+          "name",
+          "health",
+          "open_tasks",
+          "visible"
+        ],
+        "title": "TeamProject"
+      },
+      "TeamRead": {
+        "properties": {
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "all",
+              "shared"
+            ],
+            "title": "Visibility",
+            "description": "'all': your reports' work in every project; 'shared': only projects you can open."
+          },
+          "direct_reports": {
+            "type": "integer",
+            "title": "Direct Reports"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/TeamMember"
+            },
+            "type": "array",
+            "title": "People"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "visibility",
+          "direct_reports",
+          "people"
+        ],
+        "title": "TeamRead"
+      },
+      "TeamTask": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "project_key": {
+            "type": "string",
+            "title": "Project Key"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "priority": {
+            "type": "string",
+            "title": "Priority"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "key",
+          "title",
+          "project_key",
+          "project_name",
+          "status",
+          "category",
+          "priority",
+          "due_date",
+          "updated_at",
+          "completed_at"
+        ],
+        "title": "TeamTask"
+      },
+      "TeamTasks": {
+        "properties": {
+          "person": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person"
+          },
+          "hidden": {
+            "type": "integer",
+            "title": "Hidden",
+            "description": "Tasks in projects you cannot open (visibility 'shared').",
+            "default": 0
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TeamTask"
+            },
+            "type": "array",
+            "title": "Tasks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "person",
+          "hidden",
+          "tasks"
+        ],
+        "title": "TeamTasks"
+      },
       "TemplateCreate": {
         "properties": {
           "project_id": {
@@ -30230,6 +31069,47 @@
             "type": "array",
             "title": "Working Days",
             "description": "Worked weekdays, 0 = Monday."
+          },
+          "manager_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manager Id",
+            "description": "Who this person reports to (from the directory)."
+          },
+          "job_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Title"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "direct_reports": {
+            "type": "integer",
+            "title": "Direct Reports",
+            "description": "People reporting to you (only on /users/me).",
+            "default": 0
           }
         },
         "additionalProperties": false,
@@ -30243,7 +31123,11 @@
           "created_at",
           "last_login_at",
           "capacity_minutes",
-          "working_days"
+          "working_days",
+          "manager_id",
+          "job_title",
+          "department",
+          "direct_reports"
         ],
         "title": "UserRead"
       },

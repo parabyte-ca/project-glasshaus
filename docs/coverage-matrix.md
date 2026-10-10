@@ -17,6 +17,8 @@ MCP prompts: `weekly_status`, `risk_review`, `sprint_planning`, `standup_digest`
 | Change password | `identity.change_password` | `POST /api/v1/auth/password` | `user.password_changed` | n/a (interactive only) | 0.2 |
 | Current user | `identity.get_me` | `GET /api/v1/users/me` | — | `whoami` | 0.2 |
 | List / create / update users | `identity.list_users`, `create_user`, `update_user` | `GET/POST /api/v1/users`, `PATCH /api/v1/users/{id}` | `user.created`, `user.updated` | `list_users`, `manage_users` | 0.2 |
+| My team (reporting lines) | `people.my_team`, `report_tasks` | `GET /api/v1/team`, `GET /api/v1/team/{id}/tasks` | — | `my_team` | 0.21 |
+| Directory sync (Microsoft Graph) | `people.graph.update_settings`, `sync_now` | `GET/PUT /api/v1/admin/directory-sync`, `POST …/run` | `directory_sync.updated` | — | 0.21 |
 | API tokens | `identity.create_api_token`, `list_api_tokens`, `revoke_api_token` | `GET/POST /api/v1/tokens`, `DELETE /api/v1/tokens/{id}` | `api_token.created`, `api_token.revoked` | n/a (credentials) | 0.2 |
 | Workspaces | `identity.list_workspaces`, `get_workspace`, `create_workspace`, `update_workspace` | `GET/POST /api/v1/workspaces`, `GET/PATCH /api/v1/workspaces/{id}` | `workspace.created`, `workspace.updated` | `list_workspaces` | 0.2 |
 | Workspace members | `identity.list_workspace_members`, `set_workspace_member`, `remove_workspace_member` | `GET/PUT /api/v1/workspaces/{id}/members`, `DELETE …/members/{user_id}` | `workspace.member_set`, `workspace.member_removed` | `set_workspace_member` | 0.2 |

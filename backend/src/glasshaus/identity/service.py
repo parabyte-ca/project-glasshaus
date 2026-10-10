@@ -243,7 +243,11 @@ async def get_me(ctx: ServiceContext) -> UserRead:
     user = await ctx.session.get(User, _require_user(ctx))
     if user is None:
         raise NotFound("user not found")
-    return UserRead.model_validate(user)
+    from glasshaus.people.service import direct_report_count
+
+    return UserRead.model_validate(user).model_copy(
+        update={"direct_reports": await direct_report_count(ctx.session, user.id)}
+    )
 
 
 async def change_password(ctx: ServiceContext, data: PasswordChange) -> None:

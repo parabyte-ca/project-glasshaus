@@ -2569,6 +2569,75 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/team': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The people who report to you, with their work */
+    get: operations['my_team'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/team/{person_id}/tasks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One of your reports' open tasks, or those finished in the last 30 days (audited) */
+    get: operations['report_tasks'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/admin/directory-sync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Microsoft Graph directory sync settings */
+    get: operations['get_directory_sync'];
+    /** Set up or change the Microsoft Graph directory sync */
+    put: operations['update_directory_sync'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/admin/directory-sync/run': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Sync managers, job titles and departments from Microsoft Graph now */
+    post: operations['run_directory_sync'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/scim/v2/ServiceProviderConfig': {
     parameters: {
       query?: never;
@@ -4071,6 +4140,53 @@ export interface components {
        */
       weekdays_only: boolean;
     };
+    /** DirectorySyncRead */
+    DirectorySyncRead: {
+      /** Enabled */
+      enabled: boolean;
+      /** Directory Id */
+      directory_id: string;
+      /** Client Id */
+      client_id: string;
+      /**
+       * Client Secret
+       * @description Whether a secret is stored (never its value).
+       */
+      client_secret: string | null;
+      /** Last Run At */
+      last_run_at: string | null;
+      /** Last Error */
+      last_error: string | null;
+      /** Last Result */
+      last_result: {
+        [key: string]: number;
+      };
+    };
+    /** DirectorySyncWrite */
+    DirectorySyncWrite: {
+      /**
+       * Enabled
+       * @default false
+       */
+      enabled?: boolean;
+      /**
+       * Directory Id
+       * @description Directory (tenant) ID or primary domain in Microsoft Entra ID.
+       * @default
+       */
+      directory_id?: string;
+      /**
+       * Client Id
+       * @description Application (client) ID of the app registration.
+       * @default
+       */
+      client_id?: string;
+      /**
+       * Client Secret
+       * @description Leave out to keep the stored secret; empty string removes it.
+       */
+      client_secret?: string | null;
+    };
     /** DraftTask */
     DraftTask: {
       /**
@@ -4907,6 +5023,12 @@ export interface components {
        * @description Project-assistant suggestions projects may let it apply without approval (a ceiling).
        */
       assistant_trusted: 'comment'[];
+      /**
+       * Manager Visibility
+       * @description My team: 'all' shows managers their reports' work in every project; 'shared' only in projects the manager can open (elsewhere just counts).
+       * @enum {string}
+       */
+      manager_visibility: 'all' | 'shared';
     };
     /** OrgSettingsUpdate */
     OrgSettingsUpdate: {
@@ -4924,6 +5046,8 @@ export interface components {
       ai_features?: ('summaries' | 'drafting' | 'risks' | 'search' | 'reports' | 'assistant')[] | null;
       /** Assistant Trusted */
       assistant_trusted?: 'comment'[] | null;
+      /** Manager Visibility */
+      manager_visibility?: ('all' | 'shared') | null;
     };
     /** Page[ActivityItem] */
     Page_ActivityItem_: {
@@ -7055,6 +7179,150 @@ export interface components {
       /** Finish Variance Days */
       finish_variance_days: number | null;
     };
+    /** TeamMember */
+    TeamMember: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      /** Email */
+      email: string;
+      /** Job Title */
+      job_title: string | null;
+      /** Department */
+      department: string | null;
+      /** Manager Id */
+      manager_id: string | null;
+      /**
+       * Level
+       * @description 1 for a direct report, 2 for their reports, and so on.
+       */
+      level: number;
+      /** Open */
+      open: number;
+      /** In Progress */
+      in_progress: number;
+      /** Overdue */
+      overdue: number;
+      /** Due This Week */
+      due_this_week: number;
+      /** Logged This Week */
+      logged_this_week: number;
+      /** Logged Last Week */
+      logged_last_week: number;
+      /** Capacity Week */
+      capacity_week: number;
+      /** Completed Last 7 Days */
+      completed_last_7_days: number;
+      /**
+       * Stale
+       * @description In-progress tasks without an update for 5 days or more.
+       */
+      stale: number;
+      /**
+       * Recent
+       * @description Up to 3 tasks finished in the last 7 days.
+       */
+      recent: components['schemas']['TeamTask'][];
+      /** Projects */
+      projects: components['schemas']['TeamProject'][];
+    };
+    /** TeamProject */
+    TeamProject: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Key
+       * @description Empty when you cannot open the project (visibility 'shared').
+       */
+      key: string | null;
+      /**
+       * Name
+       * @description Empty when you cannot open the project (visibility 'shared').
+       */
+      name: string | null;
+      /**
+       * Health
+       * @description on_track, at_risk or off_track (from the project's overdue work).
+       */
+      health: string;
+      /**
+       * Open Tasks
+       * @description This person's open tasks in the project.
+       */
+      open_tasks: number;
+      /**
+       * Visible
+       * @description You can open this project yourself.
+       */
+      visible: boolean;
+    };
+    /** TeamRead */
+    TeamRead: {
+      /**
+       * Visibility
+       * @description 'all': your reports' work in every project; 'shared': only projects you can open.
+       * @enum {string}
+       */
+      visibility: 'all' | 'shared';
+      /** Direct Reports */
+      direct_reports: number;
+      /** People */
+      people: components['schemas']['TeamMember'][];
+    };
+    /** TeamTask */
+    TeamTask: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Key */
+      key: string;
+      /** Title */
+      title: string;
+      /** Project Key */
+      project_key: string;
+      /** Project Name */
+      project_name: string;
+      /** Status */
+      status: string;
+      /** Category */
+      category: string;
+      /** Priority */
+      priority: string;
+      /** Due Date */
+      due_date: string | null;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Completed At */
+      completed_at: string | null;
+    };
+    /** TeamTasks */
+    TeamTasks: {
+      /**
+       * Person
+       * Format: uuid
+       */
+      person: string;
+      /**
+       * Hidden
+       * @description Tasks in projects you cannot open (visibility 'shared').
+       * @default 0
+       */
+      hidden: number;
+      /** Tasks */
+      tasks: components['schemas']['TeamTask'][];
+    };
     /** TemplateCreate */
     TemplateCreate: {
       /**
@@ -7492,6 +7760,21 @@ export interface components {
        * @description Worked weekdays, 0 = Monday.
        */
       working_days: number[];
+      /**
+       * Manager Id
+       * @description Who this person reports to (from the directory).
+       */
+      manager_id: string | null;
+      /** Job Title */
+      job_title: string | null;
+      /** Department */
+      department: string | null;
+      /**
+       * Direct Reports
+       * @description People reporting to you (only on /users/me).
+       * @default 0
+       */
+      direct_reports: number;
     };
     /** UserUpdate */
     UserUpdate: {
@@ -21304,6 +21587,318 @@ export interface operations {
         };
         content: {
           'text/calendar': unknown;
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  my_team: {
+    parameters: {
+      query?: {
+        /** @description Include everyone further down, not only direct reports. */
+        everyone?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TeamRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  report_tasks: {
+    parameters: {
+      query?: {
+        /** @description Finished work instead. */
+        done?: boolean;
+      };
+      header?: never;
+      path: {
+        person_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TeamTasks'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  get_directory_sync: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DirectorySyncRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  update_directory_sync: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DirectorySyncWrite'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DirectorySyncRead'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  run_directory_sync: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DirectorySyncRead'];
         };
       };
       /** @description Not authenticated */

@@ -33,6 +33,8 @@ from glasshaus.scim.models import ScimToken
 
 USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User"
 GROUP_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:Group"
+# Microsoft Entra ID (and most identity providers) send the manager and department here.
+ENTERPRISE = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
 LIST_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:ListResponse"
 PATCH_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:PatchOp"
 ERROR_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:Error"
@@ -143,8 +145,13 @@ async def actor_from_scim_token(session: AsyncSession, raw: str) -> Actor:
 
 def user_resource(user: User) -> dict[str, Any]:
     given, _, family = user.name.partition(" ")
-    return {
-        "schemas": [USER_SCHEMA],
+    enterprise: dict[str, Any] = {}
+    if user.department:
+        enterprise["department"] = user.department
+    if user.manager_id:
+        enterprise["manager"] = {"value": str(user.manager_id)}
+    out: dict[str, Any] = {
+        "schemas": [USER_SCHEMA, ENTERPRISE] if enterprise else [USER_SCHEMA],
         "id": str(user.id),
         "externalId": user.external_id,
         "userName": user.email,
@@ -159,6 +166,11 @@ def user_resource(user: User) -> dict[str, Any]:
             "location": f"{base_url()}/Users/{user.id}",
         },
     }
+    if user.job_title:
+        out["title"] = user.job_title
+    if enterprise:
+        out[ENTERPRISE] = enterprise
+    return out
 
 
 async def group_resource(session: AsyncSession, ws: Workspace) -> dict[str, Any]:
@@ -222,6 +234,45 @@ def _uuid(value: str) -> uuid.UUID:
         raise ScimError(404, "resource not found") from exc
 
 
+def _manager_ref(value: Any) -> str | None:
+    """A manager is sent as {"value": "<id>"} or as the bare id; empty means none."""
+    if isinstance(value, list):
+        value = value[0] if value else None
+    if isinstance(value, dict):
+        value = value.get("value")
+    return str(value).strip() if value else None
+
+
+async def _set_manager(ctx: ServiceContext, user: User, value: Any) -> None:
+    from glasshaus.people.service import set_manager
+
+    ref = _manager_ref(value)
+    if ref is None:
+        await set_manager(ctx.session, user, None, "scim")
+        return
+    manager_id: uuid.UUID | None
+    try:
+        manager_id = uuid.UUID(ref)
+    except ValueError:
+        # Some providers send the manager's externalId instead of our id.
+        manager_id = await ctx.session.scalar(select(User.id).where(User.external_id == ref))
+    if manager_id is None:
+        return  # not provisioned yet; it is sent again on the next change
+    await set_manager(ctx.session, user, manager_id, "scim")
+
+
+async def _apply_extras(ctx: ServiceContext, user: User, body: dict[str, Any]) -> None:
+    """Job title (core ``title``) and the enterprise extension's department and manager."""
+    if "title" in body:
+        user.job_title = str(body["title"])[:200] if body["title"] else None
+    ext = body.get(ENTERPRISE)
+    if isinstance(ext, dict):
+        if "department" in ext:
+            user.department = str(ext["department"])[:200] if ext["department"] else None
+        if "manager" in ext:
+            await _set_manager(ctx, user, ext["manager"])
+
+
 # --------------------------------------------------------------------------- users
 
 
@@ -272,6 +323,8 @@ async def create_user(ctx: ServiceContext, body: dict[str, Any]) -> dict[str, An
         await ctx.session.flush()
     except IntegrityError as exc:
         raise ScimError(409, "a user with this userName already exists", "uniqueness") from exc
+    await _apply_extras(ctx, user, body)
+    await ctx.session.flush()
     events.emit(ctx, "user.created", "user", user.id, {"email": user.email, "source": "scim"})
     return user_resource(user)
 
@@ -340,6 +393,7 @@ async def replace_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) 
     await _set_email(ctx, user, email)
     user.name = _name_of(body, email)
     await _set_active(ctx, user, bool(body.get("active", True)))
+    await _apply_extras(ctx, user, body)
     await ctx.session.flush()
     events.emit(ctx, "user.updated", "user", user.id, {"source": "scim", "active": user.is_active})
     return user_resource(user)
@@ -358,6 +412,20 @@ async def patch_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) ->
         updates: dict[str, Any] = value if not path and isinstance(value, dict) else {path: value}
         for key, val in updates.items():
             k = key.lower()
+            prefix = ENTERPRISE.lower() + ":"
+            if k == ENTERPRISE.lower() and isinstance(val, dict):
+                await _apply_extras(ctx, user, {ENTERPRISE: val if kind != "remove" else dict.fromkeys(val)})
+                continue
+            if k.startswith(prefix):
+                attr = k[len(prefix) :]
+                if attr in ("manager", "manager.value"):
+                    await _set_manager(ctx, user, None if kind == "remove" else val)
+                elif attr == "department":
+                    user.department = str(val)[:200] if val and kind != "remove" else None
+                continue
+            if k == "title":
+                user.job_title = str(val)[:200] if val and kind != "remove" else None
+                continue
             if k == "active":
                 active = val if isinstance(val, bool) else str(val).lower() == "true"
                 await _set_active(ctx, user, kind != "remove" and active)
@@ -546,13 +614,14 @@ SERVICE_PROVIDER_CONFIG: dict[str, Any] = {
     ],
 }
 
-RESOURCE_TYPES = [
+RESOURCE_TYPES: list[dict[str, Any]] = [
     {
         "schemas": ["urn:ietf:params:scim:schemas:core:2.0:ResourceType"],
         "id": "User",
         "name": "User",
         "endpoint": "/Users",
         "schema": USER_SCHEMA,
+        "schemaExtensions": [{"schema": ENTERPRISE, "required": False}],
     },
     {
         "schemas": ["urn:ietf:params:scim:schemas:core:2.0:ResourceType"],

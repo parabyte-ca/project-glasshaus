@@ -58,7 +58,7 @@ Provisioning; shown once).
 
 | Resource | Supported |
 | --- | --- |
-| `/Users` | list with `filter=userName eq "…"`, `externalId eq`, `emails.value eq`; create, get, replace (PUT), PATCH (`active`, names, `externalId`, `userName`), DELETE |
+| `/Users` | list with `filter=userName eq "…"`, `externalId eq`, `emails.value eq`; create, get, replace (PUT), PATCH (`active`, names, `externalId`, `userName`, `title`, enterprise `department` and `manager`), DELETE |
 | `/Groups` | list (`displayName eq`), create, get, replace, PATCH members add/remove/replace and `displayName`, DELETE |
 | `/ServiceProviderConfig`, `/ResourceTypes`, `/Schemas` | discovery |
 
@@ -74,6 +74,11 @@ Limits, so a leaked SCIM token or a compromised IdP cannot take over or lock out
 - An account an admin deactivated in Glasshaus is not reactivated through SCIM. Groups are
 workspaces: members become workspace members with the member role. Deleting a group removes its members
 but keeps the workspace and its projects.
+
+Managers, job titles and departments: the enterprise extension
+(`urn:ietf:params:scim:schemas:extension:enterprise:2.0:User`) `manager` and `department`, and the core
+`title`, are stored and power [My team](my-team.md). The manager is the manager's SCIM `id` (or
+`externalId`); a manager that would create a loop is ignored.
 
 **Entra ID:** Enterprise application → Provisioning → Automatic; Tenant URL = the base URL, Secret token =
 the SCIM token. **Okta:** SCIM 2.0 app, Bearer token authentication, unique identifier `userName`.

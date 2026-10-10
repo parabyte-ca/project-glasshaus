@@ -8,6 +8,172 @@ import { dateTime, table, td, th } from './format';
 import { useConfirm } from '../../lib/confirm';
 
 export function Provisioning() {
+  return (
+    <div className="flex flex-col gap-8">
+      <ScimTokens />
+      <DirectorySync />
+      <ManagerVisibility />
+    </div>
+  );
+}
+
+function DirectorySync() {
+  const queryClient = useQueryClient();
+  const sync = useQuery({
+    queryKey: ['directory-sync'],
+    queryFn: () => unwrap(api.GET('/api/v1/admin/directory-sync')),
+  });
+  const [form, setForm] = useState<{ directory_id: string; client_id: string; secret: string } | null>(null);
+  const v = form ?? {
+    directory_id: sync.data?.directory_id ?? '',
+    client_id: sync.data?.client_id ?? '',
+    secret: '',
+  };
+  const save = useMutation({
+    mutationFn: (enabled: boolean) =>
+      unwrap(
+        api.PUT('/api/v1/admin/directory-sync', {
+          body: {
+            enabled,
+            directory_id: v.directory_id,
+            client_id: v.client_id,
+            ...(v.secret ? { client_secret: v.secret } : {}),
+          },
+        }),
+      ),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['directory-sync'], data);
+      setForm(null);
+    },
+  });
+  const run = useMutation({
+    mutationFn: () => unwrap(api.POST('/api/v1/admin/directory-sync/run')),
+    onSuccess: async (data) => {
+      queryClient.setQueryData(['directory-sync'], data);
+      await queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+  const d = sync.data;
+  const result = d?.last_result ?? {};
+  return (
+    <Section
+      title="Managers from Microsoft Entra ID"
+      intro="My team shows managers the people who report to them. If your identity provider sends managers over SCIM (Entra ID does by default), nothing more is needed. Otherwise, sync them nightly from Microsoft Graph: register an app in Entra ID with the User.Read.All application permission (admin consent) and enter it here. People are matched by email; SCIM wins where it sends a manager."
+    >
+      <form
+        className="flex flex-wrap items-end gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save.mutate(d?.enabled ?? false);
+        }}
+      >
+        <Field label="Directory (tenant) ID or domain" id="graph-dir">
+          <Input
+            id="graph-dir"
+            value={v.directory_id}
+            onChange={(e) => setForm({ ...v, directory_id: e.target.value })}
+            placeholder="contoso.onmicrosoft.com"
+          />
+        </Field>
+        <Field label="Application (client) ID" id="graph-client">
+          <Input
+            id="graph-client"
+            value={v.client_id}
+            onChange={(e) => setForm({ ...v, client_id: e.target.value })}
+          />
+        </Field>
+        <Field
+          label={d?.client_secret ? 'Client secret (saved; type to replace)' : 'Client secret'}
+          id="graph-secret"
+        >
+          <Input
+            id="graph-secret"
+            type="password"
+            autoComplete="off"
+            value={v.secret}
+            onChange={(e) => setForm({ ...v, secret: e.target.value })}
+          />
+        </Field>
+        <Button type="submit" disabled={save.isPending || !form}>
+          Save
+        </Button>
+      </form>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={d?.enabled ?? false}
+            disabled={save.isPending || !d}
+            onChange={(e) => save.mutate(e.target.checked)}
+          />
+          Sync every night
+        </label>
+        <GhostButton
+          onClick={() => run.mutate()}
+          disabled={run.isPending || !d?.client_secret}
+          aria-describedby="graph-status"
+        >
+          {run.isPending ? 'Syncing…' : 'Sync now'}
+        </GhostButton>
+      </div>
+      <p id="graph-status" role="status" className="text-sm">
+        {d?.last_run_at
+          ? d.last_error
+            ? `Last sync ${dateTime(d.last_run_at)} failed: ${d.last_error}`
+            : `Last sync ${dateTime(d.last_run_at)}: ${result.matched ?? 0} people matched, ${result.managers ?? 0} managers changed, ${result.cleared ?? 0} cleared, ${result.skipped ?? 0} left to SCIM.`
+          : 'Not synced yet.'}
+      </p>
+      <ErrorText error={sync.error ?? save.error ?? run.error} />
+    </Section>
+  );
+}
+
+function ManagerVisibility() {
+  const queryClient = useQueryClient();
+  const settings = useQuery({
+    queryKey: ['org-settings'],
+    queryFn: () => unwrap(api.GET('/api/v1/admin/settings')),
+  });
+  const save = useMutation({
+    mutationFn: (manager_visibility: 'all' | 'shared') =>
+      unwrap(api.PATCH('/api/v1/admin/settings', { body: { manager_visibility } })),
+    onSuccess: (data) => queryClient.setQueryData(['org-settings'], data),
+  });
+  const value = settings.data?.manager_visibility ?? 'all';
+  return (
+    <Section
+      title="What managers see on My team"
+      intro="Opening a report's task list is recorded in the audit log (team.tasks_viewed)."
+    >
+      <fieldset className="flex flex-col gap-2 text-sm">
+        <legend className="sr-only">What managers see</legend>
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="manager-visibility"
+            checked={value === 'all'}
+            disabled={!settings.data || save.isPending}
+            onChange={() => save.mutate('all')}
+          />
+          Their reports’ work in every project
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="radio"
+            name="manager-visibility"
+            checked={value === 'shared'}
+            disabled={!settings.data || save.isPending}
+            onChange={() => save.mutate('shared')}
+          />
+          Only in projects the manager can open (elsewhere, counts only)
+        </label>
+      </fieldset>
+      <ErrorText error={settings.error ?? save.error} />
+    </Section>
+  );
+}
+
+function ScimTokens() {
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
