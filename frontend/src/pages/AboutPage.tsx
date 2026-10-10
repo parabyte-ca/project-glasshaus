@@ -56,12 +56,16 @@ export function AboutPage() {
         {version.data && (
           <p>
             Version {version.data.version} ({version.data.build}). Free software under the{' '}
-            <a className={linkClass} href="https://www.gnu.org/licenses/agpl-3.0.html" rel="noreferrer">
+            <a
+              className={`${linkClass} underline`}
+              href="https://www.gnu.org/licenses/agpl-3.0.html"
+              rel="noreferrer"
+            >
               GNU Affero General Public License v3
             </a>
             : you may get, study, change and share its source code.{' '}
             {version.data.source && (
-              <a className={linkClass} href={version.data.source} rel="noreferrer">
+              <a className={`${linkClass} underline`} href={version.data.source} rel="noreferrer">
                 Source code for this server
               </a>
             )}
@@ -96,8 +100,11 @@ export function AboutPage() {
           provisioning.
         </p>
         <p>
-          You can download your data from <TextLink to="/account">Account</TextLink>. Admins can export or
-          erase a person’s data; erasing keeps the work but removes who did it.
+          You can download your data from{' '}
+          <TextLink to="/account" className="underline">
+            Account
+          </TextLink>
+          . Admins can export or erase a person’s data; erasing keeps the work but removes who did it.
         </p>
       </section>
 

@@ -120,7 +120,11 @@ export function AccountPage() {
         <p className="text-sm text-slate-600 dark:text-slate-400">
           Download everything Glasshaus holds about you: your profile, work assigned to or created by you,
           comments, time, sign-ins, notifications and the activity you caused. To have your account erased,
-          ask an organization admin. See <TextLink to="/about">About and privacy</TextLink>.
+          ask an organization admin. See{' '}
+          <TextLink to="/about" className="underline">
+            About and privacy
+          </TextLink>
+          .
         </p>
         <a
           href="/api/v1/users/me/export"
