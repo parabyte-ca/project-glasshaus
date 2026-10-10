@@ -3,6 +3,8 @@ name: Release
 on:
   push:
     tags: ["v*.*.*"]
+  # Tag release starts this for the tag it creates (a tag pushed by a workflow starts nothing).
+  workflow_dispatch:
 
 permissions:
   contents: read

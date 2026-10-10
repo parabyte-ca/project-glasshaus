@@ -5,6 +5,8 @@
 #   scripts/release-tags.sh --check         exit 1 if a release has no tag or a wrong one
 #   scripts/release-tags.sh --tag [--push]  create the missing tags (and push them, one at a time)
 #
+# The Tag release workflow runs --tag --push after every release merge, so this is mostly a check.
+#
 # A release is the first commit on main's first-parent history (the merge) where VERSION has a new
 # value. Options: --ref REF (default origin/main, else HEAD), --grace HOURS (with --check: ignore
 # releases merged less than HOURS ago, so the tag can follow the merge).
@@ -21,7 +23,7 @@ while [[ $# -gt 0 ]]; do
     --push) push=1 ;;
     --ref) ref="${2:?--ref needs a value}"; shift ;;
     --grace) grace="${2:?--grace needs hours}"; shift ;;
-    -h|--help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -63,7 +65,9 @@ done < <(git log --first-parent --reverse --format='%H %ct' "$ref" -- VERSION)
 if (( tag )); then
   for item in "${missing[@]}"; do
     read -r name commit <<<"$item"
-    git tag -a "$name" -m "Release ${name#v}" "$commit"
+    # Annotated when git knows who you are; plain otherwise (e.g. root on a server).
+    if git config user.email >/dev/null; then git tag -a "$name" -m "Release ${name#v}" "$commit"
+    else git tag "$name" "$commit"; fi
     echo "tagged   $name"
   done
   if (( push )); then

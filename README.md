@@ -399,10 +399,11 @@ make test-e2e      # Playwright end-to-end + accessibility tests against the run
 make help          # everything else
 ```
 
-Releases: `make bump V=x.y.z`, add a `CHANGELOG.md` entry, commit, tag `vX.Y.Z` and push the tag — CI
-builds, scans and publishes multi-arch (amd64/arm64) images to GHCR. `scripts/release-tags.sh` lists
-each release and its tag, and `--tag --push` adds any that are missing (only the newest one publishes);
-CI fails when a release merged over a day ago is still untagged.
+Releases: `make bump V=x.y.z`, add a `CHANGELOG.md` entry, commit and merge to `main`. The *Tag release*
+workflow tags the merge `vX.Y.Z`, then CI builds, scans and publishes multi-arch (amd64/arm64) images to
+GHCR and a GitHub Release. `scripts/release-tags.sh` lists each release and its tag, and `--tag --push`
+adds any that are missing (only the newest one publishes); CI fails when a release merged over a day
+ago is still untagged.
 
 ## Roadmap
 
