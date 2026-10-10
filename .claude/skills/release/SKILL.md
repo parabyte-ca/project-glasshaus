@@ -31,13 +31,13 @@ One release per PR. Minor version for features, patch for fixes.
    it exercises the pre-flight check and the migrations on real data, like a user's upgrade.
    The AI spec needs `GLASSHAUS_AI_PROVIDER=fake`. Use `{ exact: true }` for labels that are
    substrings of region names ("Question" vs "Ask a question").
-6. **Commit, push, draft PR**; after merge the owner tags and pushes **that one tag** (pushing more than
-   three tags at once starts no workflows, so nothing would be published):
-   `git fetch origin main && git tag vX.Y.Z origin/main && git push origin vX.Y.Z`
-   (or `scripts/release-tags.sh --tag --push`), then runs `update.sh` on the server.
-   `scripts/release-tags.sh` lists every release and its tag; CI (Repo hygiene, and a daily
-   *Release tags* run) fails when a release merged over a day ago has no tag. Only the newest version's
-   tag publishes images and a GitHub Release; older tags just mark history.
+6. **Commit, push, draft PR.** After merge, the *Tag release* workflow tags the merge `vX.Y.Z` and
+   starts *Release* (images, GitHub Release) within a few minutes; the owner then runs `update.sh` (or
+   `update.sh --pull`) on the server. No manual tagging. If it ever fails: `scripts/release-tags.sh`
+   lists every release and its tag, `--tag --push` adds missing ones (push one tag at a time: more than
+   three at once starts no workflows). CI (Repo hygiene, and a daily *Release tags* run) fails when a
+   release merged over a day ago has no tag. Only the newest version's tag publishes; older tags just
+   mark history.
 
 ## Conventions
 
@@ -70,7 +70,7 @@ One release per PR. Minor version for features, patch for fixes.
   update the build args in the stack's `docker-compose.override.yml` (it needs `backup: { build: *build }`
   too). The proxy blocks Alpine's package mirror (proxy.golang.org works), and local Trivy cannot fetch
   its database, so image scans are confirmed in CI.
-- Tag pushes are blocked from the sandbox; the owner pushes tags.
+- Tag pushes are blocked from the sandbox; *Tag release* tags on merge, so nobody needs to.
 - Changing UI text (toasts, links, headings) breaks e2e selectors that use it: grep `e2e/tests` for the
   old text. Scope link lookups to a landmark (`getByRole('navigation', { name: 'Main' })`) when the same
   link can appear twice on a page.

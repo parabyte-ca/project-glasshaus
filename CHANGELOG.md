@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- **Releases tag themselves.** When a release merges to `main`, the *Tag release* workflow tags it
+  `vX.Y.Z` and publishes its images and GitHub Release. No more manual tagging; just run `update.sh`.
 - `scripts/release-tags.sh` lists every release and whether it has its `vX.Y.Z` tag; `--tag --push`
   adds the missing ones. CI fails, and a daily check reports, when a release merged over a day ago is
   still untagged.
