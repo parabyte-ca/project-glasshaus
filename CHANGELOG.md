@@ -6,6 +6,43 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-10-10
+
+Security fixes from a full review, and a more private default for My team.
+
+### Security
+- **Sign-in lockout can no longer be used against you.** Wrong passwords from many addresses still
+  lock an account for 15 minutes, but the person can still sign in with the right password from an
+  address they've used before.
+- **Copied sign-ins end.** Reusing an old refresh token (a stolen cookie) signs out every session from
+  that sign-in. An OAuth code used twice also cancels the tokens issued from it.
+- **Single sign-on is tied to the browser that started it.** This stops someone signing you in to
+  their own account with a link. Linking a provider from Account now needs the page's CSRF token.
+- **Read-only API tokens change nothing.** Before, they could edit or delete time entries and saved
+  views.
+- **OAuth apps (MCP) can only register safe return addresses:**
+  - https;
+  - http on this computer;
+  - an app's own scheme.
+
+  `javascript:` and `data:` addresses are refused, and the consent page checks too.
+- **Making someone an admin or owner** needs a signed-in person in Admin. API tokens and AI agents
+  can't do it.
+- **A Slack command must have its signing secret.** An empty one is refused.
+- **Spreadsheet exports neutralise formulas in every cell and heading.** This covers tags, statuses,
+  names and report labels.
+- **Backups are readable only by the backup service** (mode 600).
+
+### Changed
+- **My team is private by default.** Managers see their reports' work only in projects they can open
+  (counts elsewhere); an admin can widen it, with a confirmation. Guests who manage someone always get
+  the private view. **Existing organizations move to the private setting**: re-choose "every project"
+  in Admin → Provisioning if you want it.
+
+### Fixed
+- Saving **Admin → AI assistant** when no AI provider is set up no longer clears the organization's
+  AI switch and features.
+
 ## [0.21.0] - 2026-10-10
 
 Reporting lines from your identity provider, and **My team** for managers.
@@ -679,7 +716,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.1...v0.21.0
 [0.20.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.19.0...v0.20.0

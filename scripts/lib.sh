@@ -82,8 +82,8 @@ backup_now() {
   mkdir -p "$dir"
   ts="$(date -u +%Y%m%dT%H%M%SZ)"
   out="$dir/glasshaus-${label}-${ts}.dump"
-  compose exec -T postgres pg_dump -U glasshaus -d glasshaus --format=custom --no-owner > "$out.partial" \
-    || { rm -f "$out.partial"; return 1; }
+  (umask 077 && compose exec -T postgres pg_dump -U glasshaus -d glasshaus --format=custom --no-owner \
+    > "$out.partial") || { rm -f "$out.partial"; return 1; }
   mv "$out.partial" "$out"
   printf '%s\n' "$out"
 }

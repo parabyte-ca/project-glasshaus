@@ -5,7 +5,6 @@ its project. Logging needs TASK_UPDATE on the task; authors edit their own entri
 admins (PROJECT_UPDATE) can edit any entry in their project.
 """
 
-import csv
 import io
 import math
 import uuid
@@ -14,8 +13,8 @@ from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import ColumnElement, Select, func, or_, select
 
-from glasshaus.core import events
-from glasshaus.core.authz import project_role, require_project, visible_projects_clause
+from glasshaus.core import csvsafe, events
+from glasshaus.core.authz import project_role, require_project, require_scope, visible_projects_clause
 from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import Conflict, InvalidInput, NotFound, PermissionDenied
 from glasshaus.core.rbac import OrgRole, Permission, project_role_permissions
@@ -154,6 +153,7 @@ async def log_time(
 
 
 async def _editable(ctx: ServiceContext, entry_id: uuid.UUID) -> tuple[TimeEntry, Task, Project]:
+    require_scope(ctx, Permission.TASK_UPDATE)  # a read-only token changes nothing
     row = (await ctx.session.execute(_base().where(TimeEntry.id == entry_id, visible_entries(ctx)))).first()
     if row is None:
         raise NotFound("time entry not found")
@@ -253,7 +253,7 @@ async def export_csv(
         .order_by(TimeEntry.spent_on, User.name, Project.key, Task.number)
     )
     out = io.StringIO()
-    writer = csv.writer(out)
+    writer = csvsafe.writer(out)
     writer.writerow(
         ["date", "person", "email", "project", "task", "title", "minutes", "hours", "billable", "note"]
     )

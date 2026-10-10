@@ -55,7 +55,8 @@ test('a manager sees their team from SCIM', async ({ page, browser, baseURL, pla
 
   await card.getByRole('button', { name: "See Rita Report's tasks" }).click();
   const dialog = mona.getByRole('dialog', { name: /Rita Report: open work/ });
-  await expect(dialog.getByText('Draft the brand guide')).toBeVisible();
+  // The private default: Mona isn't in that project, so she sees a count, not the task.
+  await expect(dialog).toContainText('1 more in projects you can’t open.');
   await expectAccessible(mona, 'report tasks dialog');
   await mona.keyboard.press('Escape');
   await context.close();
@@ -63,6 +64,6 @@ test('a manager sees their team from SCIM', async ({ page, browser, baseURL, pla
   // Admins choose what managers see.
   await page.goto('/admin?tab=provisioning');
   await expect(page.getByRole('heading', { name: 'Managers from Microsoft Entra ID' })).toBeVisible();
-  await expect(page.getByRole('radio', { name: 'Their reports’ work in every project' })).toBeChecked();
+  await expect(page.getByRole('radio', { name: /Only in projects the manager can open/ })).toBeChecked();
   await expectAccessible(page, 'provisioning');
 });

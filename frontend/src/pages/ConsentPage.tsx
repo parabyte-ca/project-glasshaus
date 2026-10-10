@@ -34,7 +34,12 @@ export function ConsentPage() {
           },
         }),
       ),
-    onSuccess: (result) => window.location.assign(result.redirect_to),
+    onSuccess: (result) => {
+      // Only web or app addresses; never script URLs (javascript:, data:).
+      const { protocol } = new URL(result.redirect_to, window.location.origin);
+      if (['javascript:', 'data:', 'vbscript:', 'blob:', 'file:'].includes(protocol)) return;
+      window.location.assign(result.redirect_to);
+    },
   });
 
   const toggle = (scope: string) =>

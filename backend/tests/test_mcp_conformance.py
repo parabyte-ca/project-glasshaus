@@ -201,6 +201,20 @@ async def test_oauth_flow_end_to_end(mcp_url: str, client: httpx.AsyncClient) ->
             client_id=reg["client_id"], code_verifier=verifier,
         )  # fmt: skip
         assert replay.status_code == 400
+        # A code used twice was intercepted: the tokens issued from it stop working too.
+        revoked = await http.post(
+            f"{mcp_url}/mcp",
+            json={"jsonrpc": "2.0", "id": 1, "method": "ping"},
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+        )
+        assert revoked.status_code == 401
+        code, verifier = await authorize(http, client, csrf, mcp_url, reg["client_id"])
+        ok = await token(
+            http, mcp_url, grant_type="authorization_code", code=code, redirect_uri=REDIRECT,
+            client_id=reg["client_id"], code_verifier=verifier,
+        )  # fmt: skip
+        assert ok.status_code == 200, ok.text
+        tokens = ok.json()
 
         async with mcp_client(mcp_url, tokens["access_token"]) as mcp:
             me = await mcp.call_tool("whoami", {})
@@ -382,3 +396,25 @@ async def test_registration_without_scope_and_admin_scope_offer(
         f"/api/v1/oauth/requests/{request_id}", json={"approve": True, "scopes": ["admin"]}, headers=csrf
     )
     assert bad.status_code == 422
+
+
+def test_only_safe_redirect_addresses_can_be_registered() -> None:
+    from glasshaus.mcp_server.auth import safe_redirect_uri
+
+    for good in (
+        "https://claude.ai/api/mcp/auth_callback",
+        "http://127.0.0.1:3334/cb",
+        "http://localhost/cb",
+        "com.example.app:/oauth",
+    ):
+        assert safe_redirect_uri(good), good
+    for bad in (
+        "javascript://claude.ai/%0aalert(1)",
+        "data:text/html,x",
+        "http://evil.example/cb",
+        "https:///nohost",
+        "vbscript:x",
+        "file:///etc/passwd",
+        "noscheme",
+    ):
+        assert not safe_redirect_uri(bad), bad

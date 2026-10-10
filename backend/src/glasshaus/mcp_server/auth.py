@@ -15,6 +15,7 @@ from mcp.server.auth.provider import (
     AuthorizeError,
     OAuthAuthorizationServerProvider,
     RefreshToken,
+    RegistrationError,
     TokenError,
 )
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
@@ -84,6 +85,26 @@ async def resolve_bearer(raw: str) -> tuple[Actor, AccessToken] | None:
         return actor, token
 
 
+LOOPBACK = {"localhost", "127.0.0.1", "::1", "[::1]"}
+UNSAFE_SCHEMES = {"javascript", "data", "vbscript", "file", "blob", "about", "filesystem"}
+
+
+def safe_redirect_uri(uri: str) -> bool:
+    """https anywhere, http only to this computer, or a native app's private scheme (``com.example:/cb``).
+    Script-capable schemes (javascript:, data:) are refused: the consent page navigates to the result."""
+    from urllib.parse import urlsplit
+
+    if any(c.isspace() or ord(c) < 32 for c in uri):
+        return False
+    parts = urlsplit(uri)
+    scheme = parts.scheme.lower()
+    if scheme == "https":
+        return bool(parts.hostname)
+    if scheme == "http":
+        return (parts.hostname or "") in LOOPBACK
+    return bool(scheme) and scheme not in UNSAFE_SCHEMES and "." in scheme
+
+
 class GlasshausTokenVerifier:
     """Used when OAuth is unavailable (plain HTTP off localhost): API tokens only."""
 
@@ -103,6 +124,12 @@ class GlasshausOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode,
             )
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
+        for uri in client_info.redirect_uris or []:
+            if not safe_redirect_uri(str(uri)):
+                raise RegistrationError(
+                    "invalid_redirect_uri",
+                    "redirect URIs must be https, http on this computer (localhost), or an app's own scheme",
+                )
         data = client_info.model_dump(mode="json", exclude_none=True)
         data.pop("client_secret", None)
         async with system_session() as session:
@@ -136,7 +163,15 @@ class GlasshausOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode,
     ) -> AuthorizationCode | None:
         async with system_session() as session:
             grant = await session.get(OAuthGrant, sha256(authorization_code))
-        if grant is None or grant.kind != "code" or grant.client_id != client.client_id or grant.revoked_at:
+            if grant is not None and grant.kind == "code" and grant.revoked_at is not None:
+                # A code used twice was intercepted: end the tokens issued from it (RFC 6749 §4.1.2).
+                await session.execute(
+                    update(OAuthGrant)
+                    .where(OAuthGrant.family_id == grant.family_id, OAuthGrant.revoked_at.is_(None))
+                    .values(revoked_at=oauth.now())
+                )
+                return None
+        if grant is None or grant.kind != "code" or grant.client_id != client.client_id:
             return None
         assert grant.code_challenge is not None
         assert grant.redirect_uri is not None

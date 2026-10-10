@@ -1,7 +1,6 @@
 """Workload, project reports, project health and dashboards. Everything is computed from tasks and
 time entries the caller can see; nothing here writes task data."""
 
-import csv
 import io
 import uuid
 from collections import Counter, defaultdict
@@ -10,6 +9,7 @@ from typing import Any
 
 from sqlalchemy import func, or_, select
 
+from glasshaus.core import csvsafe
 from glasshaus.core.authz import require_project, require_scope, require_workspace, visible_projects_clause
 from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import InvalidInput, NotFound, PermissionDenied
@@ -421,7 +421,7 @@ async def export_tasks_csv(ctx: ServiceContext, project_id: uuid.UUID) -> str:
         ).all()
     )
     out = io.StringIO()
-    writer = csv.writer(out)
+    writer = csvsafe.writer(out)
     writer.writerow(
         [
             "key", "title", "status", "category", "priority", "assignee", "reporter", "parent", "start_date",

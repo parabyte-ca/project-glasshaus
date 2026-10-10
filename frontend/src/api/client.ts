@@ -88,7 +88,7 @@ export function fieldError(error: unknown, name: string): string | undefined {
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
-function csrfToken(): string {
+export function csrfToken(): string {
   const match = document.cookie.match(/(?:^|;\s*)gh_csrf=([^;]+)/);
   return match?.[1] ? decodeURIComponent(match[1]) : '';
 }

@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.21.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
+> **Status:** v0.21.1. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -277,8 +277,8 @@ every request in the audit log (without content). Details, privacy notes and an 
 
 Managers see the people who report to them (from Entra ID or another identity provider over SCIM, or a
 nightly Microsoft Graph sync): open, overdue and due work, time logged, projects and their health, and
-recent activity, with each person's task list one click away (audited). Admins choose whether managers
-see work in every project or only in projects they can open. See [docs/my-team.md](docs/my-team.md).
+recent activity, with each person's task list one click away (audited). By default managers see work
+only in projects they can open (counts elsewhere); admins can widen it. See [docs/my-team.md](docs/my-team.md).
 
 ## Keyboard, accessibility and mobile
 
@@ -361,6 +361,7 @@ Version-specific upgrade notes:
 
 | Version | Notes |
 | --- | --- |
+| 0.21.1 | My team becomes private by default (managers see only projects they can open); existing organizations switch to it. Re-choose in Admin → Provisioning if wanted. `./update.sh` as usual. |
 | 0.21.0 | Optional: for managers from Microsoft Graph, the worker needs outbound access to `login.microsoftonline.com` and `graph.microsoft.com` ([docs/my-team.md](docs/my-team.md)). `./update.sh` as usual. |
 | 0.17.0 | Phone notifications need HTTPS and outbound access from the worker to the browsers' push services ([docs/mobile.md](docs/mobile.md)). `./update.sh` as usual. |
 | 0.15.0 | The API and worker get a read-only view of the backup folder (Admin → Backups). On TrueNAS or other hosts with custom permissions, make sure uid 10001 can read `GLASSHAUS_BACKUP_DIR`. `./update.sh` as usual (its pre-flight check starts with the next upgrade). |

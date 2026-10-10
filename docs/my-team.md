@@ -22,10 +22,10 @@ Set in **Admin → Provisioning → What managers see on My team**:
 
 | Setting | Managers see |
 | --- | --- |
-| **Their reports' work in every project** (default) | Full detail everywhere, including projects the manager is not a member of. |
-| **Only in projects the manager can open** | Detail in projects the manager can open; elsewhere, only counts ("1 more in projects you can't open"). |
+| **Only in projects the manager can open** (default) | Detail in projects the manager can open; elsewhere, only counts ("1 more in projects you can't open"). |
+| **Their reports' work in every project** | Full detail everywhere, including projects the manager is not a member of. Choosing it asks for confirmation. |
 
-Either way, every time a manager opens someone's task list it is recorded in the audit log as
+Guests (contractors, partners) who manage someone always get the first setting. Either way, every time a manager opens someone's task list it is recorded in the audit log as
 `team.tasks_viewed`, with who was viewed. Opening a task itself still needs access to its project.
 
 ## Where managers come from

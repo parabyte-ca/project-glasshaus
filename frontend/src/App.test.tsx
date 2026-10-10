@@ -874,7 +874,7 @@ describe('single sign-on', () => {
     ]);
     renderAt('/account?sso_linked=1');
     const link = await screen.findByRole('link', { name: 'Link Entra ID' });
-    expect(link).toHaveAttribute('href', '/api/v1/auth/sso/default/entra/start?link=true');
+    expect(link).toHaveAttribute('href', '/api/v1/auth/sso/default/entra/start?link=true&csrf=csrf-123');
     expect(screen.getByText('Single sign-on linked.')).toBeInTheDocument();
   });
 });
@@ -1371,5 +1371,36 @@ describe('AI assistant', () => {
       ai_features: ['summaries', 'drafting', 'search'],
       assistant_trusted: [],
     });
+  });
+
+  it('keeps the AI switch and features when saving without a provider', async () => {
+    const settings = {
+      audit_retention_days: 365,
+      activity_retention_days: 0,
+      notification_retention_days: 90,
+      deleted_task_retention_days: 30,
+      ai_enabled: true,
+      ai_features: ['summaries', 'search'],
+      assistant_trusted: [],
+      manager_visibility: 'shared',
+    };
+    const { calls } = mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/ai/status'),
+      {
+        ...aiOn,
+        body: { available: false, enabled: true, provider: null, model: null, features: [] },
+      },
+      signedIn,
+      { method: 'GET', path: '/api/v1/admin/settings', body: settings },
+      {
+        method: 'PATCH',
+        path: '/api/v1/admin/settings',
+        handler: async (req) => ({ ...settings, ...((await req.json()) as object) }),
+      },
+    ]);
+    renderAt('/admin?tab=ai');
+    await userEvent.click(await screen.findByRole('button', { name: 'Save AI settings' }));
+    const patch = calls.find((c) => c.method === 'PATCH')!;
+    expect(await patch.json()).toEqual({ assistant_trusted: [] }); // nothing else is touched
   });
 });
