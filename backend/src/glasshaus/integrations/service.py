@@ -41,6 +41,7 @@ EVENT_TYPES = [
     "dependency.created",
     "project.created",
     "project.updated",
+    "project.imported",
     "time.logged",
     "automation.failed",
 ]

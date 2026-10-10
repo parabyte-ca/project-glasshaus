@@ -3,7 +3,7 @@
   "info": {
     "title": "Project Glasshaus API",
     "description": "REST API for Project Glasshaus. Every capability is also available as an MCP tool. Authenticate with `Authorization: Bearer <api token>` or the browser session cookies (unsafe methods then need the `X-CSRF-Token` header). Errors use RFC 9457 problem details.",
-    "version": "0.24.0"
+    "version": "0.25.0"
   },
   "paths": {
     "/healthz": {
@@ -4654,6 +4654,94 @@
                     "type": "string"
                   },
                   "title": "Response Get Task Permissions"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Permission denied"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            },
+            "description": "Invalid input"
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/import": {
+      "post": {
+        "tags": [
+          "import"
+        ],
+        "summary": "Import tasks from spreadsheet rows",
+        "description": "Rows come from a CSV or Excel file (or another tool's export), already mapped to Glasshaus fields. Rows with an ID are remembered, so importing the same file again updates them. Use `dry_run` to check first. People are matched by email (or exact name); imported tasks don't notify anyone.",
+        "operationId": "import_rows",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
                 }
               }
             }
@@ -22809,6 +22897,348 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "ImportProblem": {
+        "properties": {
+          "row": {
+            "type": "integer",
+            "title": "Row"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "row",
+          "message"
+        ],
+        "title": "ImportProblem"
+      },
+      "ImportRequest": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]{1,32}$",
+            "title": "Source",
+            "description": "Where the rows came from (spreadsheet, nimble, ...). Re-imports match within a source.",
+            "default": "spreadsheet"
+          },
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Name"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Fields",
+            "description": "The fields the file has columns for. On re-import only these change."
+          },
+          "date_format": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "ymd",
+              "dmy",
+              "mdy"
+            ],
+            "title": "Date Format",
+            "default": "auto"
+          },
+          "status_map": {
+            "additionalProperties": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "object",
+            "title": "Status Map",
+            "description": "Lower-case status text -> this project's status id."
+          },
+          "priority_map": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Priority"
+            },
+            "type": "object",
+            "title": "Priority Map",
+            "description": "Lower-case text -> priority."
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ImportRow"
+            },
+            "type": "array",
+            "maxItems": 5000,
+            "minItems": 1,
+            "title": "Rows"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "description": "Check everything and report, but change nothing.",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "fields",
+          "rows"
+        ],
+        "title": "ImportRequest"
+      },
+      "ImportResult": {
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "updated": {
+            "type": "integer",
+            "title": "Updated"
+          },
+          "unchanged": {
+            "type": "integer",
+            "title": "Unchanged"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped"
+          },
+          "comments_added": {
+            "type": "integer",
+            "title": "Comments Added"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/ImportProblem"
+            },
+            "type": "array",
+            "title": "Problems"
+          },
+          "unmatched_people": {
+            "items": {
+              "$ref": "#/components/schemas/UnmatchedPerson"
+            },
+            "type": "array",
+            "title": "Unmatched People"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dry_run",
+          "created",
+          "updated",
+          "unchanged",
+          "skipped",
+          "comments_added",
+          "problems",
+          "unmatched_people",
+          "warnings"
+        ],
+        "title": "ImportResult"
+      },
+      "ImportRow": {
+        "properties": {
+          "row": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Row",
+            "description": "Row number in the file, used in messages."
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id",
+            "description": "The source's own id for this item."
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 320
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee",
+            "description": "Email address (or exact name)."
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "estimate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimate",
+            "description": "Hours, or e.g. '1h 30m'."
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Separated by commas or semicolons."
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "The parent item's external id."
+          },
+          "comments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Comments"
+          },
+          "links": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Links"
+          },
+          "custom_fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Custom Fields",
+            "description": "Field id -> cell text."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "row"
+        ],
+        "title": "ImportRow",
+        "description": "One spreadsheet row, already mapped to Glasshaus fields. Values are the cells' text."
+      },
       "IntegrationCreate": {
         "properties": {
           "kind": {
@@ -31473,6 +31903,32 @@
           "scheduled"
         ],
         "title": "TriggerType"
+      },
+      "UnmatchedPerson": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value",
+            "description": "The name or email in the file."
+          },
+          "rows": {
+            "type": "integer",
+            "title": "Rows",
+            "description": "How many rows name them."
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "rows",
+          "reason"
+        ],
+        "title": "UnmatchedPerson"
       },
       "UnreadCount": {
         "properties": {

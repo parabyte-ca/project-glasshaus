@@ -20,6 +20,7 @@ const WorkloadPage = lazy(() => import('./pages/WorkloadPage').then((m) => ({ de
 const ProjectAssistantPage = lazy(() =>
   import('./pages/ProjectAssistantPage').then((m) => ({ default: m.ProjectAssistantPage })),
 );
+const ImportPage = lazy(() => import('./pages/ImportPage').then((m) => ({ default: m.ImportPage })));
 const ProjectReportPage = lazy(() =>
   import('./pages/ProjectReportPage').then((m) => ({ default: m.ProjectReportPage })),
 );
@@ -65,6 +66,14 @@ function Root() {
                 }
               />
               <Route path="projects/:projectKey" element={<ProjectPage />} />
+              <Route
+                path="projects/:projectKey/import"
+                element={
+                  <Lazy>
+                    <ImportPage />
+                  </Lazy>
+                }
+              />
               <Route
                 path="projects/:projectKey/assistant"
                 element={
