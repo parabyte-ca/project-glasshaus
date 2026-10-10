@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.22.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
+> **Status:** v0.23.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -373,6 +373,7 @@ Version-specific upgrade notes:
 
 | Version | Notes |
 | --- | --- |
+| 0.23.0 | `./update.sh` as usual. The migration enables the `pg_trgm` extension (built into PostgreSQL) and adds three indexes; on very large databases it may take a minute. |
 | 0.22.0 | `./update.sh` builds a new `backup` image and creates `GLASSHAUS_BACKUP_KEY` in `.env`: **copy it somewhere safe**. Backups from now on are encrypted (`.dump.age`). The audit log becomes append-only (existing entries are sealed); audit retention is at least 30 days. Activity history now defaults to 2 years (organizations on "forever" move to 730 days; change it in Admin → Data & retention). Comment text is removed from past activity entries. With `--pull`, the `glasshaus-backup` image is pulled too. |
 | 0.21.1 | My team becomes private by default (managers see only projects they can open); existing organizations switch to it. Re-choose in Admin → Provisioning if wanted. `./update.sh` as usual. |
 | 0.21.0 | Optional: for managers from Microsoft Graph, the worker needs outbound access to `login.microsoftonline.com` and `graph.microsoft.com` ([docs/my-team.md](docs/my-team.md)). `./update.sh` as usual. |
@@ -424,6 +425,7 @@ builds, scans and publishes multi-arch (amd64/arm64) images to GHCR.
 | 16 | 0.20.0 | Project assistant, phase 3: trusted follow-ups (organization limit, project choice, daily cap, undo) | ✅ |
 | 17 | 0.21.0 | Reporting lines from Entra ID (SCIM and Microsoft Graph) and the "My team" page for managers | ✅ |
 | 18 | 0.22.0 | Privacy and compliance: erase and export a person, sealed audit log, encrypted backups, data minimisation, source and licence notices | ✅ |
+| 19 | 0.23.0 | Performance at scale: no N+1 queries on list pages, aggregate health and workload, lighter live updates, indexed search and activity | ✅ |
 
 ## Licence
 

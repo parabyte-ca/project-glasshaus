@@ -41,6 +41,13 @@ class Task(UUIDPk, TenantScoped, TimestampMixin, Base):
         Index("ix_tasks_assignee_open", "assignee_id", postgresql_where=text("deleted_at IS NULL")),
         Index("ix_tasks_tags", "tags", postgresql_using="gin"),
         Index("ix_tasks_custom_fields", "custom_fields", postgresql_using="gin"),
+        # Title search (command palette, search_tasks): lower(title) LIKE '%q%' without a full scan.
+        Index(
+            "ix_tasks_title_trgm",
+            text("lower(title) gin_trgm_ops"),
+            postgresql_using="gin",
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
     )
 
     project_id: Mapped[uuid.UUID] = mapped_column(
@@ -58,7 +65,9 @@ class Task(UUIDPk, TenantScoped, TimestampMixin, Base):
         default=Priority.NONE,
     )
     assignee_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
-    reporter_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    reporter_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     parent_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("tasks.id", ondelete="CASCADE"), index=True
     )

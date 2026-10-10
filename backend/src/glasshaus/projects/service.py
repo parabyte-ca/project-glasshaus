@@ -58,7 +58,11 @@ async def list_projects(
     if q:
         like = f"%{q.lower()}%"
         stmt = stmt.where(func.lower(Project.name).like(like) | func.lower(Project.key).like(like))
-    return [await _read(ctx, p) for p in (await ctx.session.scalars(stmt)).all()]
+    from glasshaus.core.authz import prime_project_roles
+
+    projects = list((await ctx.session.scalars(stmt)).all())
+    await prime_project_roles(ctx, projects)
+    return [await _read(ctx, p) for p in projects]
 
 
 async def get_project(ctx: ServiceContext, project_id: uuid.UUID) -> ProjectDetail:

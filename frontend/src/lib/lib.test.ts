@@ -7,7 +7,7 @@ import { formatValue, groupTasks, patchForGroup, positionBetween } from './group
 import { triggerLabel } from './automation';
 import { niceScale } from './chartScale';
 import { currentQuarter, formatMinutes, hours, mondayOf, parseDuration } from './format';
-import { InvalidationBatcher, keysFor } from './realtime';
+import { InvalidationBatcher, PATCH_LIMIT, keysFor, patchable } from './realtime';
 import { addDays, monthGrid, parseDay, formatDay } from './dates';
 import { shiftPatch, tasksOn } from './schedule';
 
@@ -59,14 +59,25 @@ describe('board helpers', () => {
 });
 
 describe('live update keys', () => {
-  it('invalidates task, comments and activity for task events', () => {
-    expect(keysFor({ type: 'task.updated', aggregate_id: 't1', project_id: 'p1' })).toEqual([
-      ['tasks', 'p1'],
+  it('patches edited tasks and invalidates the rest', () => {
+    const edit = { type: 'task.updated', aggregate_id: 't1', project_id: 'p1' };
+    expect(patchable(edit)).toBe(true);
+    expect(keysFor(edit)).toEqual([
       ['my-tasks'],
       ['task', 't1'],
       ['comments', 't1'],
       ['activity', 'task', 't1'],
       ['onboarding'],
+    ]);
+    // New and deleted tasks change which tasks a list holds: refetch it.
+    expect(keysFor({ type: 'task.created', aggregate_id: 't2', project_id: 'p1' })[0]).toEqual([
+      'tasks',
+      'p1',
+    ]);
+    // Lists don't show comments.
+    expect(keysFor({ type: 'comment.created', aggregate_id: 't1', project_id: 'p1' })).not.toContainEqual([
+      'tasks',
+      'p1',
     ]);
     expect(keysFor({ type: 'notification.created' })).toEqual([['notifications']]);
   });
@@ -78,13 +89,13 @@ describe('live update keys', () => {
       const spy = vi.spyOn(client, 'invalidateQueries').mockResolvedValue();
       const batcher = new InvalidationBatcher(client, 400);
       for (let i = 0; i < 50; i++) {
-        batcher.add(keysFor({ type: 'task.updated', aggregate_id: `t${i % 2}`, project_id: 'p1' }));
+        batcher.add(keysFor({ type: 'task.created', aggregate_id: `t${i % 2}`, project_id: 'p1' }));
       }
       expect(spy).not.toHaveBeenCalled();
       vi.advanceTimersByTime(400);
       // tasks list, my tasks and onboarding once, plus task/comments/activity for each of the two tasks.
       expect(spy).toHaveBeenCalledTimes(9);
-      expect(spy).toHaveBeenCalledWith({ queryKey: ['tasks', 'p1'] }, { cancelRefetch: false });
+      expect(spy).toHaveBeenCalledWith({ queryKey: ['tasks', 'p1'], exact: false }, { cancelRefetch: false });
       spy.mockClear();
       batcher.add([['projects']]);
       batcher.dispose();
@@ -93,6 +104,57 @@ describe('live update keys', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('swaps an edited task into open lists instead of refetching them', async () => {
+    const client = new QueryClient();
+    const mk = (id: string, title: string) => ({ id, title, project_id: 'p1' }) as unknown as Task;
+    client.setQueryData(['tasks', 'p1', { filters: {} }], { items: [mk('t1', 'Old'), mk('t2', 'Other')] });
+    client.setQueryData(['tasks', 'p1', { filters: { assignee_id: 'u1' } }], { items: [mk('t1', 'Old')] });
+    client.setQueryData(['tasks', 'p1', 'warnings'], []);
+    const spy = vi.spyOn(client, 'invalidateQueries').mockResolvedValue();
+    const fetch = vi.fn(async () => mk('t1', 'New'));
+    const batcher = new InvalidationBatcher(client, 0, fetch);
+    batcher.add([], { projectId: 'p1', taskId: 't1' });
+    batcher.add([], { projectId: 'p1', taskId: 't1' }); // the same task twice in a burst: one fetch
+    batcher.flush();
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() =>
+      expect(
+        client.getQueryData<{ items: Task[] }>(['tasks', 'p1', { filters: {} }])?.items.map((t) => t.title),
+      ).toEqual(['New', 'Other']),
+    );
+    // A filtered list may have gained or lost the task, and the timeline's derived data depends on
+    // it: only those are refetched.
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(spy).toHaveBeenCalledWith(
+      { queryKey: ['tasks', 'p1', { filters: { assignee_id: 'u1' } }], exact: true },
+      { cancelRefetch: false },
+    );
+    expect(spy).toHaveBeenCalledWith(
+      { queryKey: ['tasks', 'p1', 'warnings'], exact: true },
+      { cancelRefetch: false },
+    );
+  });
+
+  it('refetches the lists when a burst edits many tasks or the task is gone', async () => {
+    const client = new QueryClient();
+    client.setQueryData(['tasks', 'p1', { filters: {} }], { items: [] });
+    const spy = vi.spyOn(client, 'invalidateQueries').mockResolvedValue();
+    const fetch = vi.fn(async () => {
+      throw new Error('not found');
+    });
+    const batcher = new InvalidationBatcher(client, 0, fetch);
+    for (let i = 0; i <= PATCH_LIMIT; i++) batcher.add([], { projectId: 'p1', taskId: `t${i}` });
+    batcher.flush();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['tasks', 'p1'], exact: false }, { cancelRefetch: false });
+    spy.mockClear();
+    batcher.add([], { projectId: 'p1', taskId: 'gone' });
+    batcher.flush();
+    await vi.waitFor(() =>
+      expect(spy).toHaveBeenCalledWith({ queryKey: ['tasks', 'p1'], exact: false }, { cancelRefetch: false }),
+    );
   });
 });
 

@@ -17,6 +17,8 @@ class DomainEventRecord(UUIDPk, TenantScoped, Base):
         Index("ix_domain_events_unpublished", "occurred_at", postgresql_where=text("published_at IS NULL")),
         Index("ix_domain_events_aggregate", "aggregate_type", "aggregate_id", "occurred_at"),
         Index("ix_domain_events_project", "project_id", "occurred_at"),
+        # The activity feed: newest first per organization, paged by (occurred_at, id).
+        Index("ix_domain_events_tenant_time", "tenant_id", "occurred_at", "id"),
     )
 
     type: Mapped[str] = mapped_column(String(100), nullable=False)

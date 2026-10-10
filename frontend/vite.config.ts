@@ -15,7 +15,8 @@ export default defineConfig({
       '/readyz': apiTarget,
     },
   },
-  build: { sourcemap: true },
+  // No public source maps: they add ~3 MB to the image and expose the unminified source.
+  build: { sourcemap: false },
   test: {
     environment: 'jsdom',
     globals: true,

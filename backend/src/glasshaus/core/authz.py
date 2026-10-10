@@ -103,6 +103,42 @@ async def project_role(ctx: ServiceContext, project: Project) -> ProjectRole | N
     return role
 
 
+async def prime_project_roles(ctx: ServiceContext, projects: list[Project]) -> None:
+    """Work out the actor's role in many projects with two queries (instead of one or two each)."""
+    uid = ctx.actor.user_id
+    todo = [p for p in projects if ("project_role", p.id) not in ctx.cache]
+    if not todo or ctx.actor.is_org_admin or uid is None:
+        return  # project_role answers these without a query
+    explicit = dict(
+        (
+            await ctx.session.execute(
+                select(ProjectMember.project_id, ProjectMember.role).where(
+                    ProjectMember.user_id == uid, ProjectMember.project_id.in_([p.id for p in todo])
+                )
+            )
+        ).all()
+    )
+    workspaces = {p.workspace_id for p in todo if ("ws_role", p.workspace_id) not in ctx.cache}
+    if workspaces:
+        found: dict[uuid.UUID, WorkspaceRole] = {}
+        if ctx.actor.org_role != OrgRole.GUEST:
+            found = dict(
+                (
+                    await ctx.session.execute(
+                        select(WorkspaceMember.workspace_id, WorkspaceMember.role).where(
+                            WorkspaceMember.user_id == uid, WorkspaceMember.workspace_id.in_(workspaces)
+                        )
+                    )
+                ).all()
+            )
+        for ws in workspaces:
+            ctx.cache[("ws_role", ws)] = found.get(ws)
+    for p in todo:
+        ws_role = ctx.cache[("ws_role", p.workspace_id)]
+        implied = WORKSPACE_TO_PROJECT_ROLE[ws_role] if ws_role else None
+        ctx.cache[("project_role", p.id)] = max_project_role(explicit.get(p.id), implied)
+
+
 async def require_project(ctx: ServiceContext, project_id: uuid.UUID, permission: Permission) -> Project:
     project = await ctx.session.get(Project, project_id)
     if project is None:
