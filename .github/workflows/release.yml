@@ -49,7 +49,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
       - name: Build (amd64) for scan
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           load: true
@@ -67,7 +67,7 @@ jobs:
           exit-code: "1"
       - id: push
         name: Build and push (amd64, arm64)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           platforms: linux/amd64,linux/arm64
