@@ -255,7 +255,7 @@ async def _require(ctx: ServiceContext, feature: AiFeature) -> None:
     if not status.available:
         raise Unavailable("the AI assistant is not configured on this server (GLASSHAUS_AI_PROVIDER)")
     if not status.enabled:
-        raise Unavailable("the AI assistant is turned off for this organization (Admin > AI assistant)")
+        raise Unavailable("the AI assistant is turned off for this organization (Admin > AI)")
     if feature not in status.features:
         raise Unavailable(f"the AI feature '{feature}' is turned off for this organization")
     await _rate_limit(ctx)

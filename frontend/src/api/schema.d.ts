@@ -3288,7 +3288,7 @@ export interface components {
       ai: boolean;
       /**
        * Trusted Allowed
-       * @description What the organization lets projects trust the assistant with (Admin > AI assistant).
+       * @description What the organization lets projects trust the assistant with (Admin > AI).
        */
       trusted_allowed: 'comment'[];
       /** Email Available */

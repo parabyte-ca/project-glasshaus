@@ -19,7 +19,7 @@ test('phone layout', async ({ page }) => {
 test('phone navigation menu', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 740 });
   await page.goto('/time');
-  const nav = page.getByRole('navigation', { name: 'Projects' });
+  const nav = page.getByRole('navigation', { name: 'Main' });
   await expect(nav).toBeHidden();
   const menu = page.getByRole('button', { name: 'Menu' });
   await expect(menu).toHaveAttribute('aria-expanded', 'false');

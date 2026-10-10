@@ -26,12 +26,12 @@ test.describe('AI assistant (fake provider)', () => {
       await page.getByLabel(label).check();
     }
     await page.getByRole('button', { name: 'Save AI settings' }).click();
-    await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+    await expect(page.getByText('AI settings saved.')).toBeVisible();
 
     const project = await makeProject(page, 'Assisted');
     await page.goto(`/projects/${project.key}`);
-    await page.getByRole('button', { name: 'Assistant' }).click();
-    const assistant = page.getByRole('region', { name: 'Assistant' });
+    await page.getByRole('button', { name: 'AI tools' }).click();
+    const assistant = page.getByRole('region', { name: 'AI tools' });
 
     await assistant.getByRole('tab', { name: 'Draft tasks' }).click();
     await assistant.getByLabel('What needs doing?').fill('Move the website to new hosting');

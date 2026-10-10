@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { api, unwrap } from '../../api/client';
-import { Button, ErrorText, Field, GhostButton, Input } from '../ui';
+import { Button, ErrorText, Field, GhostButton, Input, ScrollArea } from '../ui';
 import { Copyable, SecretOnce, Section } from './common';
 import { dateTime, table, td, th } from './format';
 import { useConfirm } from '../../lib/confirm';
+import { toast } from '../../lib/toast';
+import { useUnsavedGuard } from '../../lib/unsaved';
 
 export function Provisioning() {
   return (
@@ -24,26 +26,29 @@ function DirectorySync() {
     queryFn: () => unwrap(api.GET('/api/v1/admin/directory-sync')),
   });
   const [form, setForm] = useState<{ directory_id: string; client_id: string; secret: string } | null>(null);
+  useUnsavedGuard(form !== null);
   const v = form ?? {
     directory_id: sync.data?.directory_id ?? '',
     client_id: sync.data?.client_id ?? '',
     secret: '',
   };
   const save = useMutation({
-    mutationFn: (enabled: boolean) =>
+    // The on/off switch saves at once and sends what is already saved, not half-typed fields above it.
+    mutationFn: ({ enabled, withForm }: { enabled: boolean; withForm: boolean }) =>
       unwrap(
         api.PUT('/api/v1/admin/directory-sync', {
           body: {
             enabled,
-            directory_id: v.directory_id,
-            client_id: v.client_id,
-            ...(v.secret ? { client_secret: v.secret } : {}),
+            directory_id: withForm ? v.directory_id : (sync.data?.directory_id ?? ''),
+            client_id: withForm ? v.client_id : (sync.data?.client_id ?? ''),
+            ...(withForm && v.secret ? { client_secret: v.secret } : {}),
           },
         }),
       ),
-    onSuccess: (data) => {
+    onSuccess: (data, { withForm }) => {
       queryClient.setQueryData(['directory-sync'], data);
-      setForm(null);
+      if (withForm) setForm(null);
+      toast(data.enabled ? 'Directory sync saved. It runs every night.' : 'Directory sync saved (off).');
     },
   });
   const run = useMutation({
@@ -64,7 +69,7 @@ function DirectorySync() {
         className="flex flex-wrap items-end gap-3"
         onSubmit={(e) => {
           e.preventDefault();
-          save.mutate(d?.enabled ?? false);
+          save.mutate({ enabled: d?.enabled ?? false, withForm: true });
         }}
       >
         <Field label="Directory (tenant) ID or domain" id="graph-dir">
@@ -104,7 +109,7 @@ function DirectorySync() {
             type="checkbox"
             checked={d?.enabled ?? false}
             disabled={save.isPending || !d}
-            onChange={(e) => save.mutate(e.target.checked)}
+            onChange={(e) => save.mutate({ enabled: e.target.checked, withForm: false })}
           />
           Sync every night
         </label>
@@ -138,13 +143,20 @@ function ManagerVisibility() {
   const save = useMutation({
     mutationFn: (manager_visibility: 'all' | 'shared') =>
       unwrap(api.PATCH('/api/v1/admin/settings', { body: { manager_visibility } })),
-    onSuccess: (data) => queryClient.setQueryData(['org-settings'], data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['org-settings'], data);
+      toast(
+        data.manager_visibility === 'all'
+          ? 'Managers now see their reports’ work in every project.'
+          : 'Managers now see their reports’ work only in projects they can open.',
+      );
+    },
   });
   const value = settings.data?.manager_visibility ?? 'shared';
   return (
     <Section
       title="What managers see on My team"
-      intro="Opening a report's task list is recorded in the audit log (team.tasks_viewed)."
+      intro="Each time a manager opens someone's task list, it is recorded in the audit log."
     >
       <fieldset className="flex flex-col gap-2 text-sm">
         <legend className="sr-only">What managers see</legend>
@@ -234,42 +246,44 @@ function ScimTokens() {
       {created && <SecretOnce label="SCIM token" value={created.token} />}
       <ErrorText error={tokens.error ?? create.error ?? revoke.error} />
       {active.length > 0 && (
-        <table className={table}>
-          <thead>
-            <tr>
-              <th className={th}>Name</th>
-              <th className={th}>Prefix</th>
-              <th className={th}>Last used</th>
-              <th className={th}>
-                <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {active.map((t) => (
-              <tr key={t.id}>
-                <td className={td}>{t.name}</td>
-                <td className={`${td} font-mono`}>{t.prefix}…</td>
-                <td className={td}>{dateTime(t.last_used_at)}</td>
-                <td className={td}>
-                  <GhostButton
-                    aria-label={`Revoke ${t.name}`}
-                    onClick={async () =>
-                      (await confirm({
-                        title: `Revoke the SCIM token "${t.name}"?`,
-                        body: 'Provisioning with it stops now.',
-                        confirmLabel: 'Revoke',
-                        danger: true,
-                      })) && revoke.mutate(t.id)
-                    }
-                  >
-                    Revoke
-                  </GhostButton>
-                </td>
+        <ScrollArea label="Provisioning tokens">
+          <table className={table}>
+            <thead>
+              <tr>
+                <th className={th}>Name</th>
+                <th className={th}>Prefix</th>
+                <th className={th}>Last used</th>
+                <th className={th}>
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {active.map((t) => (
+                <tr key={t.id}>
+                  <td className={td}>{t.name}</td>
+                  <td className={`${td} font-mono`}>{t.prefix}…</td>
+                  <td className={td}>{dateTime(t.last_used_at)}</td>
+                  <td className={td}>
+                    <GhostButton
+                      aria-label={`Revoke ${t.name}`}
+                      onClick={async () =>
+                        (await confirm({
+                          title: `Revoke the SCIM token "${t.name}"?`,
+                          body: 'Provisioning with it stops now.',
+                          confirmLabel: 'Revoke',
+                          danger: true,
+                        })) && revoke.mutate(t.id)
+                      }
+                    >
+                      Revoke
+                    </GhostButton>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </ScrollArea>
       )}
     </Section>
   );

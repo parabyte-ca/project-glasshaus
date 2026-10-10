@@ -256,8 +256,7 @@ async def configure(ctx: ServiceContext, project_id: uuid.UUID, data: AssistantW
     allowed = await _trusted_allowed(ctx)
     if not set(data.trusted) <= set(allowed):
         raise InvalidInput(
-            "your organization does not allow the assistant to do that without approval "
-            "(Admin > AI assistant)"
+            "your organization does not allow the assistant to do that without approval (Admin > AI)"
         )
     a.trusted, a.auto_daily_cap = sorted(set(data.trusted)), data.auto_daily_cap
     a.configured_by = ctx.actor.user_id
@@ -581,7 +580,7 @@ async def write_brief(
     if use_ai:
         await _write_up(actor, kind, key, name, content)
     else:
-        content.ai_note = "AI write-ups are off for this organization (Admin > AI assistant)"
+        content.ai_note = "AI write-ups are off for this organization (Admin > AI)"
     if kind == "digest" and suggest:
         try:
             content.suggestions = await suggestions.refresh(

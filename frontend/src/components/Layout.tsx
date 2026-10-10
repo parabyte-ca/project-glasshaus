@@ -102,7 +102,7 @@ export function Layout() {
       <div className="flex flex-1 flex-col md:flex-row">
         <nav
           id="main-nav"
-          aria-label="Projects"
+          aria-label="Main"
           className={`${menuOpen ? 'block' : 'hidden'} border-b border-slate-200 p-4 md:block md:w-60 md:border-r md:border-b-0 dark:border-slate-800`}
         >
           <ul className="mb-4 flex flex-col gap-1">
@@ -120,7 +120,7 @@ export function Layout() {
                   to={to}
                   end={to === '/'}
                   className={({ isActive }) =>
-                    `block rounded border-l-2 px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isActive ? 'border-accent-500 bg-slate-100 font-semibold dark:bg-slate-800' : 'border-transparent'}`
+                    `flex min-h-11 items-center rounded border-l-2 px-2 py-1 text-sm hover:bg-slate-100 md:block md:min-h-0 dark:hover:bg-slate-800 ${isActive ? 'border-accent-500 bg-slate-100 font-semibold dark:bg-slate-800' : 'border-transparent'}`
                   }
                 >
                   {label}
@@ -137,7 +137,7 @@ export function Layout() {
                 <NavLink
                   to={`/projects/${p.key}`}
                   className={({ isActive }) =>
-                    `block rounded border-l-2 px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 ${isActive ? 'border-accent-500 bg-slate-100 font-semibold dark:bg-slate-800' : 'border-transparent'}`
+                    `flex min-h-11 items-center rounded border-l-2 px-2 py-1 text-sm hover:bg-slate-100 md:block md:min-h-0 dark:hover:bg-slate-800 ${isActive ? 'border-accent-500 bg-slate-100 font-semibold dark:bg-slate-800' : 'border-transparent'}`
                   }
                 >
                   <span className="mr-2 font-mono text-xs text-slate-600 dark:text-slate-400">{p.key}</span>
@@ -174,10 +174,7 @@ export function Layout() {
         {overlay === 'help' && <ShortcutHelp onClose={closeOverlay} shortcuts={SHORTCUTS} />}
       </Suspense>
       <OnboardingChecklist />
-      <footer
-        className="flex flex-wrap gap-3 px-4 py-3 text-xs text-slate-600 dark:text-slate-400"
-        aria-live="polite"
-      >
+      <footer className="flex flex-wrap gap-3 px-4 py-3 text-xs text-slate-600 dark:text-slate-400">
         <button type="button" onClick={openHelp} className="min-h-6 rounded underline">
           Keyboard shortcuts (?)
         </button>
@@ -194,7 +191,7 @@ export function Layout() {
             v{version.data.version} ({version.data.build})
           </span>
         )}
-        {version.isError && <span role="alert">API unavailable</span>}
+        <span aria-live="polite">{version.isError && 'Glasshaus is unavailable right now.'}</span>
       </footer>
     </div>
   );

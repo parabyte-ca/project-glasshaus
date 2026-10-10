@@ -11,6 +11,7 @@ export const GO_TO: Record<string, [string, string]> = {
   w: ['/workload', 'Workload'],
   p: ['/portfolios', 'Portfolios'],
   o: ['/goals', 'Goals'],
+  y: ['/team', 'My team'],
   a: ['/account', 'Account'],
 };
 

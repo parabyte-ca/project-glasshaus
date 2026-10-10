@@ -1,7 +1,8 @@
 # My team
 
 **My team** (`/team`) shows managers the people who report to them, as your organization's directory
-says. It appears in the menu for anyone with at least one direct report.
+says. It appears in the menu, on the home page and in the command palette (`g y`) for anyone with at least
+one direct report.
 
 For each person:
 

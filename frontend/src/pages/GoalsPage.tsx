@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 
 import { api, unwrap, type KeyResult, type Objective, type Schemas } from '../api/client';
 import { useAuth } from '../auth/useAuth';
+import { LoadError } from '../components/PageState';
 import { HealthBadge, ProgressBar } from '../components/charts';
 import { Button, ErrorText, Field, GhostButton, Input, Select } from '../components/ui';
 import { currentQuarter } from '../lib/format';
@@ -345,7 +346,14 @@ export function GoalsPage() {
         {!creating && period && <Button onClick={() => setCreating(true)}>New objective</Button>}
       </div>
       {creating && <NewObjective period={period} onCreated={() => setCreating(false)} />}
-      <ErrorText error={objectives.error} />
+      {objectives.error && (
+        <LoadError
+          inline
+          error={objectives.error}
+          what="these objectives"
+          onRetry={() => void objectives.refetch()}
+        />
+      )}
       {objectives.data?.length === 0 && !creating && (
         <p className="text-sm text-slate-600 dark:text-slate-400">No objectives for this period yet.</p>
       )}

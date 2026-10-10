@@ -20,10 +20,21 @@ export function NotFound({ what = 'page' }: { what?: string }) {
 
 /**
  * What a page shows when its data could not be loaded, instead of "Loading…" forever: "Not found"
- * for a 404 or 403, otherwise the error with a Retry button.
+ * for a 404 or 403, otherwise the error with a Retry button. `inline` (part of a page or a dialog) never
+ * replaces the page with "Not found".
  */
-export function LoadError({ error, what, onRetry }: { error: unknown; what?: string; onRetry?: () => void }) {
-  if (error instanceof ApiError && (error.status === 404 || error.status === 403)) {
+export function LoadError({
+  error,
+  what,
+  onRetry,
+  inline = false,
+}: {
+  error: unknown;
+  what?: string;
+  onRetry?: () => void;
+  inline?: boolean;
+}) {
+  if (!inline && error instanceof ApiError && (error.status === 404 || error.status === 403)) {
     return <NotFound what={what} />;
   }
   return (

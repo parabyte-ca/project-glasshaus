@@ -14,6 +14,7 @@ import {
   type OfflineTask,
   useOnline,
 } from '../lib/offline';
+import { notablePriority } from '../lib/labels';
 import { usePageTitle } from '../lib/pageTitle';
 import { toast } from '../lib/toast';
 
@@ -82,11 +83,31 @@ export function MyTasksPage() {
   }, [tasks.data, user.id]);
   const [queue, setQueued] = useState(() => queuedDone(user.id));
 
+  // Ticked tasks leave the list at once; the server catches up (and Undo brings one back).
+  const [ticked, setTicked] = useState<ReadonlySet<string>>(new Set());
+  const untick = (id: string) =>
+    setTicked((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  const reopen = useMutation({
+    mutationFn: (t: { id: string; key: string }) =>
+      unwrap(api.POST('/api/v1/tasks/{ref}/reopen', { params: { path: { ref: t.id } } })),
+    onSuccess: async (task) => {
+      toast(`${task.key} is open again`);
+      await queryClient.invalidateQueries({ queryKey: ['my-tasks', user.id] });
+      untick(task.id);
+    },
+    onError: (err) => toast(`Could not undo: ${err.message}`, 'error'),
+  });
   const complete = useMutation({
     mutationFn: (t: { id: string; key: string }) =>
       unwrap(api.POST('/api/v1/tasks/{ref}/complete', { params: { path: { ref: t.id } } })),
+    onMutate: (t) => setTicked((prev) => new Set(prev).add(t.id)),
+    onError: (_err, t) => untick(t.id),
     onSuccess: async (task) => {
-      toast(`Done: ${task.key}`);
+      toast(`Done: ${task.key}`, 'info', { label: 'Undo', run: () => reopen.mutate(task) });
       await queryClient.invalidateQueries({ queryKey: ['my-tasks', user.id] });
     },
   });
@@ -106,7 +127,7 @@ export function MyTasksPage() {
           handled.add(item.id);
         } catch (err) {
           // Gone or no longer yours to change: drop it and say so; a network error keeps it queued.
-          if (err instanceof ApiError) {
+          if (err instanceof ApiError && err.status !== 0) {
             toast(`${item.key} could not be marked done: ${err.message}`, 'error');
             handled.add(item.id);
           }
@@ -124,7 +145,7 @@ export function MyTasksPage() {
 
   const snapshot = tasks.data ? null : loadMyTasks(user.id);
   const items: OfflineTask[] = (tasks.data?.items ?? snapshot?.items ?? []).filter(
-    (t) => !queue.some((q) => q.id === t.id),
+    (t) => !queue.some((q) => q.id === t.id) && !ticked.has(t.id),
   );
 
   // Keep keyboard focus in the list when a ticked task disappears from it.
@@ -193,14 +214,16 @@ export function MyTasksPage() {
           <ul className="flex flex-col divide-y divide-slate-200 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
             {list.map((t) => (
               <li key={t.id} className="flex items-center gap-3 px-3 py-2">
-                <input
-                  type="checkbox"
-                  className="size-5 shrink-0"
-                  aria-label={`Mark ${t.key} done`}
-                  checked={false}
-                  disabled={complete.isPending && complete.variables?.id === t.id}
-                  onChange={() => markDone(t)}
-                />
+                {/* A 44px tap target around the box (this page is used on phones). */}
+                <label className="-m-2 flex size-11 shrink-0 cursor-pointer items-center justify-center">
+                  <input
+                    type="checkbox"
+                    className="size-5"
+                    aria-label={`Mark ${t.key} done`}
+                    checked={false}
+                    onChange={() => markDone(t)}
+                  />
+                </label>
                 <div className="min-w-0 flex-1">
                   {online ? (
                     <Link
@@ -214,7 +237,7 @@ export function MyTasksPage() {
                   )}
                   <span className="text-xs text-slate-600 dark:text-slate-400">
                     <span className="font-mono">{t.key}</span> · {t.status.name}
-                    {t.priority === 'urgent' || t.priority === 'high' ? ` · ${t.priority}` : ''}
+                    {notablePriority(t.priority)}
                   </span>
                 </div>
                 {t.due_date && (

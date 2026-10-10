@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 
 import { api, unwrap, type ScheduleSpec } from '../api/client';
+import { useConfirm } from '../lib/confirm';
 import { toast } from '../lib/toast';
 import { ScheduleFields } from './AutomationRules';
 import { Button, ErrorText, GhostButton } from './ui';
@@ -21,6 +22,7 @@ const when = (iso: string) =>
 /** Email this saved report to yourself on a schedule; each send uses your access at that time. */
 export function ReportEmail({ reportId }: { reportId: string }) {
   const id = useId();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const key = ['report-email', reportId];
   const status = useQuery({
@@ -112,7 +114,18 @@ export function ReportEmail({ reportId }: { reportId: string }) {
               {sub ? 'Update schedule' : 'Start emails'}
             </Button>
             {sub && (
-              <GhostButton type="button" onClick={() => stop.mutate()} disabled={stop.isPending}>
+              <GhostButton
+                type="button"
+                disabled={stop.isPending}
+                onClick={async () =>
+                  (await confirm({
+                    title: 'Stop emailing this report?',
+                    body: 'Its schedule is removed. You can start emails again at any time.',
+                    confirmLabel: 'Stop emails',
+                    danger: true,
+                  })) && stop.mutate()
+                }
+              >
                 Stop emails
               </GhostButton>
             )}

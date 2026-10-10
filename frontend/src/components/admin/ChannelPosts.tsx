@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 
 import { api, type Schemas, type ScheduleSpec, unwrap } from '../../api/client';
+import { useConfirm } from '../../lib/confirm';
 import { ScheduleFields } from '../AutomationRules';
 import { Button, ErrorText, Field, GhostButton, Select } from '../ui';
 import { dateTime, table, td, th } from './format';
@@ -37,6 +38,7 @@ const defaultSchedule = (): ScheduleSpec => ({
  */
 export function ChannelPosts({ integration }: { integration: Integration }) {
   const id = useId();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const key = ['channel-posts', integration.id];
   const path = { params: { path: { integration_id: integration.id } } };
@@ -146,7 +148,17 @@ export function ChannelPosts({ integration }: { integration: Integration }) {
                   >
                     Post now
                   </GhostButton>
-                  <GhostButton aria-label={`Stop posting ${p.title}`} onClick={() => remove.mutate(p.id)}>
+                  <GhostButton
+                    aria-label={`Stop posting ${p.title}`}
+                    onClick={async () =>
+                      (await confirm({
+                        title: `Stop posting ${p.title}?`,
+                        body: 'The scheduled post is removed. Messages already posted stay in the channel.',
+                        confirmLabel: 'Stop posting',
+                        danger: true,
+                      })) && remove.mutate(p.id)
+                    }
+                  >
                     Stop
                   </GhostButton>
                 </td>

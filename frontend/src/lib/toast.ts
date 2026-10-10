@@ -1,18 +1,23 @@
 import { useSyncExternalStore } from 'react';
 
-export type Toast = { id: number; message: string; tone: 'info' | 'error' };
+export type ToastAction = { label: string; run: () => void };
+export type Toast = { id: number; message: string; tone: 'info' | 'error'; action?: ToastAction };
 
 let toasts: Toast[] = [];
 let nextId = 1;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
-/** Show a short message ("Rule deleted", "Copied") that screen readers announce; errors stay longer. */
-export function toast(message: string, tone: Toast['tone'] = 'info') {
-  const item = { id: nextId++, message, tone };
+/**
+ * Show a short message ("Rule deleted", "Copied") that screen readers announce. Errors stay until
+ * dismissed (people need time to read them); a message with an action (Undo, Retry) stays 10 seconds.
+ */
+export function toast(message: string, tone: Toast['tone'] = 'info', action?: ToastAction) {
+  const item: Toast = { id: nextId++, message, tone, action };
   toasts = [...toasts.slice(-3), item];
   emit();
-  setTimeout(() => dismissToast(item.id), tone === 'error' ? 8000 : 4000);
+  if (tone !== 'error') setTimeout(() => dismissToast(item.id), action ? 10_000 : 4000);
+  return item.id;
 }
 
 export function dismissToast(id: number) {

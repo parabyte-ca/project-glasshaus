@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 
 import { api, unwrap } from '../api/client';
 import { HealthBadge, ProgressBar } from '../components/charts';
-import { Button, ErrorText, Field, GhostButton, Input, linkClass } from '../components/ui';
+import { Button, ErrorText, Field, GhostButton, Input, linkClass, ScrollArea } from '../components/ui';
 import { formatMinutes, shortDate } from '../lib/format';
 import { usePageTitle } from '../lib/pageTitle';
 import { LoadError } from '../components/PageState';
@@ -151,42 +151,44 @@ function PortfolioDetailView({ id }: { id: string }) {
       <div className="max-w-md">
         <ProgressBar value={p.progress} label="Portfolio progress" />
       </div>
-      <table className="w-full text-left text-sm">
-        <caption className="sr-only">Project health</caption>
-        <thead className="text-xs text-slate-600 dark:text-slate-400">
-          <tr>
-            <th className="py-1 font-medium">Project</th>
-            <th className="font-medium">Health</th>
-            <th className="w-48 font-medium">Progress</th>
-            <th className="text-right font-medium">Overdue</th>
-            <th className="text-right font-medium">Finish</th>
-            <th className="text-right font-medium">Slip</th>
-            <th className="text-right font-medium">Logged</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100 tabular-nums dark:divide-slate-800">
-          {p.projects.map((h) => (
-            <tr key={h.project_id}>
-              <td className="py-1.5">
-                <Link to={`/projects/${h.key}/report`} className="hover:underline">
-                  <span className="mr-2 font-mono text-xs">{h.key}</span>
-                  {h.name}
-                </Link>
-              </td>
-              <td>
-                <HealthBadge health={h.health} />
-              </td>
-              <td>
-                <ProgressBar value={h.progress} label={`${h.key} progress`} />
-              </td>
-              <td className="text-right">{h.overdue}</td>
-              <td className="text-right">{h.finish ? shortDate(h.finish) : '—'}</td>
-              <td className="text-right">{h.slip_days ? `${h.slip_days}d` : '—'}</td>
-              <td className="text-right">{formatMinutes(h.logged_minutes)}</td>
+      <ScrollArea label="Projects in this portfolio">
+        <table className="w-full text-left text-sm">
+          <caption className="sr-only">Project health</caption>
+          <thead className="text-xs text-slate-600 dark:text-slate-400">
+            <tr>
+              <th className="py-1 font-medium">Project</th>
+              <th className="font-medium">Health</th>
+              <th className="w-48 font-medium">Progress</th>
+              <th className="text-right font-medium">Overdue</th>
+              <th className="text-right font-medium">Finish</th>
+              <th className="text-right font-medium">Slip</th>
+              <th className="text-right font-medium">Logged</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-slate-100 tabular-nums dark:divide-slate-800">
+            {p.projects.map((h) => (
+              <tr key={h.project_id}>
+                <td className="py-1.5">
+                  <Link to={`/projects/${h.key}/report`} className="hover:underline">
+                    <span className="mr-2 font-mono text-xs">{h.key}</span>
+                    {h.name}
+                  </Link>
+                </td>
+                <td>
+                  <HealthBadge health={h.health} />
+                </td>
+                <td>
+                  <ProgressBar value={h.progress} label={`${h.key} progress`} />
+                </td>
+                <td className="text-right">{h.overdue}</td>
+                <td className="text-right">{h.finish ? shortDate(h.finish) : '—'}</td>
+                <td className="text-right">{h.slip_days ? `${h.slip_days}d` : '—'}</td>
+                <td className="text-right">{formatMinutes(h.logged_minutes)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </ScrollArea>
       {editing ? (
         <div className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
           <ProjectPicker selected={editing} onChange={setEditing} />

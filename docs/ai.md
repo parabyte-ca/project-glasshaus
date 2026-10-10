@@ -3,7 +3,7 @@
 Glasshaus has an optional, built-in AI assistant. It is **off by default** and stays off until both:
 
 1. the server has a provider configured (`GLASSHAUS_AI_PROVIDER`), and
-2. an organization owner or admin turns it on in **Admin → AI assistant**, choosing which features
+2. an organization owner or admin turns it on in **Admin → AI**, choosing which features
    people may use.
 
 External AI tools (Claude, GitHub Copilot, any MCP client) do not need this: they use the
@@ -18,8 +18,8 @@ External AI tools (Claude, GitHub Copilot, any MCP client) do not need this: the
 | Risk flags | Project → **Assistant → Risks** | The status summary plus up to 200 open tasks (key, title, status, priority, assignee name, dates, estimate) | Up to 10 risks with severity, evidence and a next step; task keys not in the data are dropped |
 | Ask in plain words | **Ctrl K / ⌘ K** → *Ask: …* | Only your question, today's date, visible project keys and names, and people's names. **No task content** | The filters it chose (shown in plain words) and the matching tasks, found with your permissions |
 | Questions about reports (off until an admin ticks it) | **Reports → Ask a question**, a saved report's **Ask about this report**, or **Ctrl K / ⌘ K** → *Ask reports: …* | Step 1: your question, today's date, visible project keys and names, people's names, and the names and descriptions of saved reports you can see. Step 2: the report table (group names such as projects, people and tags, and the numbers, up to 50 rows) and totals. **No task titles or descriptions** | The answer, the report it used (shown as a table or chart so the numbers can be checked), and **Open in the report builder** to adjust or save it |
-| Project assistant (off until an admin ticks it) | Project → **Digests** (daily digest and weekly status draft) | Project key and name, today's date, health numbers, and the key, title, status, due date, owner's name and days late/stale of overdue, due, stale, unassigned and recently done tasks (up to 20 each); schedule warnings | A digest summary and focus list, or a weekly headline, write-up, highlights and concerns. The facts go out without AI too. See [assistant.md](assistant.md) |
-| Project assistant suggestions (same switch) | Project → **Digests → Suggestions**, and **Turn meeting notes or an email into tasks** | Up to 60 open tasks (key, title, status, owner's name, due date, days since update) and the editors' names with their open task counts; for notes, the notes text and the editors' names | Proposed follow-ups, due dates, owners and tasks, checked against the data. **Nothing changes until a person approves** |
+| Project assistant (off until an admin ticks it) | Project → **Project assistant** (daily digest and weekly status draft) | Project key and name, today's date, health numbers, and the key, title, status, due date, owner's name and days late/stale of overdue, due, stale, unassigned and recently done tasks (up to 20 each); schedule warnings | A digest summary and focus list, or a weekly headline, write-up, highlights and concerns. The facts go out without AI too. See [assistant.md](assistant.md) |
+| Project assistant suggestions (same switch) | Project → **Project assistant → Suggestions**, and **Turn meeting notes or an email into tasks** | Up to 60 open tasks (key, title, status, owner's name, due date, days since update) and the editors' names with their open task counts; for notes, the notes text and the editors' names | Proposed follow-ups, due dates, owners and tasks, checked against the data. **Nothing changes until a person approves** |
 
 Everything is read-only. The assistant has no tools and cannot change data; drafts and suggestions are
 applied by a person (or an MCP client) through the normal task API. Email addresses and credentials are

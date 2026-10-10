@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 
 import { api, unwrap, type DependencyType, type Task } from '../api/client';
+import { useConfirm } from '../lib/confirm';
 import { ErrorText, GhostButton, Input, Select } from './ui';
 
 const TYPES: { value: DependencyType; label: string }[] = [
@@ -12,6 +13,7 @@ const TYPES: { value: DependencyType; label: string }[] = [
 ];
 
 export function DependencyEditor({ task, canEdit }: { task: Task; canEdit: boolean }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [predecessor, setPredecessor] = useState('');
   const [type, setType] = useState<DependencyType>('fs');
@@ -75,7 +77,14 @@ export function DependencyEditor({ task, canEdit }: { task: Task; canEdit: boole
             {canEdit && (
               <GhostButton
                 aria-label={`Remove dependency on ${d.predecessor_key}`}
-                onClick={() => remove.mutate(d.id)}
+                onClick={async () =>
+                  (await confirm({
+                    title: `Remove the dependency on ${d.predecessor_key}?`,
+                    body: 'This task will no longer wait for it, and its dates may move.',
+                    confirmLabel: 'Remove',
+                    danger: true,
+                  })) && remove.mutate(d.id)
+                }
               >
                 Remove
               </GhostButton>

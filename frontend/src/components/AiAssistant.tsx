@@ -35,16 +35,9 @@ export function AiAssistant({ project, features }: { project: ProjectDetail; fea
       className="flex flex-col gap-3 rounded-lg border border-slate-200 p-4 dark:border-slate-700"
     >
       <h2 id={`${base}-h`} className="text-lg font-semibold">
-        Assistant
+        AI tools
       </h2>
-      <Tabs
-        label="Assistant tools"
-        idBase={base}
-        tabs={tabs}
-        selected={tab}
-        onSelect={setTab}
-        variant="pill"
-      />
+      <Tabs label="AI tools" idBase={base} tabs={tabs} selected={tab} onSelect={setTab} variant="pill" />
       <TabPanel idBase={base} selected={tab}>
         {tab === 'summaries' && <StatusUpdate project={project} />}
         {tab === 'drafting' && <DraftTasks project={project} />}

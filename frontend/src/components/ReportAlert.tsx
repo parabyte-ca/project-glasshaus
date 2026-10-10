@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 
 import { api, unwrap, type SavedReport, type ScheduleSpec } from '../api/client';
+import { useConfirm } from '../lib/confirm';
 import { MEASURES, type Source } from '../lib/reportMeta';
 import { toast } from '../lib/toast';
 import { ScheduleFields } from './AutomationRules';
@@ -27,6 +28,7 @@ const when = (iso: string) =>
  */
 export function ReportAlert({ report, emailAvailable }: { report: SavedReport; emailAvailable: boolean }) {
   const id = useId();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const key = ['report-alert', report.id];
   const path = { params: { path: { report_id: report.id } } };
@@ -177,7 +179,18 @@ export function ReportAlert({ report, emailAvailable }: { report: SavedReport; e
             <GhostButton type="button" onClick={() => check.mutate()} disabled={check.isPending}>
               {check.isPending ? 'Checking…' : 'Check now'}
             </GhostButton>
-            <GhostButton type="button" onClick={() => remove.mutate()} disabled={remove.isPending}>
+            <GhostButton
+              type="button"
+              disabled={remove.isPending}
+              onClick={async () =>
+                (await confirm({
+                  title: 'Remove this alert?',
+                  body: 'You will no longer be told when this report crosses its threshold.',
+                  confirmLabel: 'Remove alert',
+                  danger: true,
+                })) && remove.mutate()
+              }
+            >
               Remove alert
             </GhostButton>
           </>

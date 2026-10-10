@@ -35,7 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [signedOut]);
   const cached = me.isSuccess ? null : rememberedUser();
   const unreachable =
-    (me.isPending && me.fetchStatus === 'paused') || (me.isError && !(me.error instanceof ApiError));
+    (me.isPending && me.fetchStatus === 'paused') ||
+    (me.isError && (!(me.error instanceof ApiError) || me.error.status === 0));
   // Started without a connection: try the server again when the device is back online, and now and
   // then in case the 'online' event never comes (captive portals, a server that was down).
   const { refetch } = me;

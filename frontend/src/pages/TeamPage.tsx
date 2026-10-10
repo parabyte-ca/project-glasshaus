@@ -7,12 +7,13 @@ import { Dialog } from '../components/Dialog';
 import { LoadError } from '../components/PageState';
 import { GhostButton, linkClass } from '../components/ui';
 import { hours, shortDate } from '../lib/format';
+import { notablePriority } from '../lib/labels';
 import { usePageTitle } from '../lib/pageTitle';
 
 type Member = Schemas['TeamMember'];
 type TeamTask = Schemas['TeamTask'];
 
-const ON_TRACK: [string, string] = ['On track', 'var(--status-good)'];
+const UNKNOWN: [string, string] = ['Health not set', 'var(--color-slate-400)'];
 const HEALTH: Record<string, [string, string]> = {
   on_track: ['On track', 'var(--status-good)'],
   at_risk: ['At risk', 'var(--status-warning)'],
@@ -41,7 +42,7 @@ function TaskList({ tasks }: { tasks: TeamTask[] }) {
             </Link>
             <span className="text-xs text-slate-600 dark:text-slate-400">
               <span className="font-mono">{t.key}</span> · {t.project_name} · {t.status}
-              {t.priority === 'urgent' || t.priority === 'high' ? ` · ${t.priority}` : ''}
+              {notablePriority(t.priority)}
             </span>
           </div>
           {t.completed_at ? (
@@ -82,7 +83,7 @@ function PersonTasks({ person, onClose }: { person: Member; onClose: () => void 
       </div>
       {tasks.isPending && <p role="status">Loading…</p>}
       {tasks.error && (
-        <LoadError error={tasks.error} what="these tasks" onRetry={() => void tasks.refetch()} />
+        <LoadError inline error={tasks.error} what="these tasks" onRetry={() => void tasks.refetch()} />
       )}
       {tasks.data && (
         <>
@@ -137,7 +138,7 @@ function PersonCard({ m, onOpen }: { m: Member; onOpen: () => void }) {
           <h3 className="mb-1 text-sm font-semibold">Projects</h3>
           <ul className="flex flex-wrap gap-2 text-sm">
             {m.projects.map((p) => {
-              const [label, colour] = HEALTH[p.health] ?? ON_TRACK;
+              const [label, colour] = (p.health && HEALTH[p.health]) || UNKNOWN;
               return (
                 <li
                   key={p.id}
@@ -199,8 +200,8 @@ export function TeamPage() {
       {team.error && <LoadError error={team.error} what="your team" onRetry={() => void team.refetch()} />}
       {team.data && team.data.people.length === 0 && (
         <p className="text-slate-600 dark:text-slate-400">
-          Nobody reports to you in the directory yet. Managers come from your identity provider (SCIM) or the
-          Microsoft Graph sync in Admin › Provisioning.
+          Nobody reports to you yet. Glasshaus learns who reports to whom from your organization’s directory;
+          if this looks wrong, ask your administrator.
         </p>
       )}
       {team.data && team.data.people.length > 0 && (

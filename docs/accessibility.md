@@ -29,16 +29,22 @@ Automated tools find roughly a third of issues. Before a release, also check by 
   tab, and moving to another page puts focus on its heading.
 - Visible focus indicators; dialogs (task drawer, palette, shortcut help, confirmations) trap focus and
   return it. Escape closes only the topmost layer, popovers and tips included, and leaving the task
-  drawer saves the field being edited.
+  drawer saves the field being edited. When the control you used goes away (an approved suggestion, a
+  removed row), focus moves to the nearest control still on the page instead of the top of the page.
 - Destructive or far-reaching actions (deletes, revoking tokens, role changes, removing people) ask
   first in an in-app dialog whose button names the action.
-- Short confirmations and background errors appear as toasts in always-present live regions.
+- Short confirmations and background errors appear as toasts in always-present live regions. Errors stay
+  until closed; a toast with an action (such as **Undo**) stays for 10 seconds.
+- Leaving a page with unsaved changes (report builder, project assistant settings, directory sync) asks
+  first.
+- When the server can't be reached, is updating or is busy, messages say so in plain words.
 - Tabs use arrow keys, Home and End with a single tab stop.
 - Errors from the server mark the field they belong to (`aria-invalid`, message linked with
   `aria-describedby`).
 - Date fields save when you leave them or press Enter (Escape restores the saved date), so partly
   typed dates are never stored.
-- On phones the navigation sits behind a **Menu** button (`aria-expanded`) instead of above every page.
+- On phones the navigation sits behind a **Menu** button (`aria-expanded`) instead of above every page,
+  and buttons and menu links are at least 44 px tall. Wide tables scroll inside a labelled region.
 - Board cards move with Alt+arrow keys or each card's **Move** menu (which also works on touch); focus
   follows the card and the move is announced. Timeline bars move and resize with arrow keys or by
   dragging on touch screens, and each move is announced. On phones the calendar is an agenda list.

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api, unwrap, type Schemas } from '../../api/client';
+import { toast } from '../../lib/toast';
 import { Button, ErrorText } from '../ui';
 import { Section } from './common';
 
@@ -38,6 +39,7 @@ export function AiSettings() {
     mutationFn: (body: Schemas['OrgSettingsUpdate']) => unwrap(api.PATCH('/api/v1/admin/settings', { body })),
     onSuccess: async (data) => {
       queryClient.setQueryData(['org-settings'], data);
+      toast('AI settings saved.');
       await queryClient.invalidateQueries({ queryKey: ['ai-status'] });
     },
   });
@@ -45,7 +47,7 @@ export function AiSettings() {
   const available = status.data?.available ?? false;
   return (
     <Section
-      title="AI assistant"
+      title="AI"
       intro={
         <>
           Optional help with status updates, task drafting, risk flags, plain-language search and questions
@@ -138,11 +140,6 @@ export function AiSettings() {
             <Button type="submit" disabled={save.isPending}>
               Save AI settings
             </Button>
-            {save.isSuccess && (
-              <span role="status" className="ml-3 text-sm text-emerald-700 dark:text-emerald-400">
-                Saved
-              </span>
-            )}
           </div>
         </form>
       )}

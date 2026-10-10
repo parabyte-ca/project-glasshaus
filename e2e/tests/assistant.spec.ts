@@ -11,8 +11,8 @@ test('project assistant digest', async ({ page }) => {
   await call('POST', '/api/v1/tasks', { project_id: project.id, title: 'Renew the domain', due_date: late });
 
   await page.goto(`/projects/${project.key}`);
-  await page.getByRole('link', { name: 'Digests' }).click();
-  await expect(page.getByRole('heading', { name: 'Digests', level: 1 })).toBeVisible();
+  await page.getByRole('link', { name: 'Project assistant' }).click();
+  await expect(page.getByRole('heading', { name: 'Project assistant', level: 1 })).toBeVisible();
   await page.getByRole('button', { name: 'Turn on' }).click();
   await expect(page.getByText(/Next digest/).first()).toBeVisible();
   await page.getByRole('button', { name: 'Write a digest now' }).click();

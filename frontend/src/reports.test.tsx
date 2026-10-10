@@ -149,6 +149,29 @@ describe('report builder', () => {
     });
   });
 
+  it('asks before leaving a report with unsaved changes', async () => {
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/reports', body: [] },
+      { method: 'GET', path: '/api/v1/dashboards', body: [] },
+      { method: 'POST', path: '/api/v1/reports/run', body: result() },
+    ]);
+    renderAt('/reports/new');
+    await userEvent.type(await screen.findByLabelText('Name'), 'Mine');
+    const main = screen.getByRole('navigation', { name: 'Main' });
+    await userEvent.click(within(main).getByRole('link', { name: 'Reports' }));
+    const ask = await screen.findByRole('dialog', { name: 'Leave without saving?' });
+    await userEvent.click(within(ask).getByRole('button', { name: 'Cancel' }));
+    expect(window.location.pathname).toBe('/reports/new');
+    expect(screen.getByLabelText('Name')).toHaveValue('Mine');
+
+    await userEvent.click(within(main).getByRole('link', { name: 'Reports' }));
+    const again = await screen.findByRole('dialog', { name: 'Leave without saving?' });
+    await userEvent.click(within(again).getByRole('button', { name: 'Leave without saving' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/reports'));
+  });
+
   it('switching to logged time starts from hours by project', async () => {
     const { calls } = mockApi([
       ...baseRoutes,
@@ -356,6 +379,8 @@ describe('report emails', () => {
     const panel = screen.getByRole('heading', { name: 'Email me this report' }).closest('section')!;
     expect(within(panel).getByLabelText('Repeat')).toHaveValue('weekly');
     await userEvent.click(within(panel).getByRole('button', { name: 'Stop emails' }));
+    const ask = await screen.findByRole('dialog', { name: 'Stop emailing this report?' });
+    await userEvent.click(within(ask).getByRole('button', { name: 'Stop emails' }));
     await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
   });
 });
@@ -420,6 +445,8 @@ describe('report alerts', () => {
     await userEvent.click(within(panel).getByRole('button', { name: 'Check now' }));
     expect(await screen.findByText('Open is 4')).toBeInTheDocument();
     await userEvent.click(within(panel).getByRole('button', { name: 'Remove alert' }));
+    const ask = await screen.findByRole('dialog', { name: 'Remove this alert?' });
+    await userEvent.click(within(ask).getByRole('button', { name: 'Remove alert' }));
     await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
   });
 });

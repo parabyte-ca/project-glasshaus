@@ -206,14 +206,14 @@ function ProjectPageFor({ projectKey }: { projectKey: string }) {
           <ProjectPeople project={p} users={users} defaultOpen={params.get('people') === '1'} />
           {aiFeatures.length > 0 && (
             <GhostButton aria-expanded={assistant} onClick={() => setAssistant((v) => !v)}>
-              Assistant
+              AI tools
             </GhostButton>
           )}
           <Link to={`/projects/${p.key}/report`} className={`text-sm ${linkClass}`}>
             Report
           </Link>
           <Link to={`/projects/${p.key}/assistant`} className={`text-sm ${linkClass}`}>
-            Digests
+            Project assistant
           </Link>
           {p.my_role === 'admin' && (
             <span className="flex items-center gap-1">

@@ -120,15 +120,40 @@ export async function sessionFetch(input: Request): Promise<Response> {
 export const api = createClient<paths>({ baseUrl: window.location.origin, fetch: sessionFetch });
 
 /** Unwrap an openapi-fetch result, throwing ApiError (RFC 9457 detail) on failure. */
+/** What to tell people when a request fails for a reason they can't fix by changing their input. */
+export function plainStatus(status: number): string {
+  if (status === 0) return "Can't reach Glasshaus. Check your connection and try again.";
+  if (status === 429) return 'Too many requests at once. Wait a moment and try again.';
+  if (status === 502 || status === 503 || status === 504)
+    return 'Glasshaus is unavailable right now (it may be updating). Try again in a minute.';
+  if (status >= 500)
+    return 'Something went wrong on the server. Try again, or tell your administrator if it keeps happening.';
+  if (status === 404) return "That couldn't be found. It may have been deleted or moved.";
+  if (status === 403) return "You don't have permission to do that.";
+  return `The request failed (${status}).`;
+}
+
 export async function unwrap<T>(
   call: Promise<{ data?: T; error?: unknown; response: Response }>,
 ): Promise<T> {
-  const { data, error, response } = await call;
+  let result: Awaited<typeof call>;
+  try {
+    result = await call;
+  } catch (cause) {
+    // fetch itself failed ("Failed to fetch"): offline, or the server is unreachable.
+    if (cause instanceof DOMException && cause.name === 'AbortError') throw cause;
+    throw new ApiError(0, plainStatus(0));
+  }
+  const { data, error, response } = result;
   if (error !== undefined || !response.ok) {
     const problem = (error ?? {}) as { detail?: unknown; code?: string; errors?: unknown };
     const fields = fieldProblems(problem.errors);
     const named = Object.keys(fields).length > 0;
-    let detail = typeof problem.detail === 'string' ? problem.detail : response.statusText;
+    // 4xx carry the server's explanation; for the rest, a plain sentence beats "Bad Gateway".
+    let detail =
+      typeof problem.detail === 'string' && response.status < 500 && response.status !== 429
+        ? problem.detail
+        : plainStatus(response.status);
     if (named && detail === 'request validation failed') {
       // Name the fields, so the message helps even where a form doesn't mark the field itself.
       detail = Object.entries(fields)

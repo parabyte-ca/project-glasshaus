@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import { api, unwrap, type Workload } from '../api/client';
 import { useAuth } from '../auth/useAuth';
+import { LoadError } from '../components/PageState';
 import { ErrorText, Field, GhostButton, Input, linkClass, ScrollArea, Select } from '../components/ui';
 import { addDays, todayIso } from '../lib/dates';
 import { formatMinutes, hours, mondayOf, shortDate } from '../lib/format';
@@ -163,7 +164,14 @@ export function WorkloadPage() {
           </Select>
         </Field>
       </div>
-      <ErrorText error={workload.error} />
+      {workload.error && (
+        <LoadError
+          inline
+          error={workload.error}
+          what="the workload"
+          onRetry={() => void workload.refetch()}
+        />
+      )}
       {data && data.users.length === 0 && (
         <p className="text-sm text-slate-600 dark:text-slate-400">
           Nobody has assigned open work in this scope.

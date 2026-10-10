@@ -4,7 +4,8 @@ import { useSearchParams } from 'react-router';
 
 import { api, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
-import { ErrorText, Field, GhostButton, Input, ScrollArea, Select, TabPanel, Tabs } from '../components/ui';
+import { LoadError } from '../components/PageState';
+import { Field, GhostButton, Input, ScrollArea, Select, TabPanel, Tabs } from '../components/ui';
 import { addDays, todayIso } from '../lib/dates';
 import { formatMinutes, hours, mondayOf, shortDay } from '../lib/format';
 import { usePageTitle } from '../lib/pageTitle';
@@ -67,7 +68,9 @@ function TimesheetView() {
           Export CSV
         </a>
       </div>
-      <ErrorText error={sheet.error} />
+      {sheet.error && (
+        <LoadError inline error={sheet.error} what="this timesheet" onRetry={() => void sheet.refetch()} />
+      )}
       {s && (
         <ScrollArea label="Timesheet">
           <table className="w-full min-w-[640px] text-left text-sm">
@@ -157,7 +160,14 @@ function TeamReport() {
           Export CSV
         </a>
       </div>
-      <ErrorText error={report.error} />
+      {report.error && (
+        <LoadError
+          inline
+          error={report.error}
+          what="this time report"
+          onRetry={() => void report.refetch()}
+        />
+      )}
       {report.data && rows.length === 0 && (
         <p className="text-sm text-slate-600 dark:text-slate-400">No time logged in this range.</p>
       )}
