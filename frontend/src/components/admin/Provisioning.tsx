@@ -129,6 +129,7 @@ function DirectorySync() {
 }
 
 function ManagerVisibility() {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const settings = useQuery({
     queryKey: ['org-settings'],
@@ -139,7 +140,7 @@ function ManagerVisibility() {
       unwrap(api.PATCH('/api/v1/admin/settings', { body: { manager_visibility } })),
     onSuccess: (data) => queryClient.setQueryData(['org-settings'], data),
   });
-  const value = settings.data?.manager_visibility ?? 'all';
+  const value = settings.data?.manager_visibility ?? 'shared';
   return (
     <Section
       title="What managers see on My team"
@@ -151,21 +152,27 @@ function ManagerVisibility() {
           <input
             type="radio"
             name="manager-visibility"
-            checked={value === 'all'}
+            checked={value === 'shared'}
             disabled={!settings.data || save.isPending}
-            onChange={() => save.mutate('all')}
+            onChange={() => save.mutate('shared')}
           />
-          Their reports’ work in every project
+          Only in projects the manager can open (elsewhere, counts only; recommended)
         </label>
         <label className="flex items-center gap-2">
           <input
             type="radio"
             name="manager-visibility"
-            checked={value === 'shared'}
+            checked={value === 'all'}
             disabled={!settings.data || save.isPending}
-            onChange={() => save.mutate('shared')}
+            onChange={async () =>
+              (await confirm({
+                title: 'Show managers their reports’ work in every project?',
+                body: 'Managers will see task titles in projects they are not members of. Each look is recorded in the audit log.',
+                confirmLabel: 'Show everywhere',
+              })) && save.mutate('all')
+            }
           />
-          Only in projects the manager can open (elsewhere, counts only)
+          Their reports’ work in every project
         </label>
       </fieldset>
       <ErrorText error={settings.error ?? save.error} />

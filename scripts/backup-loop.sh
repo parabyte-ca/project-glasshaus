@@ -9,6 +9,7 @@ while true; do
   ts="$(date -u +%Y%m%dT%H%M%SZ)"
   out="/backups/glasshaus-${ts}.dump"
   if pg_dump --format=custom --no-owner --file="${out}.partial"; then
+    chmod 600 "${out}.partial"  # the whole database: only the backup service reads it (the app only lists it)
     mv "${out}.partial" "${out}"
     echo "backup: wrote ${out}"
     # Restore drill: prove a backup restores, at most every drill_days days.

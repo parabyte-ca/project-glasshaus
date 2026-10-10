@@ -36,10 +36,10 @@ class OrgSettings(TimestampMixin, Base):
         default=lambda: ["summaries", "drafting", "risks", "search"],
         server_default="{summaries,drafting,risks,search}",
     )
-    # What managers see on My team: "all" (their reports' work in every project) or "shared" (only
-    # projects the manager can open themselves; elsewhere just counts).
+    # What managers see on My team: "shared" (only projects the manager can open themselves; elsewhere
+    # just counts) or "all" (their reports' work in every project).
     manager_visibility: Mapped[str] = mapped_column(
-        String(10), nullable=False, default="all", server_default="all"
+        String(10), nullable=False, default="shared", server_default="shared"
     )
     # Kinds of project-assistant suggestion that projects may let it apply without approval (a ceiling).
     assistant_trusted: Mapped[list[str]] = mapped_column(

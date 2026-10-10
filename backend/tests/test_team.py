@@ -8,6 +8,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import update
 
+from glasshaus.core.rbac import OrgRole
 from glasshaus.db import apply_tenant, system_session
 from glasshaus.identity.models import User
 from glasshaus.people import graph
@@ -96,16 +97,26 @@ async def test_managers_see_their_team_and_opening_tasks_is_audited(client: Asyn
     mh = auth(await token_for(manager))
     me = (await client.get("/api/v1/users/me", headers=mh)).json()
     assert me["direct_reports"] == 1
+    # The private default: only projects the manager can open; elsewhere, counts.
     team = (await client.get("/api/v1/team", headers=mh)).json()
-    assert team["visibility"] == "all" and team["direct_reports"] == 1
+    assert team["visibility"] == "shared" and team["direct_reports"] == 1
     [row] = team["people"]
     assert row["id"] == str(ada.id) and row["level"] == 1
     assert (row["open"], row["overdue"], row["logged_this_week"]) == (2, 1, 90)
-    assert row["projects"][0]["key"] == world.project.key and row["projects"][0]["visible"] is False
+    project = row["projects"][0]
+    assert project["key"] is None and project["visible"] is False and project["open_tasks"] == 2
+    tasks = (await client.get(f"/api/v1/team/{ada.id}/tasks", headers=mh)).json()
+    assert tasks["tasks"] == [] and tasks["hidden"] == 2
     everyone = (await client.get("/api/v1/team", params={"everyone": True}, headers=mh)).json()
     assert [(p["id"], p["level"]) for p in everyone["people"]] == [(str(ada.id), 1), (str(lin.id), 2)]
 
-    # Full detail in every project (the default), and the manager opening it is audited.
+    # An admin widens it: full detail in every project, and each look is audited.
+    r = await client.patch(
+        "/api/v1/admin/settings", json={"manager_visibility": "all"}, headers=world.headers
+    )
+    assert r.status_code == 200 and r.json()["manager_visibility"] == "all"
+    team = (await client.get("/api/v1/team", headers=mh)).json()
+    assert team["visibility"] == "all" and team["people"][0]["projects"][0]["key"] == world.project.key
     tasks = (await client.get(f"/api/v1/team/{ada.id}/tasks", headers=mh)).json()
     assert [t["title"] for t in tasks["tasks"]] == ["Late report", "Plan"] and tasks["hidden"] == 0
     assert (await audit(world, "team.tasks_viewed"))[-1].actor_id == manager.id
@@ -115,16 +126,11 @@ async def test_managers_see_their_team_and_opening_tasks_is_audited(client: Asyn
     r = await client.get(f"/api/v1/team/{manager.id}/tasks", headers=auth(await token_for(ada)))
     assert r.status_code == 404  # not upwards
 
-    # "Shared" visibility: only projects the manager can open; elsewhere counts.
-    r = await client.patch(
-        "/api/v1/admin/settings", json={"manager_visibility": "shared"}, headers=world.headers
-    )
-    assert r.status_code == 200 and r.json()["manager_visibility"] == "shared"
-    team = (await client.get("/api/v1/team", headers=mh)).json()
-    project = team["people"][0]["projects"][0]
-    assert team["visibility"] == "shared" and project["key"] is None and project["open_tasks"] == 2
-    tasks = (await client.get(f"/api/v1/team/{ada.id}/tasks", headers=mh)).json()
-    assert tasks["tasks"] == [] and tasks["hidden"] == 2
+    # A guest who manages someone (a contractor, say) never sees beyond projects they can open.
+    guest = await make_user(world.tenant, OrgRole.GUEST)
+    await report_to(world, ada, guest)
+    team = (await client.get("/api/v1/team", headers=auth(await token_for(guest)))).json()
+    assert team["visibility"] == "shared" and team["people"][0]["projects"][0]["key"] is None
 
 
 async def test_graph_sync_fills_in_managers_scim_does_not_send(

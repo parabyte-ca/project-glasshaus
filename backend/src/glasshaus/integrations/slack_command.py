@@ -69,6 +69,8 @@ def _url(path: str) -> str:
 
 def verify(signing_secret: str, headers: dict[str, str], body: bytes, now: float | None = None) -> None:
     """Slack request signing (v0): HMAC-SHA256 of 'v0:<timestamp>:<body>', timestamp within 5 minutes."""
+    if not signing_secret:
+        raise Unauthenticated("this Slack command has no signing secret")  # never sign with ""
     stamp = headers.get("x-slack-request-timestamp", "")
     if not stamp.isdigit() or abs((now or time.time()) - int(stamp)) > MAX_AGE_SECONDS:
         raise Unauthenticated("stale or missing Slack timestamp")

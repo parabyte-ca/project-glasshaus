@@ -327,6 +327,8 @@ async def update_integration(
         values["url"] = str(data.url)
         config["url_host"] = data.url.host
     if data.secret is not None:
+        if not data.secret and i.kind == "slack_command":
+            raise InvalidInput("a Slack command needs its signing secret")
         values["password" if i.kind == "email" else "signing"] = data.secret
     if data.token is not None:
         if i.kind != "slack_command":

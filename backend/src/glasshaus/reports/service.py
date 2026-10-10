@@ -1,11 +1,11 @@
 """Saved reports: create, share, run (with optional dashboard filters) and export."""
 
-import csv
 import io
 import uuid
 
 from sqlalchemy import func, or_, select
 
+from glasshaus.core import csvsafe
 from glasshaus.core.authz import require_scope
 from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import NotFound, PermissionDenied
@@ -129,7 +129,7 @@ async def run_report(
 
 def to_csv(result: ReportResult) -> str:
     out = io.StringIO()
-    writer = csv.writer(out)
+    writer = csvsafe.writer(out)
     writer.writerow([c.label for c in result.columns])
     for row in result.rows:
         writer.writerow([_safe(label) for label in row.labels] + ["" if v is None else v for v in row.values])

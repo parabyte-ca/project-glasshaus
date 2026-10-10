@@ -48,12 +48,15 @@ from glasshaus.identity.schemas import (
     WorkspaceRead,
     WorkspaceUpdate,
 )
+from glasshaus.logs import get_logger
 from glasshaus.models import Tenant
 
 LOGIN_MAX_ATTEMPTS = 10
 LOGIN_WINDOW_SECONDS = 900
 # Per account across all addresses, so rotating (or spoofing) the client IP does not help guessing.
+log = get_logger(__name__)
 ACCOUNT_MAX_ATTEMPTS = 30
+REUSE_GRACE = timedelta(seconds=30)
 
 
 # --------------------------------------------------------------------------- authentication
@@ -87,10 +90,25 @@ async def _check_login_rate(key: str, limit: int = LOGIN_MAX_ATTEMPTS) -> None:
         raise RateLimited("too many login attempts; try again later")
 
 
-async def _issue_session(session: AsyncSession, user: User, *, user_agent: str, ip: str) -> LoginResult:
+async def _known_address(session: AsyncSession, user_id: uuid.UUID, ip: str) -> bool:
+    """Whether this person has signed in from this address in the last 90 days."""
+    since = datetime.now(UTC) - timedelta(days=90)
+    found = await session.scalar(
+        select(AuthSession.id)
+        .where(AuthSession.user_id == user_id, AuthSession.ip == ip[:64], AuthSession.created_at >= since)
+        .limit(1)
+    )
+    return found is not None
+
+
+async def _issue_session(
+    session: AsyncSession, user: User, *, user_agent: str, ip: str, family: uuid.UUID | None = None
+) -> LoginResult:
     refresh = security.new_refresh_token()
+    session_id = uuid.uuid4()
     auth_session = AuthSession(
-        id=uuid.uuid4(),
+        id=session_id,
+        family_id=family or session_id,
         tenant_id=user.tenant_id,
         user_id=user.id,
         refresh_hash=security.sha256(refresh),
@@ -109,14 +127,22 @@ async def login(
     session: AsyncSession, *, email: str, password: str, organization: str | None, user_agent: str, ip: str
 ) -> LoginResult:
     from glasshaus.audit.service import record_raw
+    from glasshaus.redis_client import get_redis
 
     await _check_login_rate(f"glasshaus:login:{ip}:{email.lower()}")
-    await _check_login_rate(f"glasshaus:login-account:{email.lower()}", ACCOUNT_MAX_ATTEMPTS)
+    # Failures for this account from anywhere. Past the limit, only a correct password from an address
+    # this person has signed in from before gets through: guessing from many addresses stops, but a
+    # stranger can no longer lock the real person out by typing wrong passwords.
+    account_key = f"glasshaus:login-account:{email.lower()}"
+    locked = int(await get_redis().get(account_key) or 0) >= ACCOUNT_MAX_ATTEMPTS
     tenant = await _tenant_by_slug(session, organization)
     await apply_tenant(session, tenant.id)
     user = await session.scalar(select(User).where(func.lower(User.email) == email.lower()))
     detail = {"email": email.lower(), "ip": ip, "user_agent": user_agent[:200]}
     if not security.verify_password(user.password_hash if user else None, password) or user is None:
+        failures = await get_redis().incr(account_key)
+        if failures == 1:
+            await get_redis().expire(account_key, LOGIN_WINDOW_SECONDS)
         await record_raw(
             tenant.id,
             "auth.login",
@@ -125,7 +151,19 @@ async def login(
             method="session",
             detail={**detail, "reason": "invalid credentials"},
         )
+        if locked or failures > ACCOUNT_MAX_ATTEMPTS:
+            raise RateLimited("too many login attempts; try again later")
         raise Unauthenticated("invalid credentials")
+    if locked and not await _known_address(session, user.id, ip):
+        await record_raw(
+            tenant.id,
+            "auth.login",
+            outcome="denied",
+            actor_id=user.id,
+            method="session",
+            detail={**detail, "reason": "account locked; new address"},
+        )
+        raise RateLimited("too many login attempts; try again later")
     if not user.is_active or is_assistant(user):
         await record_raw(
             tenant.id,
@@ -149,9 +187,7 @@ async def login(
         )
         raise Unauthenticated("this organization requires single sign-on")
     await record_raw(tenant.id, "auth.login", outcome="ok", actor_id=user.id, method="session", detail=detail)
-    from glasshaus.redis_client import get_redis
-
-    await get_redis().delete(f"glasshaus:login-account:{email.lower()}")
+    await get_redis().delete(account_key)
     if user.password_hash and security.needs_rehash(user.password_hash):
         user.password_hash = security.hash_password(password)
     user.last_login_at = datetime.now(UTC)
@@ -159,13 +195,27 @@ async def login(
 
 
 async def refresh(session: AsyncSession, refresh_token: str, *, user_agent: str, ip: str) -> LoginResult:
-    """Rotate a refresh token. Reuse of a rotated token revokes nothing new but fails closed."""
+    """Rotate a refresh token. Reusing one that was rotated a while ago means it was copied: every
+    session from that sign-in ends (a short grace covers two tabs refreshing at the same moment)."""
     now = datetime.now(UTC)
     current = await session.scalar(
         select(AuthSession)
         .where(AuthSession.refresh_hash == security.sha256(refresh_token))
         .with_for_update()
     )
+    if current is not None and current.revoked_at is not None and now - current.revoked_at > REUSE_GRACE:
+        from glasshaus.db import system_session
+
+        family = current.family_id or current.id
+        async with system_session() as own:  # its own transaction: it must outlive the error below
+            await apply_tenant(own, current.tenant_id)
+            await own.execute(
+                update(AuthSession)
+                .where(AuthSession.family_id == family, AuthSession.revoked_at.is_(None))
+                .values(revoked_at=now)
+            )
+        log.warning("auth.refresh_reuse", user=str(current.user_id))
+        raise Unauthenticated("session expired")
     if current is None or current.revoked_at is not None or current.expires_at <= now:
         raise Unauthenticated("session expired")
     await apply_tenant(session, current.tenant_id)
@@ -173,7 +223,9 @@ async def refresh(session: AsyncSession, refresh_token: str, *, user_agent: str,
     if user is None or not user.is_active:
         raise Unauthenticated("session expired")
     current.revoked_at = now
-    return await _issue_session(session, user, user_agent=user_agent, ip=ip)
+    return await _issue_session(
+        session, user, user_agent=user_agent, ip=ip, family=current.family_id or current.id
+    )
 
 
 async def logout(session: AsyncSession, refresh_token: str) -> None:
@@ -317,6 +369,13 @@ async def update_user(ctx: ServiceContext, user_id: uuid.UUID, data: UserUpdate)
         raise PermissionDenied("only owners can change owners")
     if user.id == ctx.actor.user_id and ("org_role" in changes or changes.get("is_active") is False):
         raise InvalidInput("you cannot change your own role or deactivate yourself")
+    if (
+        changes.get("org_role") in (OrgRole.OWNER, OrgRole.ADMIN)
+        and changes["org_role"] != user.org_role
+        and ctx.actor.method != "session"
+    ):
+        # Not through a token or an AI agent (text in a task could ask it to): a person does it here.
+        raise PermissionDenied("make someone an admin or owner in Admin > People, signed in")
     for field, value in changes.items():
         setattr(user, field, value)
     await ctx.session.flush()

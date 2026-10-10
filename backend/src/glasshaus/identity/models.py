@@ -11,6 +11,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     UniqueConstraint,
+    Uuid,
     func,
     text,
 )
@@ -114,6 +115,8 @@ class AuthSession(UUIDPk, TenantScoped, Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     user_agent: Mapped[str] = mapped_column(String(300), default="", server_default="")
     ip: Mapped[str] = mapped_column(String(64), default="", server_default="")
+    # Sessions rotated from one sign-in share a family; reusing an old refresh token ends them all.
+    family_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
 
 
 ASSISTANT_KIND = "assistant"

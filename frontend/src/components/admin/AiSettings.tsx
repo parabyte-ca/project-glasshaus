@@ -76,8 +76,15 @@ export function AiSettings() {
             e.preventDefault();
             const form = new FormData(e.currentTarget);
             save.mutate({
-              ai_enabled: form.get('ai_enabled') === 'on',
-              ai_features: AI_FEATURES.map(([key]) => key).filter((key) => form.get(`f-${key}`) === 'on'),
+              // Without a provider those boxes are disabled (and missing from the form): keep what is saved.
+              ...(available
+                ? {
+                    ai_enabled: form.get('ai_enabled') === 'on',
+                    ai_features: AI_FEATURES.map(([key]) => key).filter(
+                      (key) => form.get(`f-${key}`) === 'on',
+                    ),
+                  }
+                : {}),
               assistant_trusted: form.get('trust-comment') === 'on' ? ['comment'] : [],
             });
           }}

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 
-import { api, fieldError, type Schemas, unwrap } from '../api/client';
+import { api, csrfToken, fieldError, type Schemas, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { Button, CopyButton, ErrorText, Field, GhostButton, Input, Select } from './ui';
 import { useConfirm } from '../lib/confirm';
@@ -303,7 +303,8 @@ function SingleSignOnLinks() {
             </span>
             {!o.linked && (
               <a
-                href={o.link_url}
+                // The CSRF token proves the link was started here, not by another site.
+                href={`${o.link_url}&csrf=${encodeURIComponent(csrfToken())}`}
                 className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
               >
                 Link {o.provider_name}

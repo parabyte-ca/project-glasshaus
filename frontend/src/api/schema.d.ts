@@ -19950,6 +19950,8 @@ export interface operations {
         next?: string | null;
         /** @description Link this provider to the signed-in account instead. */
         link?: boolean;
+        /** @description With link=true: the CSRF token, so other sites cannot start it. */
+        csrf?: string | null;
       };
       header?: never;
       path: {

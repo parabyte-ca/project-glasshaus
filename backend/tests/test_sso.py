@@ -235,7 +235,10 @@ async def test_link_from_account_settings(client: AsyncClient, idp: FakeIdP) -> 
     options = (await client.get("/api/v1/auth/sso/identities")).json()
     assert [(o["provider_slug"], o["linked"]) for o in options] == [("example", False)]
     assert options[0]["link_url"] == f"{start}?link=true"
-    r = await client.get(start, params={"link": "true"})
+    # Without the CSRF token (another site sending the browser here) linking is refused.
+    assert "Account" in sso_error(await client.get(start, params={"link": "true"}))
+    csrf = client.cookies.get("gh_csrf")
+    r = await client.get(start, params={"link": "true", "csrf": csrf})
     assert r.status_code == 302
     query = parse_qs(urlsplit(r.headers["location"]).query)
     idp.challenge, idp.nonce = query["code_challenge"][0], query["nonce"][0]
@@ -442,3 +445,20 @@ async def test_saml_owner_role_is_never_granted_by_jit(client: AsyncClient) -> N
     )  # fmt: skip
     assert r.status_code == 422
     assert OrgRole.OWNER.value == "owner"
+
+
+async def test_sign_in_must_finish_in_the_browser_that_started_it(client: AsyncClient, idp: FakeIdP) -> None:
+    world = await make_world()
+    await add_oidc(client, world)
+    r = await client.get(f"/api/v1/auth/sso/{world.tenant.slug}/example/start")
+    assert r.status_code == 302 and "gh_sso" in r.headers["set-cookie"]
+    query = parse_qs(urlsplit(r.headers["location"]).query)
+    idp.challenge, idp.nonce = query["code_challenge"][0], query["nonce"][0]
+    idp.claims = {"sub": "attacker", "email": world.owner.email}
+    # An attacker's own callback link opened in someone else's browser (no matching cookie).
+    client.cookies.delete("gh_sso", path="/api/v1/auth/sso")
+    client.cookies.delete("gh_sso")
+    r = await client.get(
+        "/api/v1/auth/sso/oidc/callback", params={"state": query["state"][0], "code": "good-code"}
+    )
+    assert "another browser" in sso_error(r)

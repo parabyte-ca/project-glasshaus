@@ -87,7 +87,11 @@ async def _pending(session: AsyncSession, request_id: str) -> tuple[OAuthRequest
 
 
 def _redirect(params: dict[str, Any], query: dict[str, str]) -> str:
+    from glasshaus.mcp_server.auth import safe_redirect_uri
+
     base = params["redirect_uri"]
+    if not safe_redirect_uri(str(base)):  # clients registered before this check existed
+        raise InvalidInput("this app's redirect address is not allowed")
     if params.get("state") is not None:
         query["state"] = params["state"]
     return f"{base}{'&' if '?' in base else '?'}{urlencode(query)}"

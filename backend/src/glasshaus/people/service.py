@@ -1,9 +1,9 @@
 """Reporting lines and the My team page.
 
 A manager sees the people below them: direct reports by default, everyone further down on request.
-With the organization's default visibility ("all") that includes their reports' work in every
-project, even ones the manager is not a member of; "shared" limits it to projects the manager can
-open (elsewhere only counts). Opening a person's task list is audited.
+With the default visibility ("shared") that is their reports' work in projects the manager can open
+(elsewhere only counts); an org admin can widen it to "all" projects. Guests always get "shared".
+Opening a person's task list is audited.
 """
 
 import uuid
@@ -18,6 +18,7 @@ from glasshaus.audit import service as audit
 from glasshaus.core.authz import visible_projects_clause
 from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import InvalidInput, NotFound
+from glasshaus.core.rbac import OrgRole
 from glasshaus.identity.models import ASSISTANT_KIND, User
 from glasshaus.insights import calc
 from glasshaus.logs import get_logger
@@ -99,8 +100,10 @@ async def direct_report_count(session: AsyncSession, user_id: uuid.UUID) -> int:
 async def visibility(ctx: ServiceContext) -> Visibility:
     from glasshaus.governance.models import OrgSettings
 
+    if ctx.actor.org_role == OrgRole.GUEST:
+        return "shared"  # guests (contractors, partners) never see beyond projects they can open
     org = await ctx.session.get(OrgSettings, ctx.tenant_id)
-    return "shared" if org is not None and org.manager_visibility == "shared" else "all"
+    return "all" if org is not None and org.manager_visibility == "all" else "shared"
 
 
 def _me(ctx: ServiceContext) -> uuid.UUID:
