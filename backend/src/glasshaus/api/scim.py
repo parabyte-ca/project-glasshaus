@@ -79,7 +79,11 @@ async def scim_resource_types() -> Response:
 
 @router.get("/Schemas", summary="SCIM schemas")
 async def scim_schemas() -> Response:
-    items = [{"id": scim.USER_SCHEMA, "name": "User"}, {"id": scim.GROUP_SCHEMA, "name": "Group"}]
+    items = [
+        {"id": scim.USER_SCHEMA, "name": "User"},
+        {"id": scim.ENTERPRISE, "name": "EnterpriseUser"},
+        {"id": scim.GROUP_SCHEMA, "name": "Group"},
+    ]
     return _json(scim.list_response(items, len(items), 1))
 
 

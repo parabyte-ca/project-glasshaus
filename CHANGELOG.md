@@ -6,6 +6,41 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-10
+
+Reporting lines from your identity provider, and **My team** for managers.
+
+### Added
+- **My team** (`/team`, in the menu for anyone with direct reports). For each person who reports to you:
+  - open, overdue, due this week and in-progress work;
+  - hours logged this week (against their weekly capacity) and last week;
+  - their projects, with each project's health;
+  - what they finished in the last 7 days, and stale in-progress work.
+
+  **See tasks** opens a person's open or recently finished work. **Include everyone below me** adds
+  their reports' reports.
+- **What managers see** (Admin → Provisioning). Choose between:
+  - their reports' work in every project (the default);
+  - only work in projects the manager can open, with counts elsewhere.
+
+  Opening someone's task list is always audited (`team.tasks_viewed`).
+- **Managers from SCIM.** Entra ID's default mapping (the SCIM enterprise extension's `manager` and
+  `department`, and `title`) is stored. Loops are refused.
+- **Managers from Microsoft Graph.** A nightly sync (or **Sync now**) for people SCIM doesn't cover.
+  - Register an app with `User.Read.All`, then enter its details in Admin → Provisioning.
+  - People are matched by email, and SCIM wins where it sends a manager.
+  - The secret is encrypted at rest.
+- **API:**
+  - `GET /api/v1/team`, `GET /api/v1/team/{id}/tasks`;
+  - `GET/PUT /api/v1/admin/directory-sync`, `POST /api/v1/admin/directory-sync/run`;
+  - `manager_visibility` in org settings;
+  - `manager_id`, `job_title`, `department` on users, and `direct_reports` on `/users/me`.
+- **MCP:** `my_team`.
+
+### Fixed
+- Signing in now loads your full profile, so menu items that depend on it (such as **My team**) show
+  straight away instead of after a reload.
+
 ## [0.20.1] - 2026-10-09
 
 A review and hardening pass over 0.17–0.20 (phone notifications, My tasks and the project assistant).
@@ -644,7 +679,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.1...v0.21.0
 [0.20.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.18.0...v0.19.0

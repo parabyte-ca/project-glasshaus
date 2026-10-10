@@ -52,6 +52,10 @@ class OrgSettingsRead(Schema):
     assistant_trusted: list[TrustedKind] = Field(
         description="Project-assistant suggestions projects may let it apply without approval (a ceiling)."
     )
+    manager_visibility: Literal["all", "shared"] = Field(
+        description="My team: 'all' shows managers their reports' work in every project; 'shared' only in "
+        "projects the manager can open (elsewhere just counts)."
+    )
 
 
 class OrgSettingsUpdate(Schema):
@@ -62,6 +66,7 @@ class OrgSettingsUpdate(Schema):
     ai_enabled: bool | None = None
     ai_features: list[AiFeature] | None = None
     assistant_trusted: list[TrustedKind] | None = None
+    manager_visibility: Literal["all", "shared"] | None = None
 
     @field_validator("ai_features", "assistant_trusted")
     @classmethod

@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.20.1. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
+> **Status:** v0.21.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -273,6 +273,13 @@ It only reads, sends the least data each feature needs, treats project text as u
 every request in the audit log (without content). Details, privacy notes and an Ollama example:
 [docs/ai.md](docs/ai.md). REST: `/api/v1/ai/*`; MCP: `ai_*` tools.
 
+## My team (managers)
+
+Managers see the people who report to them (from Entra ID or another identity provider over SCIM, or a
+nightly Microsoft Graph sync): open, overdue and due work, time logged, projects and their health, and
+recent activity, with each person's task list one click away (audited). Admins choose whether managers
+see work in every project or only in projects they can open. See [docs/my-team.md](docs/my-team.md).
+
 ## Keyboard, accessibility and mobile
 
 - **Ctrl K / ⌘ K** opens the command palette: jump to pages and projects, find tasks by key or title, ask
@@ -302,7 +309,7 @@ command palette. Everything is remembered per account. See [docs/onboarding.md](
 ## MCP and Copilot setup
 
 The MCP server listens at `http://<host>:8472/mcp` (Streamable HTTP; `glasshaus-mcp --transport stdio`
-for local use). It offers 66 tools (tasks, projects, dependencies, time, workload, reports, automations,
+for local use). It offers 67 tools (tasks, projects, dependencies, time, workload, reports, automations,
 goals, status summaries, administration and the optional in-app assistant), read-only resources and four prompt templates, all over the same service layer
 and permissions as the REST API. Assistants sign in with OAuth 2.1 (PKCE, dynamic client registration,
 consent in the web app) when the server is reached over HTTPS or localhost, or with a personal API token
@@ -354,6 +361,7 @@ Version-specific upgrade notes:
 
 | Version | Notes |
 | --- | --- |
+| 0.21.0 | Optional: for managers from Microsoft Graph, the worker needs outbound access to `login.microsoftonline.com` and `graph.microsoft.com` ([docs/my-team.md](docs/my-team.md)). `./update.sh` as usual. |
 | 0.17.0 | Phone notifications need HTTPS and outbound access from the worker to the browsers' push services ([docs/mobile.md](docs/mobile.md)). `./update.sh` as usual. |
 | 0.15.0 | The API and worker get a read-only view of the backup folder (Admin → Backups). On TrueNAS or other hosts with custom permissions, make sure uid 10001 can read `GLASSHAUS_BACKUP_DIR`. `./update.sh` as usual (its pre-flight check starts with the next upgrade). |
 | 0.4.0 | New tables for dependencies and baselines; projects gain `auto_schedule` (off). `./update.sh` as usual. |
@@ -400,7 +408,7 @@ builds, scans and publishes multi-arch (amd64/arm64) images to GHCR.
 | 14 | 0.18.0 | Project assistant (AI), phase 1: daily stand-up digest and weekly status draft (read-only) | ✅ |
 | 15 | 0.19.0 | Project assistant, phase 2: approval queue for follow-ups, due dates, owners and tasks from notes | ✅ |
 | 16 | 0.20.0 | Project assistant, phase 3: trusted follow-ups (organization limit, project choice, daily cap, undo) | ✅ |
-| — | — | Azure AD manager hierarchy and "My team" dashboard | On hold |
+| 17 | 0.21.0 | Reporting lines from Entra ID (SCIM and Microsoft Graph) and the "My team" page for managers | ✅ |
 
 ## Licence
 

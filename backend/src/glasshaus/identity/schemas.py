@@ -25,6 +25,10 @@ class UserRead(Schema):
     last_login_at: datetime | None
     capacity_minutes: int = Field(description="Minutes available per working day (workload).")
     working_days: list[int] = Field(description="Worked weekdays, 0 = Monday.")
+    manager_id: uuid.UUID | None = Field(None, description="Who this person reports to (from the directory).")
+    job_title: str | None = None
+    department: str | None = None
+    direct_reports: int = Field(0, description="People reporting to you (only on /users/me).")
 
 
 class UserCreate(Schema):

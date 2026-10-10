@@ -49,6 +49,14 @@ class User(UUIDPk, TenantScoped, TimestampMixin, Base):
     # "person", or "assistant" for the organization's AI project assistant: it cannot sign in, is
     # not listed or provisioned as a person and is never assigned work (glasshaus.assistant).
     kind: Mapped[str] = mapped_column(String(20), nullable=False, default="person", server_default="person")
+    # Reporting line (glasshaus.people): who this person reports to, and where that came from:
+    # "scim" (the identity provider pushes it) or "graph" (the nightly Microsoft Graph sync).
+    manager_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    manager_source: Mapped[str | None] = mapped_column(String(10))
+    job_title: Mapped[str | None] = mapped_column(String(200))
+    department: Mapped[str | None] = mapped_column(String(200))
     # First-run guidance this person has seen or dismissed (product tour, checklist, tips).
     onboarding: Mapped[dict[str, object]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")

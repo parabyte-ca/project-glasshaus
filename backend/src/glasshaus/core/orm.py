@@ -81,6 +81,7 @@ RLS_TABLES = (
     "project_assistants",
     "project_briefs",
     "assistant_suggestions",
+    "directory_syncs",
     "portfolios",
     "portfolio_projects",
     "objectives",

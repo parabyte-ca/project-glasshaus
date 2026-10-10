@@ -14,6 +14,7 @@ from glasshaus.insights.models import Dashboard
 from glasshaus.integrations.models import CalendarFeed, ChannelPost, Integration, IntegrationDelivery
 from glasshaus.models.tenant import Tenant
 from glasshaus.oauth.models import OAuthClient, OAuthGrant, OAuthRequest
+from glasshaus.people.models import DirectorySync
 from glasshaus.projects.models import Project, ProjectMember, ProjectStatus
 from glasshaus.push import PushSubscription
 from glasshaus.reports.models import ReportAlert, ReportSubscription, SavedReport
@@ -41,6 +42,7 @@ __all__ = [
     "Comment",
     "CustomField",
     "Dashboard",
+    "DirectorySync",
     "DomainEventRecord",
     "IdentityProvider",
     "Integration",

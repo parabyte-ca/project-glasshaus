@@ -107,7 +107,10 @@ export function Layout() {
         >
           <ul className="mb-4 flex flex-col gap-1">
             {[
-              ...SECTIONS,
+              ...SECTIONS.slice(0, 2),
+              // Managers (people with reports in the directory) get My team.
+              ...((user.direct_reports ?? 0) > 0 ? ([['/team', 'My team']] as const) : []),
+              ...SECTIONS.slice(2),
               ...(user.org_role === 'owner' || user.org_role === 'admin'
                 ? ([['/admin', 'Admin']] as const)
                 : []),
