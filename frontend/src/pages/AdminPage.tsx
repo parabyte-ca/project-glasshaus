@@ -28,6 +28,10 @@ const TABS = {
     'Backups',
     lazy(() => import('../components/admin/Backups').then((m) => ({ default: m.Backups }))),
   ],
+  updates: [
+    'Updates',
+    lazy(() => import('../components/admin/Updates').then((m) => ({ default: m.Updates }))),
+  ],
   data: [
     'Data & retention',
     lazy(() => import('../components/admin/DataRetention').then((m) => ({ default: m.DataRetention }))),

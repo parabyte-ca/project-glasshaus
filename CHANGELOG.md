@@ -6,6 +6,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-10-10
+
+Upgrade Glasshaus from the app.
+
+### Added
+- **New release notices.** Glasshaus checks GitHub once a day for a new release (only the version and
+  notes come back; nothing about your server is sent). Owners and admins get one notification per
+  release. Turn it off with `GLASSHAUS_UPDATE_CHECK=false`.
+- **Admin → Updates:** this version, the latest release with its notes, and **Check now**.
+- **Upgrade from the app (owners).** After a one-time setup on the server
+  (`sudo ./scripts/upgrade-agent.sh --install`, a cron job; on TrueNAS it prints the Cron Job to add),
+  **Upgrade** asks a helper on the server to run `update.sh`: backup, a check on a copy of the database,
+  the upgrade, a health check and an automatic roll-back on failure. The page shows progress and the log.
+  The app never gets Docker or root access; it can only leave a request in the upgrade folder. Each
+  request is in the audit log. See [docs/upgrades.md](docs/upgrades.md).
+
 ## [0.25.0] - 2026-10-10
 
 Import tasks from a CSV or Excel file, including exports from Nimble and other tools.
@@ -878,7 +894,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.25.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.26.0...HEAD
+[0.26.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.22.0...v0.23.0

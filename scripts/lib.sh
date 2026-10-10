@@ -90,6 +90,25 @@ backup_image_ready() {
 }
 
 # ensure_backup_key -> generate the age key that encrypts backups, once (setup.sh and update.sh)
+# upgrade_dir -> the host folder shared with the API for upgrades started in Admin > Updates.
+upgrade_dir() {
+  local dir
+  dir="$(get_env GLASSHAUS_UPGRADE_FOLDER)"
+  dir="${dir:-./upgrade}"
+  [[ "$dir" == /* ]] || dir="$ROOT_DIR/${dir#./}"
+  printf '%s\n' "$dir"
+}
+
+# ensure_upgrade_dir -> create the upgrade folder, writable by the app (uid 10001) and root only.
+ensure_upgrade_dir() {
+  local dir
+  dir="$(upgrade_dir)"
+  mkdir -p "$dir"
+  if [[ "$(id -u)" == 0 ]]; then
+    chown 10001:10001 "$dir" && chmod 0770 "$dir"
+  fi
+}
+
 ensure_backup_key() {
   [[ -n "$(get_env GLASSHAUS_BACKUP_KEY)" ]] && return 0
   local key

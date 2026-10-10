@@ -3,7 +3,7 @@
   "info": {
     "title": "Project Glasshaus API",
     "description": "REST API for Project Glasshaus. Every capability is also available as an MCP tool. Authenticate with `Authorization: Bearer <api token>` or the browser session cookies (unsafe methods then need the `X-CSRF-Token` header). Errors use RFC 9457 problem details.",
-    "version": "0.25.0"
+    "version": "0.26.0"
   },
   "paths": {
     "/healthz": {
@@ -14606,6 +14606,211 @@
         }
       }
     },
+    "/api/v1/admin/updates": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "This version, the latest release and upgrade progress (single-organization servers)",
+        "operationId": "get_updates",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/updates/check": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Check for a new release now",
+        "operationId": "check_for_updates",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/updates/upgrade": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Upgrade to the latest release (owners; needs the host upgrade helper)",
+        "operationId": "start_upgrade",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpgradeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permission denied",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {},
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/glasshaus__api__errors__Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/export": {
       "get": {
         "tags": [
@@ -22897,6 +23102,40 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "Helper": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured",
+            "description": "The upgrade folder is mounted into the app."
+          },
+          "connected": {
+            "type": "boolean",
+            "title": "Connected",
+            "description": "The host helper checked in during the last few minutes."
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "configured",
+          "connected",
+          "last_seen"
+        ],
+        "title": "Helper"
+      },
       "ImportProblem": {
         "properties": {
           "row": {
@@ -26935,6 +27174,49 @@
         "additionalProperties": false,
         "type": "object",
         "title": "RecurringUpdate"
+      },
+      "Release": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes",
+            "description": "Release notes (Markdown)."
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "name",
+          "notes",
+          "url",
+          "published_at"
+        ],
+        "title": "Release"
       },
       "ReportAlertRead": {
         "properties": {
@@ -31943,6 +32225,223 @@
           "unread"
         ],
         "title": "UnreadCount"
+      },
+      "UpdateStatus": {
+        "properties": {
+          "current": {
+            "type": "string",
+            "title": "Current"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Release"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "update_available": {
+            "type": "boolean",
+            "title": "Update Available"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "check_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Error"
+          },
+          "helper": {
+            "$ref": "#/components/schemas/Helper"
+          },
+          "upgrade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpgradeState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "can_upgrade": {
+            "type": "boolean",
+            "title": "Can Upgrade",
+            "description": "You may start an upgrade to the latest release now."
+          },
+          "log": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log",
+            "description": "The end of the last upgrade's log (owners only)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "current",
+          "latest",
+          "update_available",
+          "checked_at",
+          "check_error",
+          "helper",
+          "upgrade",
+          "can_upgrade",
+          "log"
+        ],
+        "title": "UpdateStatus"
+      },
+      "UpgradeRequest": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$",
+            "title": "Version",
+            "description": "The release to upgrade to (the latest)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "UpgradeRequest"
+      },
+      "UpgradeState": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "State"
+          },
+          "from_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Version"
+          },
+          "to_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Version"
+          },
+          "requested_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested By"
+          },
+          "requested_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "state",
+          "from_version",
+          "to_version",
+          "requested_by",
+          "requested_at",
+          "started_at",
+          "finished_at",
+          "message"
+        ],
+        "title": "UpgradeState"
       },
       "UserCreate": {
         "properties": {

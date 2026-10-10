@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Response, status
 
-from glasshaus import backups
+from glasshaus import backups, updates
 from glasshaus.api.deps import Ctx
 from glasshaus.governance import service as governance
 from glasshaus.governance.service import OrgSettingsRead, OrgSettingsUpdate, PasswordReset
@@ -34,6 +34,29 @@ async def update_settings(ctx: Ctx, data: OrgSettingsUpdate) -> OrgSettingsRead:
 )
 async def backup_status(ctx: Ctx) -> backups.BackupStatus:
     return await backups.get_status(ctx)
+
+
+@router.get(
+    "/updates",
+    response_model=updates.UpdateStatus,
+    summary="This version, the latest release and upgrade progress (single-organization servers)",
+)
+async def get_updates(ctx: Ctx) -> updates.UpdateStatus:
+    return await updates.get_status(ctx)
+
+
+@router.post("/updates/check", response_model=updates.UpdateStatus, summary="Check for a new release now")
+async def check_for_updates(ctx: Ctx) -> updates.UpdateStatus:
+    return await updates.check_now(ctx)
+
+
+@router.post(
+    "/updates/upgrade",
+    response_model=updates.UpdateStatus,
+    summary="Upgrade to the latest release (owners; needs the host upgrade helper)",
+)
+async def start_upgrade(body: updates.UpgradeRequest, ctx: Ctx) -> updates.UpdateStatus:
+    return await updates.request_upgrade(ctx, body)
 
 
 @router.get(

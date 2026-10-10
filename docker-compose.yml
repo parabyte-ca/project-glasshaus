@@ -79,10 +79,14 @@ services:
     environment:
       <<: *backend-env
       GLASSHAUS_BACKUP_STATUS_DIR: /backups
+      # Shared with the host's upgrade helper (scripts/upgrade-agent.sh) for Admin > Updates.
+      GLASSHAUS_UPGRADE_DIR: /upgrade
       # API worker processes (uvicorn reads WEB_CONCURRENCY); raise on hosts with spare cores.
       WEB_CONCURRENCY: ${GLASSHAUS_API_WORKERS:-2}
-    # Read-only view of the backups for Admin > Backups.
-    volumes: ["${GLASSHAUS_BACKUP_DIR:-./backups}:/backups:ro"]
+    # Read-only view of the backups for Admin > Backups; the upgrade folder for upgrade requests.
+    volumes:
+      - "${GLASSHAUS_BACKUP_DIR:-./backups}:/backups:ro"
+      - "${GLASSHAUS_UPGRADE_FOLDER:-./upgrade}:/upgrade"
     # Direct API access is for this host by default; browsers and API clients use the web port (/api).
     ports: ["${GLASSHAUS_API_BIND_ADDRESS:-127.0.0.1}:${GLASSHAUS_API_PORT:-8471}:8000"]
     depends_on:
