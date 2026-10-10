@@ -8,7 +8,30 @@ permissions:
   contents: read
 
 jobs:
+  # Tags for older releases (catching up, see scripts/release-tags.sh) only mark history: publishing
+  # them would move the `latest` images and GitHub Release back to an old version.
+  newest:
+    name: Newest release?
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.check.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: check
+        run: |
+          main="v$(git show origin/main:VERSION | tr -d '[:space:]')"
+          if [ "$main" = "$GITHUB_REF_NAME" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$GITHUB_REF_NAME is not the newest release (main is $main): tagged only, nothing published."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
   ci:
+    needs: newest
+    if: needs.newest.outputs.publish == 'true'
     uses: ./.github/workflows/ci.yml
 
   images:

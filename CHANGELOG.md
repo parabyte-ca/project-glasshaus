@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- `scripts/release-tags.sh` lists every release and whether it has its `vX.Y.Z` tag; `--tag --push`
+  adds the missing ones. CI fails, and a daily check reports, when a release merged over a day ago is
+  still untagged.
+
+### Changed
+- Pushing a tag for an older release no longer publishes it: only the newest version's tag builds
+  images and a GitHub Release, so catching up on tags can't move `latest` back.
+
 ## [0.24.0] - 2026-10-10
 
 Easier to use: plain error messages, undo, no lost work, consistent names, and better on phones and
