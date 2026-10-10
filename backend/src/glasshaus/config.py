@@ -95,6 +95,10 @@ class Settings(BaseSettings):
     # Backup folder as seen inside the app containers (read-only), for Admin > Backups and the daily
     # backup check. Blank turns both off. The interval and drill period match the backup service.
     backup_status_dir: str = ""
+    # New releases: a daily check of the project's GitHub releases (see source_url) and, with the
+    # upgrade folder shared with the host helper (scripts/upgrade-agent.sh), upgrades from Admin.
+    update_check: bool = True
+    upgrade_dir: str = ""
     backup_interval_hours: int = 24
     backup_drill_days: int = 7
 

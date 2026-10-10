@@ -94,6 +94,13 @@ async def backup_watch(ctx: dict[str, Any]) -> int:
     return await watch()
 
 
+async def release_check(ctx: dict[str, Any]) -> int:
+    """Look for a new Glasshaus release once a day and tell owners and admins."""
+    from glasshaus.updates import daily_check
+
+    return await daily_check()
+
+
 async def channel_posts(ctx: dict[str, Any]) -> int:
     """Send scheduled report and status posts to Slack and Teams."""
     from glasshaus.integrations.posts import send_due
@@ -172,6 +179,7 @@ class WorkerSettings:
         cron(project_assistants, second={45}, run_at_startup=False, timeout=900),
         cron(push_notifications, second=set(range(3, 60, 10)), run_at_startup=False, timeout=120),
         cron(backup_watch, minute={41}, second={0}, run_at_startup=False),
+        cron(release_check, hour={4}, minute={19}, second={30}, run_at_startup=False, timeout=60),
         cron(directory_sync, hour={2}, minute={37}, second={10}, run_at_startup=False, timeout=1800),
         cron(integrations_email, minute=set(range(1, 60, 2)), second={50}, run_at_startup=False, timeout=300),
     ]

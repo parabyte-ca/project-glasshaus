@@ -2104,6 +2104,57 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/admin/updates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** This version, the latest release and upgrade progress (single-organization servers) */
+    get: operations['get_updates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/admin/updates/check': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Check for a new release now */
+    post: operations['check_for_updates'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/admin/updates/upgrade': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Upgrade to the latest release (owners; needs the host upgrade helper) */
+    post: operations['start_upgrade'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/admin/export': {
     parameters: {
       query?: never;
@@ -4559,6 +4610,21 @@ export interface components {
       /** Detail */
       detail?: components['schemas']['ValidationError'][];
     };
+    /** Helper */
+    Helper: {
+      /**
+       * Configured
+       * @description The upgrade folder is mounted into the app.
+       */
+      configured: boolean;
+      /**
+       * Connected
+       * @description The host helper checked in during the last few minutes.
+       */
+      connected: boolean;
+      /** Last Seen */
+      last_seen: string | null;
+    };
     /** ImportProblem */
     ImportProblem: {
       /** Row */
@@ -6075,6 +6141,22 @@ export interface components {
       enabled?: boolean | null;
       template?: components['schemas']['RecurringTemplate-Input'] | null;
       schedule?: components['schemas']['ScheduleSpec-Input'] | null;
+    };
+    /** Release */
+    Release: {
+      /** Version */
+      version: string;
+      /** Name */
+      name: string;
+      /**
+       * Notes
+       * @description Release notes (Markdown).
+       */
+      notes: string;
+      /** Url */
+      url: string;
+      /** Published At */
+      published_at: string | null;
     };
     /** ReportAlertRead */
     ReportAlertRead: {
@@ -8050,6 +8132,62 @@ export interface components {
     UnreadCount: {
       /** Unread */
       unread: number;
+    };
+    /** UpdateStatus */
+    UpdateStatus: {
+      /** Current */
+      current: string;
+      latest: components['schemas']['Release'] | null;
+      /** Update Available */
+      update_available: boolean;
+      /** Checked At */
+      checked_at: string | null;
+      /** Check Error */
+      check_error: string | null;
+      helper: components['schemas']['Helper'];
+      upgrade: components['schemas']['UpgradeState'] | null;
+      /**
+       * Can Upgrade
+       * @description You may start an upgrade to the latest release now.
+       */
+      can_upgrade: boolean;
+      /**
+       * Log
+       * @description The end of the last upgrade's log (owners only).
+       */
+      log: string | null;
+    };
+    /** UpgradeRequest */
+    UpgradeRequest: {
+      /**
+       * Version
+       * @description The release to upgrade to (the latest).
+       */
+      version: string;
+    };
+    /** UpgradeState */
+    UpgradeState: {
+      /** Id */
+      id: string;
+      /**
+       * State
+       * @enum {string}
+       */
+      state: 'requested' | 'running' | 'succeeded' | 'failed';
+      /** From Version */
+      from_version: string | null;
+      /** To Version */
+      to_version: string | null;
+      /** Requested By */
+      requested_by: string | null;
+      /** Requested At */
+      requested_at: string | null;
+      /** Started At */
+      started_at: string | null;
+      /** Finished At */
+      finished_at: string | null;
+      /** Message */
+      message: string | null;
     };
     /** UserCreate */
     UserCreate: {
@@ -19613,6 +19751,190 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['BackupStatus'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  get_updates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UpdateStatus'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  check_for_updates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UpdateStatus'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  start_upgrade: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpgradeRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UpdateStatus'];
         };
       };
       /** @description Not authenticated */
