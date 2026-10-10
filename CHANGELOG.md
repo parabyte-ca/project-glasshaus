@@ -45,8 +45,8 @@ backups are encrypted, and less personal data is kept.
 - Ended sign-in sessions, with their IP address and browser, are deleted after 90 days.
 - Only admins see when someone last signed in.
 - Signing out and approving or denying an app's access (OAuth) are now audited.
-- The backup service has its own small image, `glasshaus-backup`: PostgreSQL tools plus a pinned,
-  checksum-verified `age`.
+- The backup service has its own small image, `glasshaus-backup`: PostgreSQL tools plus `age` (a
+  pinned release, built with the current Go so it carries Go's security fixes).
 
 ## [0.21.1] - 2026-10-10
 
