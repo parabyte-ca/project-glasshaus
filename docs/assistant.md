@@ -9,7 +9,7 @@ projects have its follow-up comments posted automatically, with a daily limit an
 
 ## Turning it on
 
-Project admins open the project and choose **Digests** (next to **Report**). **Turn on** with:
+Project admins open the project and choose **Project assistant** (next to **Report**). **Turn on** with:
 
 | Setting | Default | Notes |
 | --- | --- | --- |
@@ -38,7 +38,7 @@ Always (computed by Glasshaus, no AI needed):
 - **Done since the last digest** (or this week, for the draft);
 - schedule warnings (dependency and baseline problems).
 
-When an organization admin ticks **Project assistant** under **Admin → AI assistant**, the model adds:
+When an organization admin ticks **Project assistant** under **Admin → AI**, the model adds:
 
 - for the digest, a two-to-four-sentence summary and up to five **Focus today** suggestions (task keys it
   names are checked against the data and dropped if unknown);

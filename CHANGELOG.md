@@ -6,6 +6,50 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-10-10
+
+Easier to use: plain error messages, undo, no lost work, consistent names, and better on phones and
+with a keyboard or screen reader.
+
+### Added
+- **Undo on My tasks.** A ticked task disappears at once, and the "Done" message has an **Undo** button
+  for 10 seconds.
+- **Unsaved changes are kept.** Leaving the report builder, a project assistant's settings or the
+  directory sync form with unsaved changes asks first, and so does closing the tab.
+- **Easier to find:**
+  - **My team** is on the home page for managers and in the command palette (`g y`);
+  - each project's **Project assistant** is in the command palette (type "assistant" or the project's
+    name);
+  - **About, privacy and source code** is in the command palette.
+- Confirmations before removing a dependency, a report alert, report emails or a scheduled channel post.
+
+### Changed
+- **Plain error messages.** When the server can't be reached, is updating or is busy, Glasshaus says so
+  in words instead of showing a status code or a server message. Messages about your input are
+  unchanged.
+- **Error messages stay until you close them**; other messages close by themselves.
+- **One name for each AI feature:**
+  - **AI tools**: the panel on a project (summaries, task drafts, search);
+  - **Project assistant**: the digests and suggestions page of a project;
+  - **Admin → AI**: the organization's AI settings.
+- **Phones:** buttons and menu links are at least 44 px tall on small screens. Wide tables on
+  portfolios, automation run history and provisioning tokens scroll sideways instead of overflowing.
+- **Keyboard and screen readers:**
+  - focus stays nearby when the control you used goes away (for example after approving a
+    suggestion or closing a dialog), instead of jumping back to the top of the page;
+  - the notifications button says how many are unread;
+  - "Write a digest now" says "Writing…" while it works;
+  - the command palette says when it is still searching tasks;
+  - saving AI settings or changing what managers see confirms it with a message;
+  - the meeting-notes box explains its task markers as help text, not only as a placeholder.
+- **Clearer labels:**
+  - priorities read "Urgent" and "High" instead of `urgent` and `high`;
+  - on My team, a project with no health set says "Health not set" instead of "On track";
+  - the "At risk" icon is dark on amber, so it is readable.
+- Goals, Workload and Time show a **Try again** button when they can't load. The task list on My team
+  shows its error inside the dialog.
+- The footer says "Glasshaus is unavailable right now" instead of "API unavailable".
+
 ## [0.23.0] - 2026-10-10
 
 Faster with large organizations: fewer database round-trips, lighter live updates and indexed search.
@@ -796,7 +840,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.1...v0.22.0
 [0.21.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.0...v0.21.1

@@ -15,7 +15,7 @@ import {
   type User,
 } from '../api/client';
 import { TRIGGERS, triggerLabel, WEEKDAYS } from '../lib/automation';
-import { Button, ErrorText, Field, GhostButton, Input, Select } from './ui';
+import { Button, ErrorText, Field, GhostButton, Input, ScrollArea, Select } from './ui';
 import { useConfirm } from '../lib/confirm';
 
 type ActionType = Schemas['ActionType'];
@@ -539,51 +539,53 @@ function RunLog({ projectId, rules }: { projectId: string; rules: Rule[] }) {
       </h3>
       {runs.data?.length === 0 && <p className="text-sm text-slate-600 dark:text-slate-400">No runs yet.</p>}
       {!!runs.data?.length && (
-        <table className="w-full text-left text-sm">
-          <thead className="text-xs text-slate-600 dark:text-slate-400">
-            <tr>
-              <th className="py-1 font-medium">When</th>
-              <th className="font-medium">Rule</th>
-              <th className="font-medium">Task</th>
-              <th className="font-medium">Result</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {runs.data.map((r) => (
-              <tr key={r.id}>
-                <td className="py-1.5 whitespace-nowrap">{new Date(r.started_at).toLocaleString()}</td>
-                <td>{r.rule_name}</td>
-                <td className="font-mono text-xs whitespace-nowrap">{String(r.results.task_key ?? '—')}</td>
-                <td>
-                  <span
-                    className={
-                      r.status === 'failed'
-                        ? 'text-red-700 dark:text-red-400'
-                        : 'text-emerald-700 dark:text-emerald-400'
-                    }
-                  >
-                    {r.status === 'success' && !r.finished_at ? 'sending…' : r.status}
-                  </span>
-                  {r.error && (
-                    <span className="block text-xs text-slate-600 dark:text-slate-400">{r.error}</span>
-                  )}
-                </td>
-                <td className="text-right">
-                  {r.status === 'failed' && (
-                    <GhostButton
-                      aria-label={`Retry run of ${r.rule_name}`}
-                      disabled={retry.isPending}
-                      onClick={() => retry.mutate(r.id)}
-                    >
-                      Retry
-                    </GhostButton>
-                  )}
-                </td>
+        <ScrollArea label="Run history">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-slate-600 dark:text-slate-400">
+              <tr>
+                <th className="py-1 font-medium">When</th>
+                <th className="font-medium">Rule</th>
+                <th className="font-medium">Task</th>
+                <th className="font-medium">Result</th>
+                <th />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {runs.data.map((r) => (
+                <tr key={r.id}>
+                  <td className="py-1.5 whitespace-nowrap">{new Date(r.started_at).toLocaleString()}</td>
+                  <td>{r.rule_name}</td>
+                  <td className="font-mono text-xs whitespace-nowrap">{String(r.results.task_key ?? '—')}</td>
+                  <td>
+                    <span
+                      className={
+                        r.status === 'failed'
+                          ? 'text-red-700 dark:text-red-400'
+                          : 'text-emerald-700 dark:text-emerald-400'
+                      }
+                    >
+                      {r.status === 'success' && !r.finished_at ? 'sending…' : r.status}
+                    </span>
+                    {r.error && (
+                      <span className="block text-xs text-slate-600 dark:text-slate-400">{r.error}</span>
+                    )}
+                  </td>
+                  <td className="text-right">
+                    {r.status === 'failed' && (
+                      <GhostButton
+                        aria-label={`Retry run of ${r.rule_name}`}
+                        disabled={retry.isPending}
+                        onClick={() => retry.mutate(r.id)}
+                      >
+                        Retry
+                      </GhostButton>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </ScrollArea>
       )}
       <ErrorText error={retry.error} />
     </section>

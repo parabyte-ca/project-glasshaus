@@ -74,7 +74,7 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
         id: 'ask',
         label: `Ask: “${text.trim()}”`,
         hint: 'AI turns your question into task filters',
-        group: 'Assistant',
+        group: 'AI',
         run: () => ask.mutate(text.trim()),
       });
     }
@@ -83,7 +83,7 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
         id: 'ask-reports',
         label: `Ask reports: “${text.trim()}”`,
         hint: 'AI answers from a report run with your access',
-        group: 'Assistant',
+        group: 'AI',
         run: go(`/reports?${new URLSearchParams({ ask: text.trim() }).toString()}`),
       });
     }
@@ -100,12 +100,22 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
           run: go(`/projects/${p.key}`),
         });
       }
+      // Typed on purpose ("assistant", "digest", or the project's name): not in the default list.
+      if (needle && match(`${p.key} ${p.name} project assistant digests suggestions`)) {
+        out.push({
+          id: `pa-${p.id}`,
+          label: `${p.name}: project assistant`,
+          hint: 'digests and suggestions',
+          group: 'Projects',
+          run: go(`/projects/${p.key}/assistant`),
+        });
+      }
     }
-    const pages: [string, string, string?][] = Object.entries(GO_TO).map(([key, [to, label]]) => [
-      to,
-      label,
-      `g ${key}`,
-    ]);
+    const pages: [string, string, string?][] = Object.entries(GO_TO)
+      // My team is for managers (people with reports in the directory).
+      .filter(([, [to]]) => to !== '/team' || (user.direct_reports ?? 0) > 0)
+      .map(([key, [to, label]]): [string, string, string] => [to, label, `g ${key}`]);
+    pages.push(['/about', 'About, privacy and source code']);
     if (user.org_role === 'owner' || user.org_role === 'admin') pages.push(['/admin', 'Admin']);
     for (const [to, label, hint] of pages) {
       if (match(label))
@@ -240,7 +250,9 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
           );
         })}
       </ul>
-      {items.length === 0 && <p className="text-sm text-slate-600 dark:text-slate-400">No matches.</p>}
+      <p role="status" className="text-sm text-slate-600 dark:text-slate-400">
+        {tasks.isFetching ? 'Searching tasks…' : items.length === 0 ? 'No matches.' : ''}
+      </p>
     </Dialog>
   );
 }

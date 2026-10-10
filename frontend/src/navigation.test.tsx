@@ -36,11 +36,12 @@ describe('pages', () => {
     mockApi([...baseRoutes, signedIn, tasks([task(1)])]);
     renderAt('/projects/WEB');
     await screen.findByText('Task 1');
-    expect(document.title).toBe('Website · Glasshaus');
+    // The title is set in an effect, which can run after the page's first paint.
+    await waitFor(() => expect(document.title).toBe('Website · Glasshaus'));
     window.history.pushState({}, '', '/nowhere');
     window.dispatchEvent(new PopStateEvent('popstate'));
     expect(await screen.findByRole('heading', { name: 'Not found' })).toBeInTheDocument();
-    expect(document.title).toBe('Not found · Glasshaus');
+    await waitFor(() => expect(document.title).toBe('Not found · Glasshaus'));
   });
 
   it('says a missing project was not found instead of loading forever', async () => {

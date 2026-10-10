@@ -5,6 +5,8 @@ import { fields, statuses, task, user } from '../test/mockApi';
 import type { CustomField, Status, Task, User } from '../api/client';
 import { formatValue, groupTasks, patchForGroup, positionBetween } from './grouping';
 import { triggerLabel } from './automation';
+import { plainStatus } from '../api/client';
+import { rescueFocus } from './focus';
 import { niceScale } from './chartScale';
 import { currentQuarter, formatMinutes, hours, mondayOf, parseDuration } from './format';
 import { InvalidationBatcher, PATCH_LIMIT, keysFor, patchable } from './realtime';
@@ -225,5 +227,42 @@ describe('chart scale', () => {
     expect(niceScale(3)).toEqual({ max: 4, step: 1 });
     expect(niceScale(0)).toEqual({ max: 4, step: 1 });
     expect(niceScale(130)).toEqual({ max: 200, step: 50 });
+  });
+});
+
+describe('plainStatus', () => {
+  it('says what happened in plain words, not status codes', () => {
+    expect(plainStatus(0)).toMatch(/Can't reach Glasshaus/);
+    expect(plainStatus(429)).toMatch(/Too many requests/);
+    for (const code of [502, 503, 504]) expect(plainStatus(code)).toMatch(/unavailable right now/);
+    expect(plainStatus(500)).toMatch(/went wrong on the server/);
+    expect(plainStatus(403)).toMatch(/permission/);
+    expect(plainStatus(404)).toMatch(/couldn't be found/);
+  });
+});
+
+describe('rescueFocus', () => {
+  it('moves focus to the next control in the list when the focused one is removed', async () => {
+    document.body.innerHTML =
+      '<section><h2>Queue</h2><ul><li id="a"><button>Approve A</button></li><li><button>Approve B</button></li></ul></section>';
+    const first = document.querySelector<HTMLButtonElement>('#a button')!;
+    first.focus();
+    rescueFocus(first);
+    document.getElementById('a')!.remove();
+    first.blur(); // jsdom keeps focus on a removed element; browsers drop it to <body>
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.activeElement).toHaveTextContent('Approve B');
+  });
+
+  it('falls back to the heading when nothing focusable is left', async () => {
+    document.body.innerHTML =
+      '<section><h2>Queue</h2><ul><li id="a"><button>Approve A</button></li></ul></section>';
+    const only = document.querySelector<HTMLButtonElement>('#a button')!;
+    only.focus();
+    rescueFocus(only);
+    document.getElementById('a')!.remove();
+    only.blur();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.activeElement?.tagName).toBe('H2');
   });
 });

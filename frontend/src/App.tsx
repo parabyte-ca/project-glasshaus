@@ -1,5 +1,5 @@
-import { lazy, Suspense, type ReactNode } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router';
+import { lazy, Suspense, useState, type ReactNode } from 'react';
+import { createBrowserRouter, Route, RouterProvider, Routes } from 'react-router';
 
 import { AuthProvider } from './auth/AuthContext';
 import { ConfirmProvider } from './components/Confirm';
@@ -40,9 +40,9 @@ function Lazy({ children }: { children: ReactNode }) {
   return <Suspense fallback={<p role="status">Loading…</p>}>{children}</Suspense>;
 }
 
-export default function App() {
+function Root() {
   return (
-    <BrowserRouter>
+    <>
       <AuthProvider>
         <ConfirmProvider>
           <Routes>
@@ -192,6 +192,13 @@ export default function App() {
           <Toaster />
         </ConfirmProvider>
       </AuthProvider>
-    </BrowserRouter>
+    </>
   );
+}
+
+export default function App() {
+  // A data router (one splat route around the routes above) so pages can warn before leaving with
+  // unsaved changes (useBlocker). Created once per mount, from the address the page opened at.
+  const [router] = useState(() => createBrowserRouter([{ path: '*', element: <Root /> }]));
+  return <RouterProvider router={router} />;
 }

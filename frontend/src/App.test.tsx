@@ -1380,7 +1380,7 @@ describe('AI assistant', () => {
     ]);
     renderAt('/projects/WEB');
     await screen.findByLabelText('New task title');
-    expect(screen.queryByRole('button', { name: 'Assistant' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'AI tools' })).not.toBeInTheDocument();
   });
 
   it('drafts tasks and adds the chosen ones', async () => {
@@ -1410,7 +1410,7 @@ describe('AI assistant', () => {
       { method: 'POST', path: '/api/v1/tasks', status: 201, body: task(9) },
     ]);
     renderAt('/projects/WEB');
-    await userEvent.click(await screen.findByRole('button', { name: 'Assistant' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'AI tools' }));
     await userEvent.click(await screen.findByRole('tab', { name: 'Draft tasks' }));
     await userEvent.type(screen.getByLabelText('What needs doing?'), 'Move hosting');
     await userEvent.click(screen.getByRole('button', { name: 'Draft tasks' }));
@@ -1465,7 +1465,7 @@ describe('AI assistant', () => {
     await userEvent.click(await screen.findByLabelText('Turn on the AI assistant for this organization'));
     await userEvent.click(screen.getByLabelText(/Risk flags/));
     await userEvent.click(screen.getByRole('button', { name: 'Save AI settings' }));
-    expect(await screen.findByText('Saved')).toBeInTheDocument();
+    expect(await screen.findByText('AI settings saved.')).toBeInTheDocument();
     const patch = calls.find((c) => c.method === 'PATCH')!;
     expect(await patch.json()).toEqual({
       ai_enabled: true,

@@ -233,7 +233,8 @@ describe('task drawer edits', () => {
     const box = await within(dialog).findByLabelText('Add a comment');
     await userEvent.type(box, 'Important finding');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Comment' }));
-    expect(await within(dialog).findByText('try again')).toBeInTheDocument();
+    // A 503 is explained in plain words, not with the server's wording.
+    expect(await within(dialog).findByText(/unavailable right now/)).toBeInTheDocument();
     expect(box).toHaveValue('Important finding');
   });
 });

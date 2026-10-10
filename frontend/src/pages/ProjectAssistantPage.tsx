@@ -18,6 +18,7 @@ import {
 } from '../components/ui';
 import { WEEKDAYS } from '../lib/automation';
 import { useConfirm } from '../lib/confirm';
+import { useUnsavedGuard } from '../lib/unsaved';
 import { usePageTitle } from '../lib/pageTitle';
 import { toast } from '../lib/toast';
 import { useProject } from '../lib/useProject';
@@ -85,7 +86,7 @@ export function ProjectAssistantPage() {
   const [params, setParams] = useSearchParams();
   const { project, users } = useProject(projectKey);
   const projectId = project.data?.id ?? '';
-  usePageTitle(project.data ? `Digests · ${project.data.name}` : 'Digests');
+  usePageTitle(project.data ? `Project assistant · ${project.data.name}` : 'Project assistant');
   const path = { params: { path: { project_id: projectId } } };
   const status = useQuery({
     queryKey: ['assistant', projectId],
@@ -121,7 +122,7 @@ export function ProjectAssistantPage() {
         <Link to={`/projects/${projectKey}`} className={`text-sm ${linkClass}`}>
           ← {project.data.name}
         </Link>
-        <h1 className="text-2xl font-bold">Digests</h1>
+        <h1 className="text-2xl font-bold">Project assistant</h1>
         <p className="text-sm text-slate-600 dark:text-slate-400">
           The project assistant writes a daily stand-up digest for everyone on the project and a weekly status
           draft for its admins. It only reads the project; it never changes anything.
@@ -360,6 +361,7 @@ function AssistantSettings({
   const confirm = useConfirm();
   const saved = status.settings;
   const [draft, setDraft] = useState<Settings | null>(null);
+  useUnsavedGuard(draft !== null);
   const v: Settings = draft ?? saved ?? defaults();
   const set = (patch: Partial<Settings>) => setDraft({ ...v, ...patch });
   const path = { params: { path: { project_id: projectId } } };
@@ -420,7 +422,7 @@ function AssistantSettings({
         {!status.ai && (
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
             AI write-ups are off, so digests list the facts only. An organization admin can allow “Project
-            assistant” under Admin › AI assistant.
+            assistant” under Admin › AI.
           </p>
         )}
         {saved?.last_error && (
@@ -566,7 +568,7 @@ function AssistantSettings({
         ) : (
           <p className="text-sm text-slate-600 dark:text-slate-400">
             Everything waits for approval. An organization admin can let projects have follow-ups posted
-            automatically (Admin › AI assistant).
+            automatically (Admin › AI).
           </p>
         )}
         <fieldset className="flex flex-wrap items-end gap-3">
@@ -609,11 +611,21 @@ function AssistantSettings({
           </Button>
           {saved?.enabled && (
             <>
-              <GhostButton type="button" disabled={run.isPending} onClick={() => run.mutate('digest')}>
-                Write a digest now
+              <GhostButton
+                type="button"
+                disabled={run.isPending}
+                aria-busy={run.isPending && run.variables === 'digest'}
+                onClick={() => run.mutate('digest')}
+              >
+                {run.isPending && run.variables === 'digest' ? 'Writing…' : 'Write a digest now'}
               </GhostButton>
-              <GhostButton type="button" disabled={run.isPending} onClick={() => run.mutate('weekly')}>
-                Write a weekly draft now
+              <GhostButton
+                type="button"
+                disabled={run.isPending}
+                aria-busy={run.isPending && run.variables === 'weekly'}
+                onClick={() => run.mutate('weekly')}
+              >
+                {run.isPending && run.variables === 'weekly' ? 'Writing…' : 'Write a weekly draft now'}
               </GhostButton>
             </>
           )}

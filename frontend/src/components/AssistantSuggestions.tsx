@@ -3,6 +3,8 @@ import { useId, useState } from 'react';
 import { Link } from 'react-router';
 
 import { api, unwrap, type Schemas, type User } from '../api/client';
+import { rescueFocus } from '../lib/focus';
+import { PRIORITY_LABEL } from '../lib/labels';
 import { toast } from '../lib/toast';
 import { Button, ErrorText, Field, GhostButton, Input, linkClass, Select } from './ui';
 
@@ -196,7 +198,7 @@ function SuggestionCard({
             >
               {(['none', 'low', 'medium', 'high', 'urgent'] as const).map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {PRIORITY_LABEL[p]}
                 </option>
               ))}
             </Select>
@@ -237,7 +239,10 @@ function SuggestionCard({
             disabled={
               busy || (s.kind === 'task' && !task?.title.trim()) || (s.kind === 'comment' && !text.trim())
             }
-            onClick={() => approve.mutate()}
+            onClick={(e) => {
+              rescueFocus(e.currentTarget);
+              approve.mutate();
+            }}
             aria-describedby={`${id}-h`}
           >
             Approve
@@ -245,7 +250,10 @@ function SuggestionCard({
           <GhostButton
             type="button"
             disabled={busy}
-            onClick={() => dismiss.mutate()}
+            onClick={(e) => {
+              rescueFocus(e.currentTarget);
+              dismiss.mutate();
+            }}
             aria-describedby={`${id}-h`}
           >
             Dismiss
@@ -290,12 +298,14 @@ function Notes({ projectId }: { projectId: string }) {
           value={text}
           maxLength={20000}
           onChange={(e) => setText(e.target.value)}
-          placeholder={
-            'Paste notes here. Without AI, lines starting with "- [ ]", "TODO:" or "Action:" become tasks.'
-          }
+          aria-describedby={`${id}-nh`}
+          placeholder="Paste notes here."
           className="rounded-md border border-slate-300 bg-white p-2 text-sm dark:border-slate-700 dark:bg-slate-900"
         />
       </Field>
+      <p id={`${id}-nh`} className="text-xs text-slate-600 dark:text-slate-400">
+        Without AI, lines starting with “- [ ]”, “TODO:” or “Action:” become tasks.
+      </p>
       <div>
         <GhostButton type="submit" disabled={propose.isPending || !text.trim()}>
           {propose.isPending ? 'Reading…' : 'Propose tasks'}

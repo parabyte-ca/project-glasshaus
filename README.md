@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.23.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
+> **Status:** v0.24.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -258,14 +258,14 @@ The security baseline (OWASP ASVS L2) and the operator checklist are in [docs/se
 
 Optional and **off by default**. Set a provider on the server — Claude (`GLASSHAUS_AI_PROVIDER=anthropic`),
 or Azure OpenAI or a local model through any OpenAI-compatible server such as Ollama (`openai`) — then an
-admin turns it on in **Admin → AI assistant**. People then get:
+admin turns it on in **Admin → AI**. People then get:
 
-- **Assistant** on each project: a written status update, task drafts from a short brief (added only when
+- **AI tools** on each project: a written status update, task drafts from a short brief (added only when
   you choose), and risk flags with evidence and a next step.
 - **Ask in plain words** in the command palette (Ctrl K / ⌘ K): "my overdue tasks in WEB" becomes task
   filters, run with your permissions. Only the question, project keys and names are sent.
 
-- **Project assistant** (project **Digests** page): a daily stand-up digest for everyone on the project
+- **Project assistant** (**Project assistant** page): a daily stand-up digest for everyone on the project
   (overdue, due, stale and unassigned work, with an AI summary and focus list when allowed) and a weekly
   status draft for its admins, by notification, email or Slack/Teams. It also suggests follow-up
   comments, new due dates and owners, and turns meeting notes into tasks; nothing changes until a project
@@ -426,6 +426,7 @@ builds, scans and publishes multi-arch (amd64/arm64) images to GHCR.
 | 17 | 0.21.0 | Reporting lines from Entra ID (SCIM and Microsoft Graph) and the "My team" page for managers | ✅ |
 | 18 | 0.22.0 | Privacy and compliance: erase and export a person, sealed audit log, encrypted backups, data minimisation, source and licence notices | ✅ |
 | 19 | 0.23.0 | Performance at scale: no N+1 queries on list pages, aggregate health and workload, lighter live updates, indexed search and activity | ✅ |
+| 20 | 0.24.0 | Usability: plain error messages, undo, unsaved-changes guard, consistent AI names, phone tap targets, focus and screen-reader fixes | ✅ |
 
 ## Licence
 

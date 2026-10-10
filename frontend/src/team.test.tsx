@@ -99,6 +99,27 @@ describe('My team', () => {
     expect(dialog).toHaveTextContent('1 more in projects you can’t open.');
   });
 
+  it('is on the home page and in the command palette, next to each project assistant', async () => {
+    mockApi([
+      ...baseRoutes,
+      manager,
+      { method: 'GET', path: '/api/v1/tasks', body: { items: [], next_cursor: null } },
+    ]);
+    renderAt('/');
+    await screen.findByRole('heading', { name: 'Projects', level: 1 });
+    const home = screen.getByRole('main');
+    expect(within(home).getByRole('link', { name: 'My team' })).toHaveAttribute('href', '/team');
+    await userEvent.keyboard('{Control>}k{/Control}');
+    const dialog = await screen.findByRole('dialog', { name: 'Command palette' });
+    await userEvent.type(within(dialog).getByRole('combobox'), 'team');
+    expect(await within(dialog).findByRole('option', { name: /My team/ })).toBeInTheDocument();
+    await userEvent.clear(within(dialog).getByRole('combobox'));
+    await userEvent.type(within(dialog).getByRole('combobox'), 'assistant');
+    expect(
+      await within(dialog).findByRole('option', { name: /Website: project assistant/ }),
+    ).toBeInTheDocument();
+  });
+
   it('is not in the menu for people without reports', async () => {
     mockApi([...baseRoutes, { method: 'GET', path: '/api/v1/users/me', body: user }]);
     renderAt('/my');

@@ -20,6 +20,18 @@ export function Toaster() {
           }`}
         >
           <span>{t.message}</span>
+          {t.action && (
+            <button
+              type="button"
+              onClick={() => {
+                dismissToast(t.id);
+                t.action?.run();
+              }}
+              className="min-h-8 rounded px-2 font-semibold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-current"
+            >
+              {t.action.label}
+            </button>
+          )}
           <button
             type="button"
             aria-label="Dismiss message"

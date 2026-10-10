@@ -46,7 +46,7 @@ test('a manager sees their team from SCIM', async ({ page, browser, baseURL, pla
   const context = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
   const mona = await context.newPage();
   await signIn(mona, managerEmail, password);
-  await mona.getByRole('link', { name: 'My team' }).click();
+  await mona.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'My team' }).click();
   await expect(mona.getByRole('heading', { name: 'My team', level: 1 })).toBeVisible();
   const card = mona.getByRole('listitem').filter({ has: mona.getByRole('heading', { name: 'Rita Report' }) });
   await expect(card).toContainText('Designer · Studio');

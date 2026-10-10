@@ -79,13 +79,17 @@ export function NotificationsBell() {
         aria-expanded={open}
         aria-controls={open ? popoverId : undefined}
         onClick={() => setOpen((o) => !o)}
+        aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
       >
-        Notifications
+        {/* On phones the word gives way to a bell, so the header fits at 375px. */}
+        <span aria-hidden className="sm:hidden">
+          🔔
+        </span>
+        <span aria-hidden className="hidden sm:inline">
+          Notifications
+        </span>
         {unread > 0 && (
-          <span
-            className="ml-1.5 rounded-full bg-sky-700 px-1.5 text-xs text-white"
-            aria-label={`${unread} unread`}
-          >
+          <span aria-hidden className="ml-1.5 rounded-full bg-sky-700 px-1.5 text-xs text-white">
             {unread}
           </span>
         )}

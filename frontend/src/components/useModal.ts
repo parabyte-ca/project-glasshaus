@@ -1,5 +1,7 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
+import { rescueFocus } from '../lib/focus';
+
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -60,6 +62,10 @@ export function useModal(ref: RefObject<HTMLElement | null>, onClose: () => void
     if (node && !node.contains(document.activeElement)) {
       (node.querySelector<HTMLElement>('[autofocus], [data-autofocus]') ?? node).focus();
     }
-    return () => previous?.focus?.();
+    return () => {
+      previous?.focus?.();
+      // If what opened the dialog goes away (a confirmed delete removes its row), don't drop focus.
+      rescueFocus(previous);
+    };
   }, [ref]);
 }

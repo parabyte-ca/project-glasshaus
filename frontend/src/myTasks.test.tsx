@@ -73,6 +73,24 @@ describe('my tasks', () => {
     expect(await screen.findByText('Done: WEB-2')).toBeInTheDocument();
   });
 
+  it('removes a ticked task at once and brings it back with Undo', async () => {
+    const { calls } = mockApi([
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/tasks', body: { items: mine, next_cursor: null } },
+      { method: 'POST', path: '/api/v1/tasks/t3/complete', body: { ...mine[2], status: statuses[1] } },
+      { method: 'POST', path: '/api/v1/tasks/t3/reopen', body: mine[2] },
+    ]);
+    renderAt('/my');
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Mark WEB-3 done' }));
+    expect(screen.queryByText('This week')).not.toBeInTheDocument();
+    // The newest toast's Undo (an earlier test's toast may still be on screen).
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Undo' })).at(-1)!);
+    await waitFor(() => expect(calls.some((c) => c.url.endsWith('/tasks/t3/reopen'))).toBe(true));
+    expect(await screen.findByText('This week')).toBeInTheDocument();
+    expect(await screen.findByText('WEB-3 is open again')).toBeInTheDocument();
+  });
+
   it('opens from the copy on this device when offline and syncs ticks when back online', async () => {
     rememberUser(user as never);
     saveMyTasks('u1', mine as never);

@@ -20,6 +20,7 @@ import { ReportView } from '../components/ReportView';
 import { Button, ErrorText, Field, GhostButton, Input, linkClass, Select } from '../components/ui';
 import { useAiStatus } from '../lib/ai';
 import { useConfirm } from '../lib/confirm';
+import { useUnsavedGuard } from '../lib/unsaved';
 import { usePageTitle } from '../lib/pageTitle';
 import {
   CHARTS,
@@ -321,6 +322,10 @@ function ReportBuilder({ report }: { report?: SavedReport }) {
   const [name, setName] = useState(report?.name ?? template?.name ?? handed?.name ?? '');
   const [description, setDescription] = useState(report?.description ?? template?.description ?? '');
   const [shared, setShared] = useState(report?.shared ?? false);
+  const current = JSON.stringify({ definition, name, description, shared });
+  const [savedAs, setSavedAs] = useState(() => (report ? current : null));
+  // A new report counts as changed once anything is entered; a saved one once it differs.
+  const guard = useUnsavedGuard(savedAs === null ? name.trim() !== '' : current !== savedAs);
   usePageTitle(report ? report.name : 'New report');
   const ids = useId();
 
@@ -374,7 +379,11 @@ function ReportBuilder({ report }: { report?: SavedReport }) {
       void queryClient.invalidateQueries({ queryKey: ['reports'] });
       queryClient.setQueryData(['report', saved.id], saved);
       toast(report && canEdit ? 'Report saved' : 'Report created');
-      if (!report || !canEdit) void navigate(`/reports/${saved.id}`, { replace: !report });
+      setSavedAs(current);
+      if (!report || !canEdit) {
+        guard.allowNext();
+        void navigate(`/reports/${saved.id}`, { replace: !report });
+      }
     },
   });
   const remove = useMutation({
@@ -383,6 +392,7 @@ function ReportBuilder({ report }: { report?: SavedReport }) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['reports'] });
       toast('Report deleted');
+      guard.allowNext();
       void navigate('/reports');
     },
   });

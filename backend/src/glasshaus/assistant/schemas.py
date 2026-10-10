@@ -81,7 +81,7 @@ class AssistantStatus(Schema):
     ai: bool = Field(description="The organization allows AI write-ups by the assistant (Admin > AI).")
     trusted_allowed: list[Literal["comment"]] = Field(
         default_factory=list,
-        description="What the organization lets projects trust the assistant with (Admin > AI assistant).",
+        description="What the organization lets projects trust the assistant with (Admin > AI).",
     )
     email_available: bool
     channels: list[ChannelOption] = Field(
