@@ -9,6 +9,8 @@ from glasshaus import backups
 from glasshaus.api.deps import Ctx
 from glasshaus.governance import service as governance
 from glasshaus.governance.service import OrgSettingsRead, OrgSettingsUpdate, PasswordReset
+from glasshaus.people import privacy
+from glasshaus.people.privacy import EraseRequest, EraseResult
 from glasshaus.scim import service as scim
 from glasshaus.scim.service import ScimTokenCreate, ScimTokenCreated, ScimTokenRead
 
@@ -41,11 +43,7 @@ async def backup_status(ctx: Ctx) -> backups.BackupStatus:
     responses={200: {"content": {"application/zip": {}}, "description": "Zip archive"}},
 )
 async def export(ctx: Ctx) -> Response:
-    data = await governance.export_organization(ctx)
-    name = f"glasshaus-export-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.zip"
-    return Response(
-        data, media_type="application/zip", headers={"Content-Disposition": f'attachment; filename="{name}"'}
-    )
+    return _zip(await governance.export_organization(ctx), "glasshaus-export")
 
 
 @router.post(
@@ -66,6 +64,24 @@ async def reset_password(ctx: Ctx, user_id: uuid.UUID, data: PasswordReset) -> R
 async def revoke_sessions(ctx: Ctx, user_id: uuid.UUID) -> Response:
     await governance.sign_out_everywhere(ctx, user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
+    "/users/{user_id}/export",
+    response_class=Response,
+    summary="Download everything held about one person (a zip of JSON Lines files; audited)",
+)
+async def export_person(ctx: Ctx, user_id: uuid.UUID) -> Response:
+    return _zip(await privacy.export_person(ctx, user_id), f"glasshaus-person-{user_id.hex[:8]}")
+
+
+@router.post(
+    "/users/{user_id}/erase",
+    response_model=EraseResult,
+    summary="Erase a person: keep their work, remove their name, email, sign-ins and comment text",
+)
+async def erase_person(ctx: Ctx, user_id: uuid.UUID, data: EraseRequest) -> EraseResult:
+    return await privacy.erase_person(ctx, user_id, data)
 
 
 @router.get("/scim-tokens", response_model=list[ScimTokenRead], summary="SCIM provisioning tokens")
@@ -89,3 +105,12 @@ async def create_scim_token(ctx: Ctx, data: ScimTokenCreate) -> ScimTokenCreated
 async def revoke_scim_token(ctx: Ctx, token_id: uuid.UUID) -> Response:
     await scim.revoke_token(ctx, token_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _zip(data: bytes, stem: str) -> Response:
+    name = f"{stem}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.zip"
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store"},
+    )

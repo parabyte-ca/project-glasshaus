@@ -17,7 +17,17 @@ from glasshaus.core.rbac import OrgRole, Scope
 from glasshaus.db import apply_tenant, system_session
 from glasshaus.governance.service import apply_retention
 from glasshaus.tasks.models import Task
-from tests.factories import PASSWORD, World, auth, create_task, events_for, make_user, make_world, token_for
+from tests.factories import (
+    PASSWORD,
+    World,
+    auth,
+    backdate_audit,
+    create_task,
+    events_for,
+    make_user,
+    make_world,
+    token_for,
+)
 
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 
@@ -59,7 +69,7 @@ async def test_retention_purges_old_rows_only(client: AsyncClient) -> None:
     world = await make_world()
     await client.patch(
         "/api/v1/admin/settings",
-        json={"audit_retention_days": 10, "notification_retention_days": 5, "deleted_task_retention_days": 7},
+        json={"audit_retention_days": 30, "notification_retention_days": 5, "deleted_task_retention_days": 7},
         headers=world.headers,
     )
     old, recent = (
@@ -77,13 +87,16 @@ async def test_retention_purges_old_rows_only(client: AsyncClient) -> None:
         await session.execute(update(Task).where(Task.id == uuid.UUID(old["id"])).values(deleted_at=long_ago))
         session.add_all(
             [
-                AuditEntry(tenant_id=world.tenant.id, actor_method="system", action="old", outcome="ok",
-                           detail={}, created_at=long_ago),
-                AuditEntry(tenant_id=world.tenant.id, actor_method="system", action="new", outcome="ok", detail={}),
+                AuditEntry(tenant_id=world.tenant.id, actor_method="system", action="old", outcome="ok", detail={}),
                 Notification(tenant_id=world.tenant.id, user_id=world.owner.id, kind="mention", title="old",
                              event_id=uuid.uuid4(), created_at=long_ago),
             ]
         )  # fmt: skip
+    # The database stamps audit times; only its owner can backdate one (as time passing would).
+    await backdate_audit(world, "old", long_ago)
+    async with system_session() as session:
+        await apply_tenant(session, world.tenant.id)
+        session.add(AuditEntry(tenant_id=world.tenant.id, actor_method="system", action="new", outcome="ok"))
     result = await apply_retention()
     assert result.audit >= 1 and result.tasks >= 1 and result.notifications >= 1
     assert [e.action for e in await audit(world, "old")] == []
@@ -190,5 +203,5 @@ async def test_read_only_tokens_cannot_administer(client: AsyncClient) -> None:
     world = await make_world()
     admin = await make_user(world.tenant, OrgRole.ADMIN)
     read_only = auth(await token_for(admin, (Scope.READ,)))
-    r = await client.patch("/api/v1/admin/settings", json={"audit_retention_days": 1}, headers=read_only)
+    r = await client.patch("/api/v1/admin/settings", json={"audit_retention_days": 60}, headers=read_only)
     assert r.status_code == 403

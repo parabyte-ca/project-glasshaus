@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from glasshaus.automation.webhooks import Delivery
+from glasshaus.collab.models import Comment
 from glasshaus.config import get_settings
 from glasshaus.core.consumers import handles
 from glasshaus.integrations.models import Integration, IntegrationDelivery
@@ -101,7 +102,12 @@ async def describe(session: AsyncSession, event: dict[str, Any]) -> dict[str, An
         )
     elif t == "comment.created":
         out["text"] = f"{who} commented on {subject}"
-        out["quote"] = (data.get("comment") or {}).get("body")
+        comment_id = (data.get("comment") or {}).get("id")
+        if comment_id:  # read now: event payloads don't keep comment text
+            body = await session.scalar(
+                select(Comment.body).where(Comment.id == uuid.UUID(comment_id), Comment.deleted_at.is_(None))
+            )
+            out["quote"] = body
     elif t == "task.deleted":
         out["text"] = f"{who} deleted {subject or data.get('title', 'a task')}"
     elif t == "task.restored":

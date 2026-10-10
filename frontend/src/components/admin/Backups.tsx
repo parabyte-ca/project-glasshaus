@@ -76,6 +76,12 @@ export function Backups() {
                   : 'Turned off'}
             </dd>
           </dl>
+          {s.latest[0] && !s.latest[0].encrypted && (
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              The newest backup is not encrypted. Run <code>./update.sh</code> to create a backup key
+              (GLASSHAUS_BACKUP_KEY in .env), then keep a copy of the key somewhere safe.
+            </p>
+          )}
           {s.latest.length > 0 && (
             <table className={`${table} max-w-3xl`}>
               <caption className="sr-only">Newest backups</caption>
@@ -87,6 +93,9 @@ export function Backups() {
                   <th scope="col" className={th}>
                     Saved
                   </th>
+                  <th scope="col" className={th}>
+                    Protection
+                  </th>
                   <th scope="col" className={`${th} text-right`}>
                     Size
                   </th>
@@ -97,6 +106,11 @@ export function Backups() {
                   <tr key={f.name}>
                     <td className={`${td} break-all`}>{f.name}</td>
                     <td className={td}>{dateTime(f.created_at)}</td>
+                    <td className={td}>
+                      {[f.encrypted ? 'Encrypted' : 'Not encrypted', f.checksum ? 'checksum' : null]
+                        .filter(Boolean)
+                        .join(', ')}
+                    </td>
                     <td className={`${td} text-right tabular-nums`}>{size(f.bytes)}</td>
                   </tr>
                 ))}

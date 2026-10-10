@@ -229,11 +229,22 @@ async def refresh(session: AsyncSession, refresh_token: str, *, user_agent: str,
 
 
 async def logout(session: AsyncSession, refresh_token: str) -> None:
-    await session.execute(
-        update(AuthSession)
-        .where(AuthSession.refresh_hash == security.sha256(refresh_token), AuthSession.revoked_at.is_(None))
-        .values(revoked_at=datetime.now(UTC))
-    )
+    from glasshaus.audit.service import record_raw
+
+    ended = (
+        await session.execute(
+            update(AuthSession)
+            .where(
+                AuthSession.refresh_hash == security.sha256(refresh_token), AuthSession.revoked_at.is_(None)
+            )
+            .values(revoked_at=datetime.now(UTC))
+            .returning(AuthSession.tenant_id, AuthSession.user_id)
+        )
+    ).first()
+    if ended is not None:
+        await record_raw(
+            ended.tenant_id, "auth.logout", outcome="ok", actor_id=ended.user_id, method="session"
+        )
 
 
 async def actor_from_access_token(session: AsyncSession, token: str) -> Actor:
@@ -330,7 +341,12 @@ async def list_users(ctx: ServiceContext, *, q: str | None = None, limit: int = 
     if q:
         like = f"%{q.lower()}%"
         stmt = stmt.where(func.lower(User.name).like(like) | func.lower(User.email).like(like))
-    return [UserRead.model_validate(u) for u in (await ctx.session.scalars(stmt)).all()]
+    people = [UserRead.model_validate(u) for u in (await ctx.session.scalars(stmt)).all()]
+    if not ctx.actor.is_org_admin:
+        # When someone last signed in is account administration, not something colleagues need.
+        for person in people:
+            person.last_login_at = None
+    return people
 
 
 async def create_user(ctx: ServiceContext, data: UserCreate) -> UserRead:
@@ -364,6 +380,8 @@ async def update_user(ctx: ServiceContext, user_id: uuid.UUID, data: UserUpdate)
         raise NotFound("user not found")
     if is_assistant(user):
         raise InvalidInput("the project assistant account is managed by Glasshaus")
+    if user.erased_at is not None:
+        raise InvalidInput("this person was erased; add them again as a new person if they return")
     changes = data.model_dump(exclude_unset=True)
     if OrgRole.OWNER in (user.org_role, changes.get("org_role")) and ctx.actor.org_role != OrgRole.OWNER:
         raise PermissionDenied("only owners can change owners")

@@ -14,6 +14,7 @@ from urllib.parse import urlencode, urlsplit
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from glasshaus.audit import service as audit
 from glasshaus.core.context import Actor, ServiceContext
 from glasshaus.core.errors import InvalidInput, NotFound, PermissionDenied
 from glasshaus.core.rbac import Scope
@@ -126,11 +127,18 @@ async def decide(ctx: ServiceContext, request_id: str, decision: ConsentDecision
     params = req.params
     await ctx.session.delete(req)
     if not decision.approve:
+        await audit.record(ctx.actor, "oauth.consent", outcome="denied", detail={"client": client.client_id})
         return ConsentResult(redirect_to=_redirect(params, {"error": "access_denied"}))
     requested = _offerable(ctx, params.get("scopes") or DEFAULT_SCOPES)
     granted = decision.scopes if decision.scopes is not None else requested
     if not granted or set(granted) - set(requested):
         raise InvalidInput("choose at least one of the requested permissions")
+    await audit.record(
+        ctx.actor,
+        "oauth.consent",
+        outcome="ok",
+        detail={"client": client.client_id, "name": client.client_name, "scopes": sorted(granted)},
+    )
     code = new_secret()
     ctx.session.add(
         OAuthGrant(

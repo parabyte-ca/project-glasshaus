@@ -1,7 +1,6 @@
 """Every domain event becomes an audit entry (idempotent: the entry id is the event id)."""
 
 import uuid
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy.dialects.postgresql import insert
@@ -32,7 +31,7 @@ async def record_event(event: dict[str, Any]) -> None:
                 target=f"{event['aggregate_type']}:{event['aggregate_id']}"[:200],
                 outcome="ok",
                 detail=redact({"project_id": event.get("project_id"), "data": event.get("data")}),
-                created_at=datetime.fromisoformat(event["occurred_at"]),
+                # created_at is the time of recording (set by the database, keeping the chain in order).
             )
             .on_conflict_do_nothing(index_elements=["id"])
         )

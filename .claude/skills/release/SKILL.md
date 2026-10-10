@@ -44,10 +44,20 @@ One release per PR. Minor version for features, patch for fixes.
 - Scheduled per-person features (report emails, alerts) run as that person, move `next_run_at`
   before doing the work, and drop themselves when the person or their access is gone.
 - Ops scripts: `shellcheck` them; the backup container is POSIX `sh` (Alpine), the host scripts bash.
+- Three images ship: `glasshaus` (backend), `glasshaus-web`, `glasshaus-backup` (postgres + `age` built
+  from the pinned `AGE_VERSION` with `golang:1.27-alpine`, so Trivy sees a patched Go stdlib; the
+  upstream release binaries lag on Go fixes). New images go in the CI scan and release matrices and
+  in `update.sh --pull`. The image ends with a non-root `USER` (Trivy DS-0002).
+- The audit log is append-only and hash-chained by a database trigger: never write to `audit_log`
+  except by insert; tests that need old entries backdate them with `tests.factories.owner_session()`.
+- Personal data: new tables referencing users are picked up by the personal export automatically;
+  add them to `people.privacy.erase_person` when they hold credentials, devices or personal text.
 
 ## Cloud sandbox notes
 
 - No `rsync`: copy the tree with `git ls-files -co --exclude-standard -z | tar --null -T - -cf - | tar -xf - -C <dest>`.
 - Docker builds go through the agent proxy; its port changes per session (`echo $HTTPS_PROXY`), so
-  update the build args in the stack's `docker-compose.override.yml`.
+  update the build args in the stack's `docker-compose.override.yml` (it needs `backup: { build: *build }`
+  too). The proxy blocks Alpine's package mirror (proxy.golang.org works), and local Trivy cannot fetch
+  its database, so image scans are confirmed in CI.
 - Tag pushes are blocked from the sandbox; the owner pushes tags.

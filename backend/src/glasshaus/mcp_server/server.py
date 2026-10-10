@@ -76,8 +76,16 @@ def build_server() -> MCPServer:
 
     @server.tool(name="server_info", title="Server information")
     def server_info() -> dict[str, str]:
-        """Return the Glasshaus server name, version and build."""
-        return {"name": "Project Glasshaus", "version": __version__, "build": BUILD_SHA}
+        """Return the Glasshaus server name, version, build, licence and where its source code is."""
+        from glasshaus.config import get_settings
+
+        return {
+            "name": "Project Glasshaus",
+            "version": __version__,
+            "build": BUILD_SHA,
+            "license": "AGPL-3.0-only",
+            "source": get_settings().source_url,
+        }
 
     @server.custom_route("/healthz", methods=["GET"], include_in_schema=False)  # type: ignore[untyped-decorator]
     async def healthz(_: Request) -> JSONResponse:

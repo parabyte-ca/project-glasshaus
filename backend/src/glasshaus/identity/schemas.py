@@ -22,7 +22,8 @@ class UserRead(Schema):
     org_role: OrgRole
     is_active: bool
     created_at: datetime
-    last_login_at: datetime | None
+    last_login_at: datetime | None = Field(description="Shown to organization admins only.")
+    erased_at: datetime | None = Field(None, description="Set when an admin erased this person's data.")
     capacity_minutes: int = Field(description="Minutes available per working day (workload).")
     working_days: list[int] = Field(description="Worked weekdays, 0 = Monday.")
     manager_id: uuid.UUID | None = Field(None, description="Who this person reports to (from the directory).")

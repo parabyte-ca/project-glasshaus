@@ -86,8 +86,9 @@ main() {
   info "Upgrading ${prev_version} -> ${new_version}"
   set_env GLASSHAUS_VERSION "$new_version"
   set_env GLASSHAUS_BUILD_SHA "$(git rev-parse --short HEAD 2>/dev/null || echo dev)"
-  if [[ "$pull" == 1 ]]; then compose pull api web || rollback
+  if [[ "$pull" == 1 ]]; then compose pull api web backup || rollback
   else compose build || rollback; fi
+  ensure_backup_key  # 0.22: backups are encrypted from now on
 
   if [[ "$preflight" == 1 ]]; then
     if ! preflight_check "$backup"; then

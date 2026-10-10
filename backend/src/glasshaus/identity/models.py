@@ -58,6 +58,9 @@ class User(UUIDPk, TenantScoped, TimestampMixin, Base):
     manager_source: Mapped[str | None] = mapped_column(String(10))
     job_title: Mapped[str | None] = mapped_column(String(200))
     department: Mapped[str | None] = mapped_column(String(200))
+    # Set when an admin erased this person: name, email and personal data are gone; their work stays,
+    # attributed to "Former user" (glasshaus.people.privacy).
+    erased_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # First-run guidance this person has seen or dismissed (product tour, checklist, tips).
     onboarding: Mapped[dict[str, object]] = mapped_column(
         JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")

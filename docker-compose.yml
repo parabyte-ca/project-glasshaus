@@ -137,7 +137,13 @@ services:
     networks: [frontend]
 
   backup:
-    image: postgres:16-alpine
+    # postgres:16-alpine plus age, to encrypt dumps (./backup/Dockerfile).
+    image: ${GLASSHAUS_REGISTRY:-ghcr.io/parabyte-ca}/glasshaus-backup:${GLASSHAUS_VERSION:-latest}
+    build:
+      context: ./backup
+      args:
+        VERSION: ${GLASSHAUS_VERSION:-0.0.0}
+        BUILD_SHA: ${GLASSHAUS_BUILD_SHA:-dev}
     entrypoint: [/bin/sh, /scripts/backup-loop.sh]
     user: "${GLASSHAUS_BACKUP_UID:-1000}:${GLASSHAUS_BACKUP_GID:-1000}"
     environment:
@@ -148,6 +154,9 @@ services:
       BACKUP_INTERVAL_HOURS: ${GLASSHAUS_BACKUP_INTERVAL_HOURS:-24}
       BACKUP_RETENTION_DAYS: ${GLASSHAUS_BACKUP_RETENTION_DAYS:-14}
       BACKUP_DRILL_DAYS: ${GLASSHAUS_BACKUP_DRILL_DAYS:-7}
+      # age secret key: dumps are encrypted to it (setup.sh/update.sh generate it). Keep a copy off this
+      # host; encrypted backups cannot be restored without it.
+      BACKUP_KEY: ${GLASSHAUS_BACKUP_KEY:-}
     volumes:
       - ./scripts/backup-loop.sh:/scripts/backup-loop.sh:ro
       - ./scripts/restore-drill.sh:/scripts/restore-drill.sh:ro

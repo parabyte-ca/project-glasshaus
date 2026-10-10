@@ -129,6 +129,7 @@ jobs:
         include:
           - { name: glasshaus, context: backend }
           - { name: glasshaus-web, context: frontend }
+          - { name: glasshaus-backup, context: backup }
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3
@@ -170,6 +171,9 @@ jobs:
       - name: Backup and restore round-trip
         run: |
           dump="$(source scripts/lib.sh && backup_now ci)"
+          # setup.sh created a backup key: dumps are encrypted and checksummed.
+          [[ "$dump" == *.dump.age && -s "$dump.sha256" ]]
+          if grep -q 'PGDMP' "$dump"; then echo 'dump is not encrypted'; exit 1; fi
           scripts/restore.sh "$dump" --yes
       - name: Restore drill
         run: |

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
 
     secret_key: SecretStr = Field(default=SecretStr("change-me"), min_length=8)
     public_url: str = "http://localhost:8470"
+    # Where people using this server can get its source code (AGPL-3.0 section 13). Point it at your
+    # fork if you run a modified version.
+    source_url: str = "https://github.com/parabyte-ca/project-glasshaus"
     cors_origins: CsvList = Field(default_factory=list)
 
     database_url: str = "postgresql+asyncpg://glasshaus:glasshaus@localhost:5432/glasshaus"

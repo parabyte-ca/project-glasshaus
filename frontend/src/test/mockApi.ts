@@ -114,7 +114,13 @@ export const baseRoutes: Route[] = [
   {
     method: 'GET',
     path: '/api/v1/version',
-    body: { name: 'Project Glasshaus', version: '9.9.9', build: 'abc' },
+    body: {
+      name: 'Project Glasshaus',
+      version: '9.9.9',
+      build: 'abc',
+      license: 'AGPL-3.0-only',
+      source: 'https://github.com/parabyte-ca/project-glasshaus',
+    },
   },
   { method: 'GET', path: '/api/v1/projects', body: [project] },
   {

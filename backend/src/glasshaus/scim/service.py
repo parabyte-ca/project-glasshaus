@@ -277,7 +277,8 @@ async def _apply_extras(ctx: ServiceContext, user: User, body: dict[str, Any]) -
 
 
 async def list_users(ctx: ServiceContext, filter_: str | None, start: int, count: int) -> dict[str, Any]:
-    stmt = select(User).where(User.kind != ASSISTANT_KIND)  # the AI assistant is not provisioned
+    # The AI assistant is not provisioned, and erased people are gone.
+    stmt = select(User).where(User.kind != ASSISTANT_KIND, User.erased_at.is_(None))
     if filter_:
         m = FILTER.match(filter_)
         if not m:
@@ -299,7 +300,7 @@ async def list_users(ctx: ServiceContext, filter_: str | None, start: int, count
 
 async def get_user(ctx: ServiceContext, user_id: str) -> dict[str, Any]:
     user = await ctx.session.get(User, _uuid(user_id))
-    if user is None or is_assistant(user):
+    if user is None or is_assistant(user) or user.erased_at is not None:  # erased people are gone
         raise ScimError(404, "user not found")
     return user_resource(user)
 
@@ -385,7 +386,7 @@ async def _set_active(ctx: ServiceContext, user: User, active: bool) -> None:
 
 async def replace_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) -> dict[str, Any]:
     user = await ctx.session.get(User, _uuid(user_id))
-    if user is None or is_assistant(user):
+    if user is None or is_assistant(user) or user.erased_at is not None:  # erased people are gone
         raise ScimError(404, "user not found")
     email = _email_of(body)
     if "externalId" in body:
@@ -401,7 +402,7 @@ async def replace_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) 
 
 async def patch_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) -> dict[str, Any]:
     user = await ctx.session.get(User, _uuid(user_id))
-    if user is None or is_assistant(user):
+    if user is None or is_assistant(user) or user.erased_at is not None:  # erased people are gone
         raise ScimError(404, "user not found")
     for op in body.get("Operations") or []:
         kind = str(op.get("op", "")).lower()
@@ -446,7 +447,7 @@ async def patch_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) ->
 
 async def delete_user(ctx: ServiceContext, user_id: str) -> None:
     user = await ctx.session.get(User, _uuid(user_id))
-    if user is None or is_assistant(user):
+    if user is None or is_assistant(user) or user.erased_at is not None:  # erased people are gone
         raise ScimError(404, "user not found")
     await _set_active(ctx, user, False)
     events.emit(ctx, "user.updated", "user", user.id, {"source": "scim", "active": False})

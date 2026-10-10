@@ -17,9 +17,11 @@ from tests.factories import auth, make_user, make_world, token_for
 pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 
 
-def dump(folder: Path, name: str, age: timedelta, size: int = 2048) -> None:
-    path = folder / f"glasshaus-{name}.dump"
+def dump(folder: Path, name: str, age: timedelta, size: int = 2048, *, encrypted: bool = False) -> None:
+    path = folder / f"glasshaus-{name}.dump{'.age' if encrypted else ''}"
     path.write_bytes(b"x" * size)
+    if encrypted:
+        (folder / f"{path.name}.sha256").write_text(f"abc  {path.name}\n")
     stamp = (datetime.now(UTC) - age).timestamp()
     os.utime(path, (stamp, stamp))
 
@@ -49,12 +51,13 @@ def test_status_reports_problems(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(settings, "backup_status_dir", str(tmp_path))
     assert [p.code for p in backups.status().problems] == ["no_backup"]
 
-    dump(tmp_path, "a", timedelta(hours=3))
+    dump(tmp_path, "a", timedelta(hours=3), encrypted=True)
     dump(tmp_path, "b", timedelta(hours=27), size=1024)
     drill(tmp_path)
     found = backups.status()
     assert found.available and found.problems == [] and found.count == 2 and found.total_bytes == 3072
-    assert [f.name for f in found.latest] == ["glasshaus-a.dump", "glasshaus-b.dump"]
+    assert [f.name for f in found.latest] == ["glasshaus-a.dump.age", "glasshaus-b.dump"]
+    assert [(f.encrypted, f.checksum) for f in found.latest] == [(True, True), (False, False)]
     assert found.drill is not None and found.drill.rows["tasks"] == 5
 
     drill(tmp_path, ok=False, error="pg_restore failed: bad header")

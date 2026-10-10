@@ -37,6 +37,8 @@ class BackupFile(Schema):
     name: str
     bytes: int
     created_at: datetime
+    encrypted: bool = Field(False, description="Encrypted with age (.dump.age).")
+    checksum: bool = Field(False, description="A SHA-256 file sits next to it (checked before restoring).")
 
 
 class DrillResult(Schema):
@@ -103,13 +105,19 @@ def status(now: datetime | None = None) -> BackupStatus:
             ],
         )
     files = []
-    for path in folder.glob("glasshaus-*.dump"):
+    for path in [*folder.glob("glasshaus-*.dump"), *folder.glob("glasshaus-*.dump.age")]:
         try:
             st = path.stat()
         except OSError:
             continue
         files.append(
-            BackupFile(name=path.name, bytes=st.st_size, created_at=datetime.fromtimestamp(st.st_mtime, UTC))
+            BackupFile(
+                name=path.name,
+                bytes=st.st_size,
+                created_at=datetime.fromtimestamp(st.st_mtime, UTC),
+                encrypted=path.name.endswith(".age"),
+                checksum=path.with_name(path.name + ".sha256").is_file(),
+            )
         )
     files.sort(key=lambda f: f.created_at, reverse=True)
     drill: DrillResult | None = None

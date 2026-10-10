@@ -33,6 +33,7 @@ const ConsentPage = lazy(() => import('./pages/ConsentPage').then((m) => ({ defa
 const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })));
 const ReportsPage = lazy(() => import('./pages/ReportsPage').then((m) => ({ default: m.ReportsPage })));
 const TeamPage = lazy(() => import('./pages/TeamPage').then((m) => ({ default: m.TeamPage })));
+const AboutPage = lazy(() => import('./pages/AboutPage').then((m) => ({ default: m.AboutPage })));
 const GoalsPage = lazy(() => import('./pages/GoalsPage').then((m) => ({ default: m.GoalsPage })));
 
 function Lazy({ children }: { children: ReactNode }) {
@@ -137,6 +138,14 @@ export default function App() {
                 }
               />
               <Route path="my" element={<MyTasksPage />} />
+              <Route
+                path="about"
+                element={
+                  <Lazy>
+                    <AboutPage />
+                  </Lazy>
+                }
+              />
               <Route
                 path="team"
                 element={
