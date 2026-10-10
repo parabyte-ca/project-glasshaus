@@ -31,3 +31,5 @@ RUN if [ "$UPGRADE_OS_PACKAGES" = "true" ]; then apk upgrade --no-cache; fi \
 COPY --from=age /tmp/age/age /tmp/age/age-keygen /usr/local/bin/
 COPY --from=age /tmp/age/LICENSE /usr/local/share/licenses/age/LICENSE
 RUN age --version && age-keygen --version
+# Compose runs it as GLASSHAUS_BACKUP_UID:GID (the owner of the backup folder); never as root.
+USER postgres
