@@ -91,6 +91,9 @@ jobs:
         run: shellcheck -x setup.sh update.sh scripts/*.sh
       - name: Version consistency
         run: scripts/check-version.sh
+      - name: Every release is tagged
+        # A day's grace: the owner tags after merging.
+        run: scripts/release-tags.sh --check --grace 24
       - name: Compose file is valid
         # Fill every empty secret so new required variables can't silently break this check again.
         run: cp .env.example .env && sed -i -E 's/^([A-Z_]*(PASSWORD|SECRET_KEY))=$/\1=x/' .env && docker compose config -q
