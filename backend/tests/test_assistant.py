@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
 from email.message import EmailMessage
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from httpx import AsyncClient
@@ -134,7 +135,7 @@ async def test_digest_facts_and_delivery(
     world = await make_world()
     member = await make_user(world.tenant)
     await add_member(client, world, member, "viewer")
-    today = datetime.now(UTC).date()
+    today = datetime.now(ZoneInfo("America/Toronto")).date()  # the project's time zone
     late = await create_task(client, world, title="Send <invoice>", due_date=str(today - timedelta(days=4)),
                              assignee_id=str(world.owner.id))  # fmt: skip
     await create_task(client, world, title="Unowned and close", due_date=str(today + timedelta(days=2)))

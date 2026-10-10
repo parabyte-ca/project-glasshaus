@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from httpx import AsyncClient
@@ -20,7 +21,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 
 
 def day(offset: int) -> str:
-    return str(datetime.now(UTC).date() + timedelta(days=offset))
+    """A date relative to today in the projects' time zone (as the assistant counts days)."""
+    return str(datetime.now(ZoneInfo("America/Toronto")).date() + timedelta(days=offset))
 
 
 async def set_status(client: AsyncClient, world: World, task: dict[str, Any], category: str) -> None:
