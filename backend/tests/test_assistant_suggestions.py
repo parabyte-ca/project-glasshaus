@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from httpx import AsyncClient
@@ -20,7 +21,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("migrated")]
 
 
 def day(offset: int) -> str:
-    return str(datetime.now(UTC).date() + timedelta(days=offset))
+    """A date relative to today in the projects' time zone (as the assistant counts days)."""
+    return str(datetime.now(ZoneInfo("America/Toronto")).date() + timedelta(days=offset))
 
 
 async def set_status(client: AsyncClient, world: World, task: dict[str, Any], category: str) -> None:
@@ -330,3 +332,50 @@ async def test_trusted_follow_ups_post_themselves_within_limits(client: AsyncCli
     assert r.status_code == 200 and r.json()["assistant_trusted"] == []
     r = await client.put(assistant_url, json=body | {"auto_daily_cap": 50}, headers=world.headers)
     assert r.status_code == 422
+
+
+async def test_older_follow_ups_wait_for_a_person_when_trust_is_turned_on(client: AsyncClient) -> None:
+    from glasshaus.assistant.models import AssistantSuggestion
+
+    world = await make_world()
+    await create_task(client, world, title="Renew domain", due_date=day(-3), assignee_id=str(world.owner.id))
+    await turn_on(client, world)
+    await run_digest(client, world)  # proposes a follow-up, nothing trusted yet
+    waiting = await queue(client, world)
+    assert [s["kind"] for s in waiting] == ["comment"]
+    async with system_session() as session:  # it was proposed days ago; the task may have moved on
+        await session.execute(
+            update(AssistantSuggestion)
+            .where(AssistantSuggestion.project_id == world.project.id)
+            .values(created_at=datetime.now(UTC) - timedelta(days=2))
+        )
+    r = await client.patch(
+        "/api/v1/admin/settings", json={"assistant_trusted": ["comment"]}, headers=world.headers
+    )
+    assert r.status_code == 200
+    body = {"timezone": "UTC", "trusted": ["comment"], "auto_daily_cap": 5}
+    r = await client.put(f"/api/v1/projects/{world.project.id}/assistant", json=body, headers=world.headers)
+    assert r.status_code == 200, r.text
+    await run_digest(client, world)
+    assert [s["id"] for s in await queue(client, world)] == [waiting[0]["id"]]  # still waiting
+
+
+def test_model_text_carries_no_links_or_mentions() -> None:
+    from glasshaus.assistant.suggestions import defang
+
+    out = defang(
+        "Please [re-authenticate](https://evil.example/login) ![x](https://evil.example/p.png) "
+        "at https://evil.example or www.evil.example, cc @everyone <javascript:alert(1)>"
+    )
+    assert "evil.example" not in out and "javascript:" not in out
+    assert "re-authenticate" in out and "@​everyone" in out
+
+
+async def test_the_assistant_address_is_reserved(client: AsyncClient) -> None:
+    from glasshaus.scim.service import ScimError, _email_of
+
+    world = await make_world()
+    body = {"email": "Project-Assistant@glasshaus.invalid", "name": "Imposter", "password": "x" * 16}
+    assert (await client.post("/api/v1/users", json=body, headers=world.headers)).status_code == 422
+    with pytest.raises(ScimError, match="reserved"):  # provisioning cannot take it either
+        _email_of({"userName": "project-assistant@GLASSHAUS.invalid"})

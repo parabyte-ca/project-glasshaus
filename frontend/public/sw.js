@@ -85,12 +85,20 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   let data = {};
   try {
-    data = event.data ? event.data.json() : {};
+    data = (event.data ? event.data.json() : null) || {};
   } catch {
     data = { body: event.data ? event.data.text() : '' };
   }
-  const url =
-    typeof data.url === 'string' && data.url.startsWith('/') && !data.url.startsWith('//') ? data.url : '/';
+  // Only pages of this app: resolve the link and keep it when it stays on this origin.
+  let url = '/';
+  if (typeof data.url === 'string') {
+    try {
+      const resolved = new URL(data.url, self.location.origin);
+      if (resolved.origin === self.location.origin) url = resolved.pathname + resolved.search + resolved.hash;
+    } catch {
+      // keep '/'
+    }
+  }
   event.waitUntil(
     self.registration.showNotification(data.title || 'Glasshaus', {
       body: data.body || '',

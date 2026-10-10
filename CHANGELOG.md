@@ -6,6 +6,49 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-10-09
+
+A review and hardening pass over 0.17–0.20 (phone notifications, My tasks and the project assistant).
+
+### Security
+- **Phone notifications:**
+  - device keys and push addresses are checked more strictly, so one broken device cannot stop
+    everyone else's notifications;
+  - a device can only move to another account with its own keys, not just its address;
+  - at most 10 devices per person (the oldest go), and **Send a test** is limited to 3 a minute;
+  - deactivating someone, resetting their password or signing them out everywhere also turns off
+    their devices, and inactive people get no pushes;
+  - the service worker only opens pages of this site from a notification.
+- **Project assistant:**
+  - text the AI writes (follow-ups, digests, weekly drafts) is plain: links and images are removed,
+    so text slipped into a task title cannot make the assistant post a link;
+  - its email address is reserved, and its account is refused by every kind of sign-in token;
+  - at most 50 tasks from notes wait for approval at once.
+- **Signing out:** the offline copy of My tasks is removed even when you sign out offline or your
+  session has expired.
+
+### Fixed
+- **Project assistant:**
+  - digests are written a few at a time in small batches, so a busy morning no longer cuts some
+    projects' digests;
+  - unexpected errors now show on the Digests page instead of the last success;
+  - two runs at once (scheduled and **Write a digest now**) no longer exceed the daily limit or fail
+    on a duplicate suggestion;
+  - only today's follow-ups post on their own; older ones wait for a person;
+  - an expired suggestion is not proposed again straight away;
+  - a digest no longer loads every finished task in the project.
+- **Phone notifications:** sent in parallel, and results are kept even when a run is cut short, so
+  dead devices are still removed.
+- **My tasks:**
+  - updates live when tasks change elsewhere;
+  - a task ticked while earlier ticks are being sent is no longer lost;
+  - shows "as of" whenever it is showing the saved copy;
+  - keeps keyboard focus in the list after ticking a task.
+- **Digests page:**
+  - clearing a time no longer saves midnight;
+  - the **New owner** list shows the suggested person instead of the first name in the list;
+  - approving or undoing refreshes the task and its comments.
+
 ## [0.20.0] - 2026-10-09
 
 The project assistant, phase 3: trusted follow-ups.
@@ -601,7 +644,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.17.0...v0.18.0

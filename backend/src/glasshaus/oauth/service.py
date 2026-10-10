@@ -207,7 +207,7 @@ async def actor_from_access_token(session: AsyncSession, raw: str) -> tuple[Acto
 
     await apply_tenant(session, grant.tenant_id)
     user = await session.get(User, grant.user_id)
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or user.kind == "assistant":
         return None
     if grant.last_used_at is None or now() - grant.last_used_at > timedelta(minutes=5):
         grant.last_used_at = now()

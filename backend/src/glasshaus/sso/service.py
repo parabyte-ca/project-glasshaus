@@ -25,7 +25,7 @@ from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import Conflict, InvalidInput, NotFound, Unauthenticated
 from glasshaus.core.rbac import OrgRole, Permission
 from glasshaus.core.schemas import Schema
-from glasshaus.identity.models import User, is_assistant
+from glasshaus.identity.models import User, is_assistant, reserved_email
 from glasshaus.sso.models import IdentityProvider, UserIdentity
 
 STATE_TTL_SECONDS = 600
@@ -411,7 +411,7 @@ async def resolve_user(
             raise Unauthenticated("the identity provider did not send an email address")
         # The IdP is trusted to assert addresses; homelab domains (.lan, .local, .home.arpa) are fine.
         email = email.strip()
-        if not EMAIL.match(email):
+        if not EMAIL.match(email) or reserved_email(email):
             raise Unauthenticated("the identity provider sent an invalid email address")
         local, _, host = email.rpartition("@")
         email = f"{local}@{host.lower()}"

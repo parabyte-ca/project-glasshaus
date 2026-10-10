@@ -10,6 +10,7 @@ Only push service hosts are accepted as endpoints (a subscription cannot point t
 internal address), and dead subscriptions (404/410) are removed.
 """
 
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -31,7 +32,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from glasshaus.config import get_settings
 from glasshaus.core.context import Actor, ServiceContext
-from glasshaus.core.errors import InvalidInput, NotFound
+from glasshaus.core.errors import Conflict, InvalidInput, NotFound, RateLimited
 from glasshaus.core.orm import Base, TenantScoped, UUIDPk, utcnow
 from glasshaus.core.schemas import Schema
 from glasshaus.logs import get_logger
@@ -48,6 +49,9 @@ PUSH_HOSTS = (
 )
 MAX_PER_RUN = 300
 MAX_AGE = timedelta(minutes=10)  # older notifications are not pushed (the person has moved on)
+MAX_DEVICES = 10  # per person; the oldest go first
+SEND_CONCURRENCY = 20
+TESTS_PER_MINUTE = 3
 
 
 class PushSubscription(UUIDPk, TenantScoped, Base):
@@ -129,9 +133,17 @@ def _vapid_header(endpoint: str) -> str:
 
 
 def allowed_endpoint(endpoint: str) -> bool:
+    # No whitespace or control characters: the URL parsers must agree on the host.
+    if any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in endpoint):
+        return False
     parts = urlsplit(endpoint)
     host = (parts.hostname or "").lower()
     if parts.scheme != "https" or parts.username or parts.password or parts.port not in (None, 443):
+        return False
+    try:
+        if httpx.URL(endpoint).host.lower() != host:
+            return False
+    except (httpx.InvalidURL, ValueError):
         return False
     return any(host == h or (h.startswith(".") and host.endswith(h)) for h in PUSH_HOSTS)
 
@@ -156,18 +168,22 @@ async def subscribe(ctx: ServiceContext, data: PushSubscriptionCreate) -> PushSt
     if not allowed_endpoint(data.endpoint):
         raise InvalidInput("not a browser push service address")
     try:
-        if len(_unb64(data.keys.p256dh)) != 65 or len(_unb64(data.keys.auth)) != 16:
+        point = _unb64(data.keys.p256dh)
+        if len(point) != 65 or len(_unb64(data.keys.auth)) != 16:
             raise ValueError
+        ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), point)  # a real curve point
     except ValueError:
         raise InvalidInput("invalid push keys") from None
     user_id = _user(ctx)
+    from sqlalchemy.dialects.postgresql import insert
+
     from glasshaus.db import system_session
 
-    # An endpoint belongs to one browser profile; if someone else signed in there before, it moves.
+    # An endpoint belongs to one browser profile. If someone else signed in there before, it moves
+    # to this person, but only with the same keys (proof it is that browser, not a guessed address).
     async with system_session() as session:
-        await session.execute(delete(PushSubscription).where(PushSubscription.endpoint == data.endpoint))
-    ctx.session.add(
-        PushSubscription(
+        stmt = insert(PushSubscription).values(
+            id=uuid.uuid4(),
             tenant_id=ctx.tenant_id,
             user_id=user_id,
             endpoint=data.endpoint,
@@ -175,8 +191,33 @@ async def subscribe(ctx: ServiceContext, data: PushSubscriptionCreate) -> PushSt
             auth=data.keys.auth,
             device=data.device,
         )
-    )
-    await ctx.session.flush()
+        moved = await session.scalar(
+            stmt.on_conflict_do_update(
+                index_elements=[PushSubscription.endpoint],
+                set_={
+                    "tenant_id": stmt.excluded.tenant_id,
+                    "user_id": stmt.excluded.user_id,
+                    "device": stmt.excluded.device,
+                    "failures": 0,
+                },
+                where=(PushSubscription.p256dh == stmt.excluded.p256dh)
+                & (PushSubscription.auth == stmt.excluded.auth),
+            ).returning(PushSubscription.id)
+        )
+        if moved is None:
+            raise Conflict("this device is already registered with different keys; turn it off and on again")
+        # Keep the newest few devices per person.
+        keep = (
+            select(PushSubscription.id)
+            .where(PushSubscription.user_id == user_id)
+            .order_by(PushSubscription.created_at.desc())
+            .limit(MAX_DEVICES)
+        )
+        await session.execute(
+            delete(PushSubscription).where(
+                PushSubscription.user_id == user_id, PushSubscription.id.not_in(keep)
+            )
+        )
     return await status(ctx)
 
 
@@ -240,7 +281,7 @@ async def deliver(client: httpx.AsyncClient, target: Target, message: Message) -
                 "Authorization": _vapid_header(target.endpoint),
             },
         )
-    except httpx.HTTPError as exc:
+    except Exception as exc:  # noqa: BLE001 - one bad device must not stop the others
         log.warning("push.failed", error=type(exc).__name__)
         return 0
     return r.status_code
@@ -252,14 +293,28 @@ def _client() -> httpx.AsyncClient:
 
 async def send_to(user_targets: list[tuple[Target, Message]]) -> dict[str, int]:
     """Send pushes outside any transaction, then record the outcomes (dead subscriptions go)."""
-    from glasshaus.db import system_session
 
     if not user_targets:
         return {"sent": 0, "failed": 0, "removed": 0}
     results: list[tuple[Target, int]] = []
-    async with _client() as client:
-        for target, message in user_targets:
+    gate = asyncio.Semaphore(SEND_CONCURRENCY)
+
+    async def one(client: httpx.AsyncClient, target: Target, message: Message) -> None:
+        async with gate:
             results.append((target, await deliver(client, target, message)))
+
+    try:
+        async with _client() as client:
+            await asyncio.gather(*(one(client, t, m) for t, m in user_targets))
+    finally:
+        # Record what was sent even when the job is cut short, so dead devices still get removed.
+        counts = await _record(results)
+    return counts
+
+
+async def _record(results: list[tuple["Target", int]]) -> dict[str, int]:
+    from glasshaus.db import system_session
+
     sent = failed = removed = 0
     now = datetime.now(UTC)
     async with system_session() as session:
@@ -290,6 +345,7 @@ async def push_new_notifications(now: datetime | None = None) -> dict[str, int]:
     """Worker job: push each new in-app notification to its person's subscribed devices, once."""
     from glasshaus.collab.models import Notification
     from glasshaus.db import system_session
+    from glasshaus.identity.models import User
     from glasshaus.projects.models import Project
 
     now = now or datetime.now(UTC)
@@ -302,7 +358,11 @@ async def push_new_notifications(now: datetime | None = None) -> dict[str, int]:
                 .where(
                     Notification.pushed_at.is_(None),
                     Notification.created_at >= now - MAX_AGE,
-                    Notification.user_id.in_(select(PushSubscription.user_id)),
+                    Notification.user_id.in_(
+                        select(PushSubscription.user_id)
+                        .join(User, User.id == PushSubscription.user_id)
+                        .where(User.is_active.is_(True))
+                    ),
                 )
                 .order_by(Notification.created_at)
                 .limit(MAX_PER_RUN)
@@ -328,7 +388,19 @@ async def push_new_notifications(now: datetime | None = None) -> dict[str, int]:
 async def send_test(actor: Actor) -> dict[str, int]:
     """Send a test notification to every device of the person asking."""
     from glasshaus.db import unit_of_work
+    from glasshaus.redis_client import get_redis
 
+    key = f"glasshaus:push:test:{actor.tenant_id}:{actor.user_id}:{int(time.time() // 60)}"
+    try:
+        redis = get_redis()
+        count = await redis.incr(key)
+        if count == 1:
+            await redis.expire(key, 90)
+    except Exception:
+        count = 0
+        log.warning("push.rate_limit_unavailable", exc_info=True)
+    if count > TESTS_PER_MINUTE:
+        raise RateLimited("too many test notifications; try again in a minute")
     async with unit_of_work(actor) as ctx:
         user_id = _user(ctx)
         subs = (

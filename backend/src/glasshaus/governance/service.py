@@ -123,8 +123,11 @@ async def update_settings(ctx: ServiceContext, data: OrgSettingsUpdate) -> OrgSe
 async def revoke_user_sessions(ctx: ServiceContext, user_id: uuid.UUID, *, tokens: bool = False) -> None:
     """End browser sessions (and optionally API tokens and OAuth grants) for a user."""
     from glasshaus.oauth.models import OAuthGrant
+    from glasshaus.push import PushSubscription
 
     now = datetime.now(UTC)
+    # Their devices stop getting notifications too (a deactivated or signed-out person).
+    await ctx.session.execute(delete(PushSubscription).where(PushSubscription.user_id == user_id))
     await ctx.session.execute(
         update(AuthSession)
         .where(AuthSession.user_id == user_id, AuthSession.revoked_at.is_(None))

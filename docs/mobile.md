@@ -31,7 +31,9 @@ browser's storage.
 **Account → Notifications on this device → Turn on notifications** sends your Glasshaus notifications
 (mentions, assignments, report alerts, backup notices for admins) to this phone or computer, even when
 the app is closed. Tapping one opens the right page. **Send a test** checks it works; **Turn off on this
-device** stops it. Turn it on separately on each device.
+device** stops it. Turn it on separately on each device (up to 10 per person; turning on an 11th
+drops the oldest). Deactivating someone, resetting their password or signing them out everywhere turns
+off all their devices.
 
 Requirements:
 

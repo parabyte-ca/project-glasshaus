@@ -11,6 +11,7 @@ and focus list (digest) or a written status (weekly draft). Model calls and all 
 Slack/Teams) happen outside database transactions.
 """
 
+import asyncio
 import html
 import time
 import uuid
@@ -21,6 +22,7 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import defer
 
 from glasshaus import mail
 from glasshaus.assistant.models import ProjectAssistant, ProjectBrief
@@ -62,6 +64,8 @@ OPEN = (StatusCategory.BACKLOG, StatusCategory.TODO, StatusCategory.IN_PROGRESS)
 LIST_LIMIT = 20
 KEEP_DAYS = 180
 RUN_NOW_PER_MINUTE = 3
+RUN_BATCH = 8  # briefs claimed per worker run
+RUN_CONCURRENCY = 4
 CHANGE_IT = "Project admins change this on the project's Assistant page."
 HEALTH = {"on_track": "On track", "at_risk": "At risk", "off_track": "Off track"}
 
@@ -356,7 +360,13 @@ async def _facts(
         await ctx.session.execute(
             select(Task, ProjectStatus)
             .join(ProjectStatus, ProjectStatus.id == Task.status_id)
-            .where(Task.project_id == project_id, Task.deleted_at.is_(None))
+            .where(
+                Task.project_id == project_id,
+                Task.deleted_at.is_(None),
+                # Open work and what was finished in the window; older done work is only counted.
+                ProjectStatus.category.in_(OPEN) | (Task.completed_at >= since),
+            )
+            .options(defer(Task.description), defer(Task.custom_fields))
         )
     ).all()
     people = {t.assignee_id for t, _ in rows if t.assignee_id}
@@ -483,6 +493,7 @@ def _payload(key: str, name: str, c: BriefContent) -> dict[str, Any]:
 async def _write_up(actor: Actor, kind: BriefKind, key: str, name: str, c: BriefContent) -> None:
     """Add the AI part to ``c`` in place; on any failure say why and keep the facts."""
     from glasshaus.ai import service as ai
+    from glasshaus.assistant.suggestions import defang
 
     data = ai._data(_payload(key, name, c))
     lists = (c.completed, c.overdue_tasks, c.due_today, c.due_soon, c.stale, c.unassigned)
@@ -502,10 +513,10 @@ async def _write_up(actor: Actor, kind: BriefKind, key: str, name: str, c: Brief
                 output=DigestOutput,
                 max_tokens=3000,
             )
-            c.summary = out.summary.strip()[:2000]
+            c.summary = defang(out.summary.strip()[:2000])
             c.focus = [
                 BriefFocus(
-                    text=f.text.strip()[:300],
+                    text=defang(f.text.strip()[:300]),
                     task_key=f.task_key.upper() if f.task_key and f.task_key.upper() in known else None,
                 )
                 for f in out.focus[:5]
@@ -525,10 +536,10 @@ async def _write_up(actor: Actor, kind: BriefKind, key: str, name: str, c: Brief
                 output=WeeklyOutput,
                 max_tokens=4000,
             )
-            c.headline = weekly.headline.strip()[:300]
-            c.summary = weekly.summary.strip()[:6000]
-            c.highlights = [h.strip()[:300] for h in weekly.highlights[:5] if h.strip()]
-            c.concerns = [h.strip()[:300] for h in weekly.concerns[:5] if h.strip()]
+            c.headline = defang(weekly.headline.strip()[:300])
+            c.summary = defang(weekly.summary.strip()[:6000])
+            c.highlights = [defang(h.strip()[:300]) for h in weekly.highlights[:5] if h.strip()]
+            c.concerns = [defang(h.strip()[:300]) for h in weekly.concerns[:5] if h.strip()]
         c.ai_model = usage.model
     except ServiceError as exc:
         c.ai_note = f"No AI write-up this time: {exc}"
@@ -882,6 +893,9 @@ async def _run_scheduled(tenant_id: uuid.UUID, assistant_id: uuid.UUID, kind: Br
         error = "; ".join(problems) or None
     except ServiceError as exc:
         error = str(exc)
+    except Exception:
+        log.exception("assistant.error", assistant=str(assistant_id), kind=kind)
+        error = "something went wrong writing or sending it; the server log has the details"
     async with unit_of_work(Actor.system(tenant_id)) as ctx:
         a = await ctx.session.get(ProjectAssistant, assistant_id)
         if a is not None:
@@ -891,8 +905,12 @@ async def _run_scheduled(tenant_id: uuid.UUID, assistant_id: uuid.UUID, kind: Br
     return error is None
 
 
-async def run_due(now: datetime | None = None, *, batch: int = 50) -> dict[str, int]:
-    """Worker job: write and deliver every digest and weekly draft that is due."""
+async def run_due(now: datetime | None = None, *, batch: int = RUN_BATCH) -> dict[str, int]:
+    """Worker job: write and deliver the digests and weekly drafts that are due.
+
+    A small batch is claimed per run and written a few at a time, so the job finishes well within
+    its time limit (each brief may wait on the model and on email); the rest wait for the next
+    minute instead of being claimed and then lost when a long job is cancelled."""
     now = now or datetime.now(UTC)
     due: list[tuple[uuid.UUID, uuid.UUID, BriefKind]] = []
     async with system_session() as session:
@@ -916,10 +934,15 @@ async def run_due(now: datetime | None = None, *, batch: int = 50) -> dict[str, 
             if a.next_weekly_at and a.next_weekly_at <= now:
                 a.next_weekly_at = next_weekly(a, now)
                 due.append((a.tenant_id, a.id, "weekly"))
-    ok = 0
-    for tenant_id, assistant_id, kind in due:
-        try:
-            ok += await _run_scheduled(tenant_id, assistant_id, kind)
-        except Exception:  # one broken project must not stop the others
-            log.exception("assistant.error", assistant=str(assistant_id), kind=kind)
-    return {"written": len(due), "ok": ok}
+    gate = asyncio.Semaphore(RUN_CONCURRENCY)
+
+    async def one(tenant_id: uuid.UUID, assistant_id: uuid.UUID, kind: BriefKind) -> bool:
+        async with gate:
+            try:
+                return await _run_scheduled(tenant_id, assistant_id, kind)
+            except Exception:  # one broken project must not stop the others
+                log.exception("assistant.error", assistant=str(assistant_id), kind=kind)
+                return False
+
+    results = await asyncio.gather(*(one(*d) for d in due))
+    return {"written": len(due), "ok": sum(results)}

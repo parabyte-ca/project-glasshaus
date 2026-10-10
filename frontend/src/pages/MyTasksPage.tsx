@@ -97,18 +97,23 @@ export function MyTasksPage() {
     if (!online || flushing.current || queuedDone(user.id).length === 0) return;
     flushing.current = true;
     void (async () => {
-      const left = [];
+      const handled = new Set<string>();
       let sent = 0;
       for (const item of queuedDone(user.id)) {
         try {
           await unwrap(api.POST('/api/v1/tasks/{ref}/complete', { params: { path: { ref: item.id } } }));
           sent += 1;
+          handled.add(item.id);
         } catch (err) {
           // Gone or no longer yours to change: drop it and say so; a network error keeps it queued.
-          if (err instanceof ApiError) toast(`${item.key} could not be marked done: ${err.message}`, 'error');
-          else left.push(item);
+          if (err instanceof ApiError) {
+            toast(`${item.key} could not be marked done: ${err.message}`, 'error');
+            handled.add(item.id);
+          }
         }
       }
+      // Re-read: ticks made while this ran (the connection dropped again) stay queued.
+      const left = queuedDone(user.id).filter((q) => !handled.has(q.id));
       setQueue(user.id, left);
       setQueued(left);
       flushing.current = false;
@@ -122,7 +127,20 @@ export function MyTasksPage() {
     (t) => !queue.some((q) => q.id === t.id),
   );
 
+  // Keep keyboard focus in the list when a ticked task disappears from it.
+  const listRef = useRef<HTMLDivElement>(null);
+  const focusAt = useRef<number | null>(null);
+  useEffect(() => {
+    if (focusAt.current === null || !listRef.current) return;
+    const boxes = listRef.current.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+    const next = boxes[Math.min(focusAt.current, boxes.length - 1)];
+    if (next) next.focus();
+    else listRef.current.querySelector<HTMLElement>('h1')?.focus();
+    focusAt.current = null;
+  }, [items.length]);
+
   const markDone = (t: OfflineTask) => {
+    focusAt.current = items.findIndex((i) => i.id === t.id);
     if (online) {
       complete.mutate(t);
       return;
@@ -133,9 +151,11 @@ export function MyTasksPage() {
   };
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
+    <div ref={listRef} className="flex max-w-3xl flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold">My tasks</h1>
+        <h1 tabIndex={-1} className="text-2xl font-bold">
+          My tasks
+        </h1>
         <p className="text-sm text-slate-600 dark:text-slate-400">
           Your open tasks in every project, soonest due first.
         </p>
@@ -145,9 +165,18 @@ export function MyTasksPage() {
           <strong>You’re offline.</strong>{' '}
           {snapshot
             ? `Showing your tasks as of ${new Date(snapshot.savedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}.`
-            : 'Open this page once while online to keep a copy on this device.'}{' '}
+            : tasks.data
+              ? 'Showing the list loaded earlier.'
+              : 'Open this page once while online to keep a copy on this device.'}{' '}
           Tasks you tick are marked done when you’re back online
           {queue.length > 0 ? ` (${queue.length} waiting)` : ''}.
+        </p>
+      )}
+      {online && snapshot && (
+        <p role="status" className="rounded-lg border border-amber-400 p-3 text-sm">
+          Showing your tasks as of{' '}
+          {new Date(snapshot.savedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}{' '}
+          until the latest list loads.
         </p>
       )}
       {online && <ErrorText error={tasks.error ?? complete.error} />}

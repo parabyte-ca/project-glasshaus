@@ -64,8 +64,9 @@ Digests page. Turn this off with **Suggest follow-ups, new dates and owners** in
 | **New task** | From **Turn meeting notes or an email into tasks**: lines starting with `- [ ]`, `TODO:`, `Action:` or `AI:` | Real action items from free-form notes, with priority and, when the notes say so, a date and owner |
 
 What it never does: suggest the same thing twice while one is waiting, suggest something again within 7
-days of a decision, or keep more than 30 waiting. Unapproved suggestions expire after 7 days (notes-based
-tasks stay until decided). The digest says how many are waiting.
+days of a decision or after expiring, or keep more than 30 waiting. Unapproved suggestions expire after
+7 days (notes-based tasks stay until decided, up to 50 at a time). Text the AI writes is kept plain: links
+and images are removed and nobody is @-mentioned by the model. The digest says how many are waiting.
 
 **Approving.** Project **editors and admins** see **Approve** and **Dismiss** on each suggestion and can edit
 it first (the comment text, the date, the owner, or the new task's title, priority, due date and owner).
@@ -104,8 +105,9 @@ comments** by itself; both must be on:
 2. **Project choice.** A project admin ticks **Post follow-up comments without approval** in the
    project's assistant settings, and sets **At most per day** (default 10, up to 50).
 
-Then, with each digest, waiting follow-ups are posted straight away, oldest first, until the day's limit
-is reached (in the project's time zone; undone ones still count). The rest stay in the queue. Safeguards:
+Then, with each digest, the day's waiting follow-ups are posted straight away, oldest first, until the limit
+is reached (in the project's time zone; undone ones still count). The rest, and follow-ups proposed on
+earlier days, stay in the queue for a person. Safeguards:
 
 - **The person affected is told.** The task's owner is mentioned, so they get a notification (and a phone
   push where turned on). The comment says it was posted automatically and how to undo it.
