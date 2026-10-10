@@ -128,7 +128,10 @@ export function TimelineView({ tasks, project, onOpen, onUpdate }: ViewProps) {
     setDrag({ taskId: task.id, mode, originX: e.clientX, deltaDays: 0 });
   };
   const onPointerMove = (e: PointerEvent) => {
-    if (drag) setDrag({ ...drag, deltaDays: Math.round((e.clientX - drag.originX) / dayW) });
+    if (!drag) return;
+    const deltaDays = Math.round((e.clientX - drag.originX) / dayW);
+    // Re-render the bars only when the drag crosses a day, not on every pointer move.
+    if (deltaDays !== drag.deltaDays) setDrag({ ...drag, deltaDays });
   };
   // Say where a bar went (for screen readers and as a check after dragging).
   const announceMove = (task: Task, days: number, mode: Drag['mode']) => {

@@ -343,7 +343,14 @@ async def create_task(ctx: ServiceContext, data: TaskCreate) -> TaskRead:
     return result
 
 
-async def update_task(ctx: ServiceContext, task_id: uuid.UUID, data: TaskUpdate) -> TaskRead:
+async def update_task(
+    ctx: ServiceContext,
+    task_id: uuid.UUID,
+    data: TaskUpdate,
+    *,
+    reschedule: dict[uuid.UUID, tuple[Project, set[uuid.UUID]]] | None = None,
+) -> TaskRead:
+    """``reschedule`` collects moved tasks per project for the caller to propagate once (bulk edits)."""
     task = await _load(ctx, task_id, Permission.TASK_UPDATE)
     if data.expected_version is not None and data.expected_version != task.version:
         raise PreconditionFailed("task was modified by someone else", extra={"current_version": task.version})
@@ -383,9 +390,12 @@ async def update_task(ctx: ServiceContext, task_id: uuid.UUID, data: TaskUpdate)
     result = (await _to_read(ctx, [task]))[0]
     diff = {k: {"from": before[k], "to": getattr(task, k)} for k in before if before[k] != getattr(task, k)}
     if diff.keys() & {"start_date", "due_date"}:
-        from glasshaus.scheduling.service import propagate_from
+        if reschedule is not None:
+            reschedule.setdefault(project.id, (project, set()))[1].add(task.id)
+        else:
+            from glasshaus.scheduling.service import propagate_from
 
-        await propagate_from(ctx, project, {task.id})
+            await propagate_from(ctx, project, {task.id})
     if diff:
         events.emit(
             ctx,
@@ -414,6 +424,7 @@ async def set_done(ctx: ServiceContext, task_id: uuid.UUID, done: bool) -> TaskR
 
 async def bulk_update(ctx: ServiceContext, data: TaskBulkUpdate) -> BulkResult:
     result = BulkResult(updated=[])
+    reschedule: dict[uuid.UUID, tuple[Project, set[uuid.UUID]]] = {}
     patch = data.patch
     if patch.status_id and patch.status_category:
         raise InvalidInput("use either status_id or status_category, not both")
@@ -431,10 +442,16 @@ async def bulk_update(ctx: ServiceContext, data: TaskBulkUpdate) -> BulkResult:
                 if patch.add_tags or patch.remove_tags:
                     tags = (set(task.tags) | set(patch.add_tags)) - set(patch.remove_tags)
                     update_data["tags"] = sorted(tags)
-                await update_task(ctx, task_id, TaskUpdate.model_validate(update_data))
+                await update_task(ctx, task_id, TaskUpdate.model_validate(update_data), reschedule=reschedule)
             result.updated.append(task_id)
         except ServiceError as exc:
             result.failed[task_id] = exc.detail
+    if reschedule:
+        from glasshaus.scheduling.service import propagate_from
+
+        # Once per project for all moved tasks, not once per task (each run loads the whole project).
+        for project, moved in reschedule.values():
+            await propagate_from(ctx, project, moved)
     return result
 
 

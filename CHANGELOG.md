@@ -6,6 +6,44 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-10-10
+
+Faster with large organizations: fewer database round-trips, lighter live updates and indexed search.
+
+### Changed
+- **Project list:** the sidebar, command palette and admin pages load your projects with the same few
+  queries whether you see 3 projects or 300. Before, each project cost its own permission lookups.
+- **Portfolios and OKRs:**
+  - portfolio health now comes from a few totals across all its projects, instead of loading every
+    task and baseline of each project;
+  - OKR progress from linked projects takes one query instead of several per key result.
+
+  The project status summary and the assistant's briefs use the same faster health check.
+- **Workload:**
+  - reads only the fields it needs, with logged time in the same query;
+  - no longer fails when an organization has more than about 32,000 open assigned tasks.
+- **Bulk edits:** shifting dates on many tasks in an auto-scheduled project reschedules the project once,
+  not once per task.
+- **Live updates:**
+  - when someone edits a task, open lists fetch just that task and swap it in, instead of reloading
+    up to 500 tasks;
+  - lists that are filtered, and lists a task may have joined or left, still reload;
+  - comments no longer reload task lists;
+  - each open tab receives only identifiers over the live connection, not the whole task.
+- **Search:** task title search (command palette, `search_tasks`) uses a trigram index instead of
+  scanning every task. The upgrade enables PostgreSQL's built-in `pg_trgm` extension.
+- **Activity feed:**
+  - has an index;
+  - pages with a position cursor, so later pages are as fast as the first. Older page cursors still
+    work.
+- **Smaller fixes:**
+  - push-notification bookkeeping no longer grows with every notification;
+  - dragging a timeline bar redraws only when it crosses a day;
+  - each release now replaces the previous one's offline cache;
+  - the web image no longer ships public source maps;
+  - a new index on task reporters speeds up erasing or removing a person.
+- Tests now count database queries on list pages, so these slowdowns can't quietly come back.
+
 ## [0.22.0] - 2026-10-10
 
 Privacy and compliance: people can get their data, admins can erase a person, the audit log is sealed,
@@ -758,7 +796,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.1...v0.22.0
 [0.21.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.1...v0.21.0

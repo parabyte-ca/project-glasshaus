@@ -351,6 +351,13 @@ async def push_new_notifications(now: datetime | None = None) -> dict[str, int]:
     now = now or datetime.now(UTC)
     work: list[tuple[Target, Message]] = []
     async with system_session() as session:
+        # Notifications too old to push (or for people without devices) leave the "unpushed" index,
+        # so it stays the size of the last few minutes instead of the whole table.
+        await session.execute(
+            update(Notification)
+            .where(Notification.pushed_at.is_(None), Notification.created_at < now - MAX_AGE)
+            .values(pushed_at=now)
+        )
         rows = (
             await session.execute(
                 select(Notification, Project.key)

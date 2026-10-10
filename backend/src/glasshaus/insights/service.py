@@ -80,32 +80,35 @@ async def workload(
         await require_workspace(ctx, workspace_id)
         scope.append(Project.workspace_id == workspace_id)
 
+    # Only the columns the plan needs, with each task's logged minutes alongside (no id list: a large
+    # organization has more open tasks than a query may carry parameters).
+    logged_minutes = (
+        select(func.coalesce(func.sum(TimeEntry.minutes), 0))
+        .where(TimeEntry.task_id == Task.id)
+        .correlate(Task)
+        .scalar_subquery()
+    )
     open_tasks = (
-        (
-            await ctx.session.execute(
-                select(Task)
-                .join(Project, Project.id == Task.project_id)
-                .join(ProjectStatus, ProjectStatus.id == Task.status_id)
-                .where(
-                    *scope,
-                    Task.deleted_at.is_(None),
-                    Task.assignee_id.is_not(None),
-                    ProjectStatus.category.not_in(CLOSED),
-                )
+        await ctx.session.execute(
+            select(
+                Task.id,
+                Task.assignee_id,
+                Task.start_date,
+                Task.due_date,
+                Task.estimate_minutes,
+                logged_minutes.label("logged"),
+            )
+            .join(Project, Project.id == Task.project_id)
+            .join(ProjectStatus, ProjectStatus.id == Task.status_id)
+            .where(
+                *scope,
+                Task.deleted_at.is_(None),
+                Task.assignee_id.is_not(None),
+                ProjectStatus.category.not_in(CLOSED),
             )
         )
-        .scalars()
-        .all()
-    )
-    logged_by_task = dict(
-        (
-            await ctx.session.execute(
-                select(TimeEntry.task_id, func.sum(TimeEntry.minutes))
-                .where(TimeEntry.task_id.in_([t.id for t in open_tasks]))
-                .group_by(TimeEntry.task_id)
-            )
-        ).all()
-    )
+    ).all()
+    logged_by_task = {t.id: t.logged for t in open_tasks}
     user_ids = {t.assignee_id for t in open_tasks if t.assignee_id}
     if project_id:
         project = await ctx.session.get(Project, project_id)
@@ -164,7 +167,7 @@ async def workload(
 
     starts = calc.buckets(start, end, bucket)
     out: list[WorkloadUser] = []
-    tasks_by_user: dict[uuid.UUID, list[Task]] = defaultdict(list)
+    tasks_by_user: dict[uuid.UUID, list[Any]] = defaultdict(list)
     for t in open_tasks:
         assert t.assignee_id is not None
         tasks_by_user[t.assignee_id].append(t)
@@ -179,7 +182,7 @@ async def workload(
             if t.start_date is None and t.due_date is None:
                 unscheduled += remaining
                 continue
-            if (t.due_date or t.start_date) < start:  # type: ignore[operator]
+            if (t.due_date or t.start_date) < start:
                 overdue += remaining
                 continue
             for day, minutes in calc.spread(remaining, t.start_date, t.due_date, user.working_days).items():
@@ -353,44 +356,96 @@ async def project_report(
     )
 
 
+async def projects_health(ctx: ServiceContext, projects: list[Project]) -> list[ProjectHealth]:
+    """Health of many projects with four aggregate queries (callers have checked visibility)."""
+    from glasshaus.scheduling.models import Baseline, BaselineTask
+
+    if not projects:
+        return []
+    ids = [p.id for p in projects]
+    today = _today()
+    category = ProjectStatus.category
+    is_open = category.not_in(CLOSED)
+    counts = {
+        r.project_id: r
+        for r in (
+            await ctx.session.execute(
+                select(
+                    Task.project_id,
+                    func.count().label("total"),
+                    func.count().filter(category == StatusCategory.DONE).label("done"),
+                    func.count().filter(is_open, Task.due_date < today).label("overdue"),
+                    func.max(Task.due_date).filter(is_open).label("finish"),
+                )
+                .join(ProjectStatus, ProjectStatus.id == Task.status_id)
+                .where(
+                    Task.project_id.in_(ids),
+                    Task.deleted_at.is_(None),
+                    category != StatusCategory.CANCELLED,
+                )
+                .group_by(Task.project_id)
+            )
+        ).all()
+    }
+    # Slip: how far the current finish is past the newest baseline's finish (its tasks only).
+    latest = (
+        select(Baseline.id, Baseline.project_id)
+        .where(Baseline.project_id.in_(ids))
+        .distinct(Baseline.project_id)
+        .order_by(Baseline.project_id, Baseline.created_at.desc())
+        .subquery()
+    )
+    slips: dict[uuid.UUID, int] = {}
+    for r in (
+        await ctx.session.execute(
+            select(
+                latest.c.project_id,
+                func.max(BaselineTask.due_date).label("planned"),
+                func.max(Task.due_date).label("current"),
+            )
+            .join(BaselineTask, BaselineTask.baseline_id == latest.c.id)
+            .join(Task, Task.id == BaselineTask.task_id)
+            .where(Task.deleted_at.is_(None))
+            .group_by(latest.c.project_id)
+        )
+    ).all():
+        if r.planned and r.current:
+            slips[r.project_id] = max((r.current - r.planned).days, 0)
+    logged = dict(
+        (
+            await ctx.session.execute(
+                select(TimeEntry.project_id, func.sum(TimeEntry.minutes))
+                .where(TimeEntry.project_id.in_(ids))
+                .group_by(TimeEntry.project_id)
+            )
+        ).all()
+    )
+    out = []
+    for project in projects:
+        c = counts.get(project.id)
+        total, done, overdue = (c.total, c.done, c.overdue) if c else (0, 0, 0)
+        slip = slips.get(project.id, 0)
+        out.append(
+            ProjectHealth(
+                project_id=project.id,
+                key=project.key,
+                name=project.name,
+                total=total,
+                done=done,
+                progress=round(done / total, 3) if total else 0.0,
+                overdue=overdue,
+                finish=c.finish if c else None,
+                slip_days=slip,
+                logged_minutes=int(logged.get(project.id) or 0),
+                health=calc.health(total, done, overdue, slip),
+            )
+        )
+    return out
+
+
 async def project_health(ctx: ServiceContext, project: Project) -> ProjectHealth:
     """Caller has checked that the project is visible."""
-    from glasshaus.scheduling import service as scheduling
-    from glasshaus.scheduling.models import Baseline
-
-    rows = [(t, s) for t, s in await _project_facts(ctx, project.id) if t.deleted_at is None]
-    counted = [(t, s) for t, s in rows if s.category != StatusCategory.CANCELLED]
-    done = sum(1 for _, s in counted if s.category == StatusCategory.DONE)
-    open_rows = [(t, s) for t, s in counted if s.category not in CLOSED]
-    today = _today()
-    overdue = sum(1 for t, _ in open_rows if t.due_date and t.due_date < today)
-    finish = max((t.due_date for t, _ in open_rows if t.due_date), default=None)
-    slip = 0
-    baseline_id = await ctx.session.scalar(
-        select(Baseline.id)
-        .where(Baseline.project_id == project.id)
-        .order_by(Baseline.created_at.desc())
-        .limit(1)
-    )
-    if baseline_id:
-        variance = await scheduling.baseline_variance(ctx, baseline_id)
-        slip = max(variance.finish_variance_days or 0, 0)
-    logged = await ctx.session.scalar(
-        select(func.coalesce(func.sum(TimeEntry.minutes), 0)).where(TimeEntry.project_id == project.id)
-    )
-    return ProjectHealth(
-        project_id=project.id,
-        key=project.key,
-        name=project.name,
-        total=len(counted),
-        done=done,
-        progress=round(done / len(counted), 3) if counted else 0.0,
-        overdue=overdue,
-        finish=finish,
-        slip_days=slip,
-        logged_minutes=int(logged or 0),
-        health=calc.health(len(counted), done, overdue, slip),
-    )
+    return (await projects_health(ctx, [project]))[0]
 
 
 async def get_project_health(ctx: ServiceContext, project_id: uuid.UUID) -> ProjectHealth:

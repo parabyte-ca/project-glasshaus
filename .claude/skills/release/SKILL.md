@@ -50,6 +50,11 @@ One release per PR. Minor version for features, patch for fixes.
   in `update.sh --pull`. The image ends with a non-root `USER` (Trivy DS-0002).
 - The audit log is append-only and hash-chained by a database trigger: never write to `audit_log`
   except by insert; tests that need old entries backdate them with `tests.factories.owner_session()`.
+- Performance: list endpoints must not query per row. Batch permission checks with
+  `core.authz.prime_project_roles`, aggregate with `GROUP BY` / `count().filter(...)`, never send
+  unbounded `IN` lists, and add a query-count case to `tests/test_performance.py` for new list pages.
+  Live updates: `task.updated` is patched into open lists by `lib/realtime.ts`; new list query keys
+  under `['tasks', projectId, …]` must be a view config object or they are simply refetched.
 - Personal data: new tables referencing users are picked up by the personal export automatically;
   add them to `people.privacy.erase_person` when they hold credentials, devices or personal text.
 
