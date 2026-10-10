@@ -6,7 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-10-10
+
+Import tasks from a CSV or Excel file, including exports from Nimble and other tools.
+
 ### Added
+- **Import** on a project (editors and admins; also "import" in the command palette):
+  - reads CSV and Excel (.xlsx) files in the browser; pick the sheet if there are several;
+  - guesses what each column is from its name, with a *Nimble* choice for Nimble's export columns;
+    change any column, or leave it out;
+  - imports titles, descriptions, statuses, priorities, owners, start and due dates, estimates, tags,
+    parent items (as subtasks), comments, links and custom fields;
+  - matches each status and priority in the file to the project's, and asks whether dates like
+    03/04/2026 are day/month or month/day;
+  - **Check** shows what would happen first: new, updated and unchanged tasks, rows with problems, and
+    people who couldn't be matched;
+  - owners are matched by email (or exact name); people not found are listed and their tasks left
+    unassigned;
+  - with an ID column, importing again updates the same tasks (only the fields in the file), adds each
+    comment once and skips tasks deleted since;
+  - imported tasks don't notify anyone or run automations; one *project imported* entry records the
+    import, and Slack, Teams and webhooks can subscribe to it.
+  - See [docs/import.md](docs/import.md). API: `POST /api/v1/projects/{id}/import`.
 - **Releases tag themselves.** When a release merges to `main`, the *Tag release* workflow tags it
   `vX.Y.Z` and publishes its images and GitHub Release. No more manual tagging; just run `update.sh`.
 - `scripts/release-tags.sh` lists every release and whether it has its `vX.Y.Z` tag; `--tag --push`
@@ -16,6 +37,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 - Pushing a tag for an older release no longer publishes it: only the newest version's tag builds
   images and a GitHub Release, so catching up on tags can't move `latest` back.
+
+### Fixed
+- **Upgrade pre-flight on slower servers.** The check could stop an upgrade while the new version was
+  still starting on the copy of the database ("did not become ready (state: unhealthy)"). It now asks
+  the new version directly for up to 4 minutes (`GLASSHAUS_PREFLIGHT_TIMEOUT` to change it), and the
+  containers allow a minute to start before Docker calls them unhealthy.
 
 ## [0.24.0] - 2026-10-10
 
@@ -851,7 +878,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.25.0...HEAD
+[0.25.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.1...v0.22.0

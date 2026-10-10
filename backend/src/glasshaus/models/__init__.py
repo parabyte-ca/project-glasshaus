@@ -10,6 +10,7 @@ from glasshaus.fields.models import CustomField
 from glasshaus.goals.models import CheckIn, KeyResult, Objective, Portfolio, PortfolioProject
 from glasshaus.governance.models import OrgSettings
 from glasshaus.identity.models import ApiToken, AuthSession, User, Workspace, WorkspaceMember
+from glasshaus.imports.models import ImportLink
 from glasshaus.insights.models import Dashboard
 from glasshaus.integrations.models import CalendarFeed, ChannelPost, Integration, IntegrationDelivery
 from glasshaus.models.tenant import Tenant
@@ -45,6 +46,7 @@ __all__ = [
     "DirectorySync",
     "DomainEventRecord",
     "IdentityProvider",
+    "ImportLink",
     "Integration",
     "IntegrationDelivery",
     "KeyResult",

@@ -35,6 +35,8 @@ export function keysFor(event: LiveEvent): unknown[][] {
   if (kind === 'field') keys.push(['fields', event.project_id], ['tasks', event.project_id]);
   if (kind === 'view') keys.push(['views', event.project_id]);
   if (kind === 'project' || kind === 'status') keys.push(['projects'], ['project']);
+  // An import adds or changes many tasks at once without an event for each.
+  if (event.type === 'project.imported') keys.push(['tasks', event.project_id], ['my-tasks']);
   // Getting-started milestones tick from new tasks, assignments, due dates and project members.
   if (kind === 'task' || kind === 'project') keys.push(['onboarding']);
   return keys;

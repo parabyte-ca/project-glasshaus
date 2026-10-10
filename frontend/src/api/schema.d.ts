@@ -669,6 +669,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/projects/{project_id}/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Import tasks from spreadsheet rows
+     * @description Rows come from a CSV or Excel file (or another tool's export), already mapped to Glasshaus fields. Rows with an ID are remembered, so importing the same file again updates them. Use `dry_run` to check first. People are matched by email (or exact name); imported tasks don't notify anyone.
+     */
+    post: operations['import_rows'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/projects/{project_id}/dependencies': {
     parameters: {
       query?: never;
@@ -4539,6 +4559,137 @@ export interface components {
       /** Detail */
       detail?: components['schemas']['ValidationError'][];
     };
+    /** ImportProblem */
+    ImportProblem: {
+      /** Row */
+      row: number;
+      /** Message */
+      message: string;
+    };
+    /** ImportRequest */
+    ImportRequest: {
+      /**
+       * Source
+       * @description Where the rows came from (spreadsheet, nimble, ...). Re-imports match within a source.
+       * @default spreadsheet
+       */
+      source?: string;
+      /** File Name */
+      file_name?: string | null;
+      /**
+       * Fields
+       * @description The fields the file has columns for. On re-import only these change.
+       */
+      fields: string[];
+      /**
+       * Date Format
+       * @default auto
+       * @enum {string}
+       */
+      date_format?: 'auto' | 'ymd' | 'dmy' | 'mdy';
+      /**
+       * Status Map
+       * @description Lower-case status text -> this project's status id.
+       */
+      status_map?: {
+        [key: string]: string;
+      };
+      /**
+       * Priority Map
+       * @description Lower-case text -> priority.
+       */
+      priority_map?: {
+        [key: string]: components['schemas']['Priority'];
+      };
+      /** Rows */
+      rows: components['schemas']['ImportRow'][];
+      /**
+       * Dry Run
+       * @description Check everything and report, but change nothing.
+       * @default false
+       */
+      dry_run?: boolean;
+    };
+    /** ImportResult */
+    ImportResult: {
+      /** Dry Run */
+      dry_run: boolean;
+      /** Created */
+      created: number;
+      /** Updated */
+      updated: number;
+      /** Unchanged */
+      unchanged: number;
+      /** Skipped */
+      skipped: number;
+      /** Comments Added */
+      comments_added: number;
+      /** Problems */
+      problems: components['schemas']['ImportProblem'][];
+      /** Unmatched People */
+      unmatched_people: components['schemas']['UnmatchedPerson'][];
+      /** Warnings */
+      warnings: string[];
+    };
+    /**
+     * ImportRow
+     * @description One spreadsheet row, already mapped to Glasshaus fields. Values are the cells' text.
+     */
+    ImportRow: {
+      /**
+       * Row
+       * @description Row number in the file, used in messages.
+       */
+      row: number;
+      /**
+       * External Id
+       * @description The source's own id for this item.
+       */
+      external_id?: string | null;
+      /** Title */
+      title?: string | null;
+      /** Description */
+      description?: string | null;
+      /** Status */
+      status?: string | null;
+      /** Priority */
+      priority?: string | null;
+      /**
+       * Assignee
+       * @description Email address (or exact name).
+       */
+      assignee?: string | null;
+      /** Start Date */
+      start_date?: string | null;
+      /** Due Date */
+      due_date?: string | null;
+      /**
+       * Estimate
+       * @description Hours, or e.g. '1h 30m'.
+       */
+      estimate?: string | null;
+      /**
+       * Tags
+       * @description Separated by commas or semicolons.
+       */
+      tags?: string | null;
+      /**
+       * Parent
+       * @description The parent item's external id.
+       */
+      parent?: string | null;
+      /** Comments */
+      comments?: string[];
+      /** Links */
+      links?: string[];
+      /**
+       * Custom Fields
+       * @description Field id -> cell text.
+       */
+      custom_fields?: {
+        [key: string]: string;
+      };
+    };
     /** IntegrationCreate */
     IntegrationCreate: {
       /**
@@ -7880,6 +8031,21 @@ export interface components {
      */
     TriggerType:
       'task_created' | 'task_updated' | 'status_changed' | 'comment_created' | 'due_soon' | 'scheduled';
+    /** UnmatchedPerson */
+    UnmatchedPerson: {
+      /**
+       * Value
+       * @description The name or email in the file.
+       */
+      value: string;
+      /**
+       * Rows
+       * @description How many rows name them.
+       */
+      rows: number;
+      /** Reason */
+      reason: string;
+    };
     /** UnreadCount */
     UnreadCount: {
       /** Unread */
@@ -11862,6 +12028,72 @@ export interface operations {
         };
         content: {
           'application/json': string[];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  import_rows: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ImportRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ImportResult'];
         };
       };
       /** @description Not authenticated */

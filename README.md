@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.24.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
+> **Status:** v0.25.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -19,6 +19,7 @@ webhooks and an MCP server.
 - [AI assistant](#ai-assistant)
 - [Keyboard, accessibility and mobile](#keyboard-accessibility-and-mobile)
 - [Onboarding](#onboarding)
+- [Importing tasks](#importing-tasks)
 - [MCP and Copilot setup](#mcp-and-copilot-setup)
 - [Backup and restore](#backup-and-restore)
 - [Upgrading](#upgrading)
@@ -310,6 +311,14 @@ New people get a short **product tour** of the project page the first time they 
 (pulsing dots) if they skip the tour. Restart the tour from **Product tour** in the footer or the
 command palette. Everything is remembered per account. See [docs/onboarding.md](docs/onboarding.md).
 
+## Importing tasks
+
+**Import** on a project brings in tasks from a CSV or Excel (.xlsx) file, including exports from
+**Nimble** and other tools. Pick what each column becomes (Glasshaus guesses from the names), match
+statuses and priorities, **Check**, then import. Owners are matched by email; people who can't be matched
+are listed. With an ID column, importing the file again updates the same tasks instead of duplicating
+them. Imported tasks don't notify anyone. See [docs/import.md](docs/import.md).
+
 ## MCP and Copilot setup
 
 The MCP server listens at `http://<host>:8472/mcp` (Streamable HTTP; `glasshaus-mcp --transport stdio`
@@ -366,6 +375,8 @@ Claude Code and generic clients are in [docs/integrations](docs/integrations/REA
 **pre-flight check** restores that backup into a scratch database, lets the new release migrate it and
 starts the new API against it; only if the API becomes ready does the real upgrade go ahead. If the
 pre-flight fails, nothing is changed and the running version keeps going (`--skip-preflight` skips it).
+On a slow host, give the copy longer to start with `GLASSHAUS_PREFLIGHT_TIMEOUT=600 ./update.sh` (seconds;
+4 minutes by default).
 The upgrade then applies migrations, restarts and health-checks the stack; if any step fails it restores
 the pre-update backup and restarts the previous version automatically.
 
@@ -430,6 +441,12 @@ ago is still untagged.
 | 18 | 0.22.0 | Privacy and compliance: erase and export a person, sealed audit log, encrypted backups, data minimisation, source and licence notices | ✅ |
 | 19 | 0.23.0 | Performance at scale: no N+1 queries on list pages, aggregate health and workload, lighter live updates, indexed search and activity | ✅ |
 | 20 | 0.24.0 | Usability: plain error messages, undo, unsaved-changes guard, consistent AI names, phone tap targets, focus and screen-reader fixes | ✅ |
+| 21 | 0.25.0 | Import from CSV and Excel (Nimble and other tools): column mapping, check first, update on re-import, people matched by email | ✅ |
+| 22 | 0.25.x | Nimble: recognise the exact columns of a real Nimble export (waiting on a sample header row) | ⏳ |
+| 23 | 0.26.0 | Upgrade from the app: "update available" notice with release notes, one-click upgrade with pre-flight and rollback | Planned |
+| 24 | 0.27.0 | Health and monitoring: Prometheus `/metrics`, Admin status page, alerts when the worker, backups or disk fall behind | Planned |
+| 25 | 0.28.0 | Code review of everything since 0.21 (security, correctness, speed) and fixes | Planned |
+| 26 | later | Nimble REST API connector: import straight from Nimble, no export (waiting on Nimble's API reference) | ⏳ |
 
 ## Licence
 

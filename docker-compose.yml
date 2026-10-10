@@ -101,7 +101,7 @@ services:
       test: [CMD, arq, --check, glasshaus.worker.WorkerSettings]
       interval: 30s
       timeout: 5s
-      start_period: 20s
+      start_period: 60s
       retries: 3
     depends_on:
       migrate: { condition: service_completed_successfully }
