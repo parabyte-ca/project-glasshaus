@@ -94,7 +94,7 @@ jobs:
       - name: Compose file is valid
         # Fill every empty secret so new required variables can't silently break this check again.
         run: cp .env.example .env && sed -i -E 's/^([A-Z_]*(PASSWORD|SECRET_KEY))=$/\1=x/' .env && docker compose config -q
-      - uses: gitleaks/gitleaks-action@v2
+      - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
