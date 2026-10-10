@@ -56,12 +56,63 @@ function ResetPassword({ user, onDone }: { user: User; onDone: () => void }) {
   );
 }
 
+/** Erase: keep the work, remove the person. Typing their email confirms it is the right person. */
+function ErasePerson({ user, onDone }: { user: User; onDone: (message: string | null) => void }) {
+  const [typed, setTyped] = useState('');
+  const erase = useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.POST('/api/v1/admin/users/{user_id}/erase', {
+          params: { path: { user_id: user.id } },
+          body: { confirm_email: typed },
+        }),
+      ),
+    onSuccess: (r) =>
+      onDone(`${user.name} was erased and is now shown as “${r.name}”. Their tasks and time stay.`),
+  });
+  return (
+    <form
+      className="flex max-w-md flex-col gap-2 rounded-md border border-red-300 p-3 whitespace-normal dark:border-red-800"
+      onSubmit={(e) => {
+        e.preventDefault();
+        erase.mutate();
+      }}
+    >
+      <p className="text-sm">
+        Erasing removes {user.name}’s name, email, sign-ins, tokens, devices and notifications, and the text
+        of their comments. Their tasks, time and history stay, shown as “Former user”. The audit log keeps its
+        entries until its retention ends. This cannot be undone; download their data first if you need a copy.
+      </p>
+      <Field label={`Type ${user.email} to confirm`} id={`erase-${user.id}`}>
+        <Input
+          id={`erase-${user.id}`}
+          autoComplete="off"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+        />
+      </Field>
+      <div className="flex gap-2">
+        <Button
+          type="submit"
+          danger
+          disabled={typed.trim().toLowerCase() !== user.email.toLowerCase() || erase.isPending}
+        >
+          Erase {user.name}
+        </Button>
+        <GhostButton onClick={() => onDone(null)}>Cancel</GhostButton>
+      </div>
+      <ErrorText error={erase.error} />
+    </form>
+  );
+}
+
 export function People() {
   const confirm = useConfirm();
   const { user: me } = useAuth();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [resetFor, setResetFor] = useState<string | null>(null);
+  const [eraseFor, setEraseFor] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [draft, setDraft] = useState({ email: '', name: '', org_role: 'member' as Role, password: '' });
   const users = useQuery({
@@ -110,7 +161,7 @@ export function People() {
     <div className="flex flex-col gap-8">
       <Section
         title="People"
-        intro="Deactivated people cannot sign in and their sessions end immediately; their work and history stay. Owners can only be changed by owners."
+        intro="Deactivated people cannot sign in and their sessions end immediately; their work and history stay. Owners can only be changed by owners. For privacy requests, download everything held about a person, or erase them: their work stays, anonymised."
       >
         <Field label="Search people" id="people-search">
           <Input
@@ -170,9 +221,9 @@ export function People() {
                     </Select>
                   </td>
                   <td className={td}>{dateTime(u.last_login_at)}</td>
-                  <td className={td}>{u.is_active ? 'Active' : 'Deactivated'}</td>
+                  <td className={td}>{u.erased_at ? 'Erased' : u.is_active ? 'Active' : 'Deactivated'}</td>
                   <td className={`${td} whitespace-nowrap`}>
-                    {u.id !== me.id && (
+                    {u.id !== me.id && !u.erased_at && (
                       <div className="flex flex-wrap gap-1">
                         <GhostButton
                           aria-label={`${u.is_active ? 'Deactivate' : 'Reactivate'} ${u.name}`}
@@ -203,6 +254,37 @@ export function People() {
                         >
                           Sign out everywhere
                         </GhostButton>
+                        <a
+                          href={`/api/v1/admin/users/${u.id}/export`}
+                          download
+                          aria-label={`Download ${u.name}’s data`}
+                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
+                        >
+                          Download data
+                        </a>
+                        {(u.org_role !== 'owner' || me.org_role === 'owner') && (
+                          <GhostButton
+                            aria-label={`Erase ${u.name}`}
+                            className="text-red-700 dark:text-red-400"
+                            onClick={() => setEraseFor(u.id)}
+                          >
+                            Erase…
+                          </GhostButton>
+                        )}
+                      </div>
+                    )}
+                    {eraseFor === u.id && (
+                      <div className="mt-2">
+                        <ErasePerson
+                          user={u}
+                          onDone={(message) => {
+                            setEraseFor(null);
+                            if (message) {
+                              setNotice(message);
+                              void refresh();
+                            }
+                          }}
+                        />
                       </div>
                     )}
                     {resetFor === u.id && (

@@ -1,12 +1,12 @@
 {
   "name": "glasshaus-web",
   "private": true,
-  "version": "0.21.1",
+  "version": "0.22.0",
   "type": "module",
   "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/licenses.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",

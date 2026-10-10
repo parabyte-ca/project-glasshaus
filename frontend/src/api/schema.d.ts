@@ -55,6 +55,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/licenses': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Third-party software in this server and its licences */
+    get: operations['licenses'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/login': {
     parameters: {
       query?: never;
@@ -132,6 +149,23 @@ export interface paths {
     };
     /** The authenticated user */
     get: operations['get_current_user'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/users/me/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Download everything Glasshaus holds about you (a zip of JSON Lines files) */
+    get: operations['export_me'];
     put?: never;
     post?: never;
     delete?: never;
@@ -1912,6 +1946,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/audit-log/verify': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Check the audit log's hash chain: reports any entry changed, removed or inserted */
+    post: operations['verify_audit_log'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/users/me/onboarding': {
     parameters: {
       query?: never;
@@ -2078,6 +2129,40 @@ export interface paths {
     put?: never;
     /** Sign a user out everywhere (sessions, API tokens and connected apps) */
     post: operations['revoke_sessions'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/admin/users/{user_id}/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Download everything held about one person (a zip of JSON Lines files; audited) */
+    get: operations['export_person'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/admin/users/{user_id}/erase': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Erase a person: keep their work, remove their name, email, sign-ins and comment text */
+    post: operations['erase_person'];
     delete?: never;
     options?: never;
     head?: never;
@@ -3261,6 +3346,8 @@ export interface components {
        * Format: uuid
        */
       id: string;
+      /** Seq */
+      seq: number;
       /** Actor Id */
       actor_id: string | null;
       /** Actor Method */
@@ -3296,6 +3383,18 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+      /**
+       * Encrypted
+       * @description Encrypted with age (.dump.age).
+       * @default false
+       */
+      encrypted: boolean;
+      /**
+       * Checksum
+       * @description A SHA-256 file sits next to it (checked before restoring).
+       * @default false
+       */
+      checksum: boolean;
     };
     /** BackupStatus */
     BackupStatus: {
@@ -3556,6 +3655,43 @@ export interface components {
       created_at: string | null;
       /** Last Used At */
       last_used_at: string | null;
+    };
+    /** ChainCheck */
+    ChainCheck: {
+      /** Ok */
+      ok: boolean;
+      /** Entries */
+      entries: number;
+      /** First Seq */
+      first_seq: number | null;
+      /** Last Seq */
+      last_seq: number | null;
+      /** Head */
+      head: string | null;
+      /**
+       * Starts After Purge
+       * @default false
+       */
+      starts_after_purge: boolean;
+      /** Problems */
+      problems: components['schemas']['ChainProblem'][];
+    };
+    /** ChainProblem */
+    ChainProblem: {
+      /** Seq */
+      seq: number;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Problem */
+      problem: string;
     };
     /** ChannelOption */
     ChannelOption: {
@@ -4301,6 +4437,28 @@ export interface components {
        */
       allowed_senders: string[];
     };
+    /** EraseRequest */
+    EraseRequest: {
+      /**
+       * Confirm Email
+       * @description The person's current email address, to confirm.
+       */
+      confirm_email: string;
+    };
+    /** EraseResult */
+    EraseResult: {
+      /**
+       * User Id
+       * Format: uuid
+       */
+      user_id: string;
+      /** Name */
+      name: string;
+      /** Removed */
+      removed: {
+        [key: string]: number;
+      };
+    };
     /** FieldCreate */
     FieldCreate: {
       /** Name */
@@ -5032,7 +5190,10 @@ export interface components {
     };
     /** OrgSettingsUpdate */
     OrgSettingsUpdate: {
-      /** Audit Retention Days */
+      /**
+       * Audit Retention Days
+       * @description 0 keeps entries forever; otherwise at least 30 days.
+       */
       audit_retention_days?: number | null;
       /** Activity Retention Days */
       activity_retention_days?: number | null;
@@ -5048,6 +5209,15 @@ export interface components {
       assistant_trusted?: 'comment'[] | null;
       /** Manager Visibility */
       manager_visibility?: ('all' | 'shared') | null;
+    };
+    /** Package */
+    Package: {
+      /** Name */
+      name: string;
+      /** Version */
+      version: string;
+      /** License */
+      license: string;
     };
     /** Page[ActivityItem] */
     Page_ActivityItem_: {
@@ -7748,8 +7918,16 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
-      /** Last Login At */
+      /**
+       * Last Login At
+       * @description Shown to organization admins only.
+       */
       last_login_at: string | null;
+      /**
+       * Erased At
+       * @description Set when an admin erased this person's data.
+       */
+      erased_at: string | null;
       /**
        * Capacity Minutes
        * @description Minutes available per working day (workload).
@@ -7812,6 +7990,16 @@ export interface components {
       version: string;
       /** Build */
       build: string;
+      /**
+       * License
+       * @default AGPL-3.0-only
+       */
+      license?: string;
+      /**
+       * Source
+       * @default
+       */
+      source?: string;
     };
     /** ViewConfig */
     'ViewConfig-Input': {
@@ -8331,6 +8519,26 @@ export interface operations {
       };
     };
   };
+  licenses: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Package'][];
+        };
+      };
+    };
+  };
   login: {
     parameters: {
       query?: never;
@@ -8592,6 +8800,64 @@ export interface operations {
         content: {
           'application/json': components['schemas']['UserRead'];
         };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  export_me: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Not authenticated */
       401: {
@@ -18543,6 +18809,66 @@ export interface operations {
       };
     };
   };
+  verify_audit_log: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ChainCheck'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
   get_onboarding: {
     parameters: {
       query?: never;
@@ -19240,6 +19566,132 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  export_person: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  erase_person: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        user_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['EraseRequest'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['EraseResult'];
+        };
       };
       /** @description Not authenticated */
       401: {

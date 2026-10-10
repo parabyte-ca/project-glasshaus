@@ -174,7 +174,10 @@ export function Layout() {
         {overlay === 'help' && <ShortcutHelp onClose={closeOverlay} shortcuts={SHORTCUTS} />}
       </Suspense>
       <OnboardingChecklist />
-      <footer className="flex gap-3 px-4 py-3 text-xs text-slate-600 dark:text-slate-400" aria-live="polite">
+      <footer
+        className="flex flex-wrap gap-3 px-4 py-3 text-xs text-slate-600 dark:text-slate-400"
+        aria-live="polite"
+      >
         <button type="button" onClick={openHelp} className="min-h-6 rounded underline">
           Keyboard shortcuts (?)
         </button>
@@ -183,6 +186,9 @@ export function Layout() {
             Product tour
           </button>
         )}
+        <Link to="/about" className="min-h-6 rounded underline">
+          About, privacy and source code
+        </Link>
         {version.isSuccess && (
           <span data-testid="version">
             v{version.data.version} ({version.data.build})

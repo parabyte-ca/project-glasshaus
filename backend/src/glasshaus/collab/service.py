@@ -70,7 +70,9 @@ async def create_comment(ctx: ServiceContext, task_id: uuid.UUID, data: CommentC
         "task",
         task.id,
         {
-            "comment": result.model_dump(mode="json"),
+            # Comment text stays out of the event history (kept for years, shown in activity, sent to
+            # webhooks); consumers that need it read the comment, so a deleted comment is gone everywhere.
+            "comment": result.model_dump(mode="json", exclude={"body"}),
             "task_title": task.title,
             "assignee_id": task.assignee_id,
         },
@@ -104,7 +106,7 @@ async def update_comment(ctx: ServiceContext, comment_id: uuid.UUID, data: Comme
         "task",
         task.id,
         {
-            "comment": result.model_dump(mode="json"),
+            "comment": result.model_dump(mode="json", exclude={"body"}),
             "task_title": task.title,
             "new_mentions": [str(m) for m in set(comment.mentions) - previous],
         },

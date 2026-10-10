@@ -50,6 +50,8 @@ async def ensure_app_role() -> None:
         )
         await conn.execute(text(f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {role}"))
         await conn.execute(text(f"REVOKE ALL ON alembic_version FROM {role}"))
+        # The audit log is append-only: old entries leave only through glasshaus_audit_purge().
+        await conn.execute(text(f"REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM {role}"))
         dml = "SELECT, INSERT, UPDATE, DELETE"
         await conn.execute(text(f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT {dml} ON TABLES TO {role}"))
     await engine.dispose()

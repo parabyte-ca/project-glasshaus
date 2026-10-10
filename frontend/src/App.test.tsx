@@ -470,6 +470,39 @@ describe('account', () => {
   });
 });
 
+describe('about and privacy', () => {
+  it('links the source code and lists third-party licences', async () => {
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/licenses',
+        body: [{ name: 'FastAPI', version: '1.0', license: 'MIT' }],
+      },
+      { method: 'GET', path: '/licenses.json', body: [{ name: 'react', version: '19.0.0', license: 'MIT' }] },
+    ]);
+    renderAt('/about');
+    expect(await screen.findByRole('heading', { name: 'About and privacy', level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Source code for this server' })).toHaveAttribute(
+      'href',
+      'https://github.com/parabyte-ca/project-glasshaus',
+    );
+    expect(await screen.findByText(/FastAPI 1.0/)).toBeInTheDocument();
+    expect(await screen.findByText(/react 19.0.0/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'About, privacy and source code' })).toBeInTheDocument();
+  });
+
+  it('lets people download their own data', async () => {
+    mockApi([...baseRoutes, signedIn]);
+    renderAt('/account');
+    expect(await screen.findByRole('link', { name: 'Download my data' })).toHaveAttribute(
+      'href',
+      '/api/v1/users/me/export',
+    );
+  });
+});
+
 describe('connected access', () => {
   it('approves an MCP client with fewer permissions', async () => {
     const { calls } = mockApi([
@@ -747,6 +780,74 @@ describe('administration', () => {
     const patch = calls.find((c) => c.method === 'PATCH')!;
     expect(await patch.json()).toEqual({ is_active: false });
     expect(screen.queryByRole('button', { name: `Deactivate ${user.name}` })).not.toBeInTheDocument();
+  });
+
+  it('erases a person only after their email is typed', async () => {
+    let people: object[] = [user, member];
+    const { calls } = mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/users'),
+      signedIn,
+      { method: 'GET', path: '/api/v1/users', handler: () => people },
+      {
+        method: 'POST',
+        path: '/api/v1/admin/users/u2/erase',
+        handler: () => {
+          people = [user, { ...member, name: 'Former user 0a1b2c', erased_at: '2026-10-10T00:00:00Z' }];
+          return { user_id: 'u2', name: 'Former user 0a1b2c', removed: { sessions: 1 } };
+        },
+      },
+    ]);
+    renderAt('/admin');
+    expect(await screen.findByRole('link', { name: 'Download Lin’s data' })).toHaveAttribute(
+      'href',
+      '/api/v1/admin/users/u2/export',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Erase Lin' }));
+    const confirmButton = screen.getAllByRole('button', { name: 'Erase Lin' }).at(-1)!;
+    expect(confirmButton).toBeDisabled();
+    await userEvent.type(screen.getByLabelText('Type lin@example.com to confirm'), 'LIN@example.com');
+    expect(confirmButton).toBeEnabled();
+    await userEvent.click(confirmButton);
+    expect(
+      await screen.findByText(/Lin was erased and is now shown as “Former user 0a1b2c”/),
+    ).toBeInTheDocument();
+    const post = calls.find((c) => c.method === 'POST' && c.url.endsWith('/erase'))!;
+    expect(await post.json()).toEqual({ confirm_email: 'LIN@example.com' });
+    expect(await screen.findByText('Erased')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Erase Former user 0a1b2c' })).not.toBeInTheDocument();
+  });
+
+  it('checks the audit log seal', async () => {
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/audit-log', body: [] },
+      {
+        method: 'POST',
+        path: '/api/v1/audit-log/verify',
+        body: {
+          ok: false,
+          entries: 12,
+          first_seq: 1,
+          last_seq: 13,
+          head: 'ab'.repeat(32),
+          starts_after_purge: false,
+          problems: [
+            {
+              seq: 7,
+              id: 'e7',
+              created_at: '2026-10-09T02:00:00Z',
+              problem: 'changed after it was recorded',
+            },
+          ],
+        },
+      },
+    ]);
+    renderAt('/admin?tab=audit');
+    await userEvent.click(await screen.findByRole('button', { name: 'Check integrity' }));
+    expect(await screen.findByText('1 problem found:')).toBeInTheDocument();
+    expect(screen.getByText(/Entry 7 .*: changed after it was recorded/)).toBeInTheDocument();
+    expect(screen.getByText('ab'.repeat(32))).toBeInTheDocument();
   });
 
   it('connects a signed webhook and shows the secret once', async () => {

@@ -20,7 +20,7 @@ class OrgSettings(TimestampMixin, Base):
         Integer, nullable=False, default=365, server_default="365"
     )
     activity_retention_days: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default="0"
+        Integer, nullable=False, default=730, server_default="730"
     )
     notification_retention_days: Mapped[int] = mapped_column(
         Integer, nullable=False, default=90, server_default="90"

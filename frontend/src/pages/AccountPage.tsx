@@ -6,7 +6,7 @@ import { api, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { AccessSettings } from '../components/AccessSettings';
 import { DeviceNotifications } from '../components/DeviceNotifications';
-import { Button, ErrorText, Field, Input } from '../components/ui';
+import { Button, ErrorText, Field, Input, TextLink } from '../components/ui';
 import { usePageTitle } from '../lib/pageTitle';
 
 export const MIN_PASSWORD_LENGTH = 12;
@@ -112,6 +112,24 @@ export function AccountPage() {
 
       <DeviceNotifications />
       <AccessSettings />
+
+      <section aria-labelledby="my-data-h" className="flex flex-col gap-3">
+        <h2 id="my-data-h" className="text-lg font-semibold">
+          Your data
+        </h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          Download everything Glasshaus holds about you: your profile, work assigned to or created by you,
+          comments, time, sign-ins, notifications and the activity you caused. To have your account erased,
+          ask an organization admin. See <TextLink to="/about">About and privacy</TextLink>.
+        </p>
+        <a
+          href="/api/v1/users/me/export"
+          download
+          className="self-start rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
+        >
+          Download my data
+        </a>
+      </section>
     </div>
   );
 }

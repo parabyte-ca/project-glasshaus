@@ -6,6 +6,48 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-10
+
+Privacy and compliance: people can get their data, admins can erase a person, the audit log is sealed,
+backups are encrypted, and less personal data is kept.
+
+### Added
+- **Download my data.** Everyone can download everything Glasshaus holds about them from **Account**:
+  their profile, work assigned to or created by them, comments, time, sign-ins, notifications, and the
+  activity and audit entries they caused. Admins can do the same for anyone in **Admin → People**
+  (a subject access request).
+- **Erase a person.** **Admin → People → Erase…** keeps their tasks, time and history but removes who
+  they were. Their name and email become "Former user". Their sign-ins, tokens, devices and
+  notifications are deleted, and so is the text of their comments. You type their email to confirm.
+  Erased people can't sign in or be brought back by SCIM.
+- **Sealed audit log.** Each organization's audit entries are numbered and chained by hash in the
+  database. **Admin → Audit log → Check integrity** shows any entry that was changed, removed or
+  inserted, even by someone with database access. Keep the "latest seal" it shows to prove that later.
+- **Encrypted backups.** Backups are encrypted with age and checksummed. Restores and the restore
+  drill check the checksum and decrypt automatically. The key is generated into `.env`
+  (`GLASSHAUS_BACKUP_KEY`); keep a copy off the server.
+- **About, privacy and source code** (footer on every page):
+  - the version and the AGPL licence;
+  - a link to this server's source code (`GLASSHAUS_SOURCE_URL`);
+  - what personal data is kept;
+  - the third-party packages and their licences.
+- `docs/privacy.md`: what is stored and for how long, where data can go (subprocessors), people's
+  rights, and audit and backup integrity.
+
+### Changed
+- **Activity history is kept 2 years by default** (it was forever). Organizations still on "forever"
+  move to 2 years; admins can change it in **Data & retention**.
+- **Audit entries are kept at least 30 days.** Changing a retention setting is audited with the old and
+  new values. The database refuses changes to audit entries from the application.
+- **Comment text is no longer copied into the activity history, the audit log or webhooks.** The
+  0.22 upgrade also removes it from past entries. Deleting a comment now removes its text everywhere.
+  Slack and Teams posts still quote new comments.
+- Ended sign-in sessions, with their IP address and browser, are deleted after 90 days.
+- Only admins see when someone last signed in.
+- Signing out and approving or denying an app's access (OAuth) are now audited.
+- The backup service has its own small image, `glasshaus-backup`: PostgreSQL tools plus a pinned,
+  checksum-verified `age`.
+
 ## [0.21.1] - 2026-10-10
 
 Security fixes from a full review, and a more private default for My team.
@@ -716,7 +758,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.1...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.1...v0.22.0
 [0.21.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.1...v0.21.0
 [0.20.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.0...v0.20.1
