@@ -2,10 +2,12 @@
 
 import uuid
 
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Request, Response, status
 
-from glasshaus.api.deps import Ctx, Session
+from glasshaus.api.deps import Ctx, CurrentActor, Session
+from glasshaus.integrations import posts, slack_command
 from glasshaus.integrations import service as integrations
+from glasshaus.integrations.posts import ChannelPostCreate, ChannelPostRead
 from glasshaus.integrations.service import (
     EVENT_TYPES,
     CalendarFeedRead,
@@ -99,6 +101,66 @@ async def inbound(integration_id: uuid.UUID, request: Request, session: Session)
     result = await integrations.handle_inbound(session, integration_id, headers, body)
     result.pop("events", None)  # relayed by the worker's outbox sweep after this transaction commits
     return result
+
+
+@router.post(
+    "/integrations/{integration_id}/slack",
+    summary="Request URL for the /glasshaus Slack command (Slack-signed)",
+    responses={200: {"description": "Acknowledged; the answer follows privately in Slack"}},
+)
+async def slack(
+    integration_id: uuid.UUID, request: Request, background: BackgroundTasks
+) -> dict[str, object]:
+    from glasshaus.core.errors import InvalidInput
+
+    body = await request.body()
+    if len(body) > 64 * 1024:
+        raise InvalidInput("payload too large")
+    headers = {k.lower(): v for k, v in request.headers.items()}
+    command = await slack_command.accept(integration_id, headers, body)
+    if command is None:
+        return {}
+    # Slack wants an answer within 3 seconds; the real one goes to response_url when it is ready.
+    background.add_task(slack_command.run, command)
+    return {"response_type": "ephemeral", "text": "Looking that up…"}
+
+
+@router.get(
+    "/integrations/{integration_id}/posts",
+    response_model=list[ChannelPostRead],
+    summary="Scheduled report and status posts to this Slack or Teams channel",
+)
+async def list_posts(ctx: Ctx, integration_id: uuid.UUID) -> list[ChannelPostRead]:
+    return await posts.list_posts(ctx, integration_id)
+
+
+@router.post(
+    "/integrations/{integration_id}/posts",
+    response_model=ChannelPostRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Post a saved report or a project's status to this channel on a schedule",
+)
+async def create_post(ctx: Ctx, integration_id: uuid.UUID, data: ChannelPostCreate) -> ChannelPostRead:
+    return await posts.create_post(ctx, integration_id, data)
+
+
+@router.delete(
+    "/integrations/{integration_id}/posts/{post_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Stop a scheduled post",
+)
+async def delete_post(ctx: Ctx, integration_id: uuid.UUID, post_id: uuid.UUID) -> Response:
+    await posts.delete_post(ctx, integration_id, post_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/integrations/{integration_id}/posts/{post_id}/send",
+    response_model=DeliveryRead,
+    summary="Post it now",
+)
+async def send_post(actor: CurrentActor, integration_id: uuid.UUID, post_id: uuid.UUID) -> DeliveryRead:
+    return await posts.send_now(actor, integration_id, post_id)
 
 
 @router.get("/calendar-feed", response_model=CalendarFeedRead, summary="Your private calendar feed (status)")

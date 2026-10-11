@@ -2,10 +2,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 
-import { api, unwrap } from '../api/client';
-import { Button, ErrorText, Field, Input, Select } from '../components/ui';
+import { api, fieldError, unwrap } from '../api/client';
+import { useAuth } from '../auth/useAuth';
+import { LoadError } from '../components/PageState';
+import { Button, ErrorText, Field, Input, linkClass, Select } from '../components/ui';
+import { usePageTitle } from '../lib/pageTitle';
 
 export function HomePage() {
+  usePageTitle('Home');
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const workspaces = useQuery({
@@ -80,6 +85,23 @@ export function HomePage() {
         <h1 id="projects-heading" className="text-2xl font-bold">
           Projects
         </h1>
+        {(user.direct_reports ?? 0) > 0 && (
+          <p className="mt-1 text-sm">
+            <Link to="/team" className={linkClass}>
+              My team
+            </Link>
+            : the work of the {user.direct_reports} {user.direct_reports === 1 ? 'person' : 'people'} who
+            report to you.
+          </p>
+        )}
+        {projects.isPending && (
+          <p role="status" className="mt-2">
+            Loading…
+          </p>
+        )}
+        {projects.error && (
+          <LoadError error={projects.error} what="your projects" onRetry={() => void projects.refetch()} />
+        )}
         {projects.data?.length === 0 && (
           <p className="mt-2 text-slate-600 dark:text-slate-400">No projects yet. Create one below.</p>
         )}
@@ -120,7 +142,7 @@ export function HomePage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Key" id="key">
+            <Field label="Key" id="key" error={fieldError(createProject.error, 'key')}>
               <Input
                 id="key"
                 required
@@ -130,7 +152,7 @@ export function HomePage() {
                 onChange={(e) => setKey(e.target.value)}
               />
             </Field>
-            <Field label="Name" id="name">
+            <Field label="Name" id="name" error={fieldError(createProject.error, 'name')}>
               <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
             {!!templates.data?.length && (

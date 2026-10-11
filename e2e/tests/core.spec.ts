@@ -56,7 +56,7 @@ test('every layout renders the same tasks', async ({ page }) => {
   for (const kind of ['list', 'board', 'table', 'timeline', 'calendar']) {
     await page.goto(`/projects/${project.key}?kind=${kind}`);
     await expect(page.getByRole('button', { name: kind[0]!.toUpperCase() + kind.slice(1), pressed: true })).toBeVisible();
-    await expect(page.getByText('Build').first()).toBeVisible();
+    await expect(page.getByText('Build').filter({ visible: true }).first()).toBeVisible();
   }
 });
 
@@ -76,6 +76,8 @@ test('command palette and keyboard shortcuts', async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`/projects/${project.key}\\?task=${created.key}`));
   await expect(page.getByRole('dialog').getByLabel('Title')).toHaveValue('Renew the TLS certificate');
   await page.keyboard.press('Escape');
+  // Single-key shortcuts are ignored while a dialog is open, so wait for the drawer to close.
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await page.keyboard.press('c');
   await expect(page.getByLabel('New task title')).toBeFocused();

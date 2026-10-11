@@ -1,15 +1,21 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lazy, Suspense, useCallback, useMemo, useState, type FormEvent } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { api, unwrap, type Task, type ViewConfig, type ViewKind } from '../api/client';
-import { Button, ErrorText, GhostButton, Input, Select } from '../components/ui';
+import { Beacon } from '../components/onboarding/Beacon';
+import { ProjectPeople } from '../components/ProjectPeople';
+import { Button, ErrorText, GhostButton, Input, linkClass, Select } from '../components/ui';
 import { PRIORITIES } from '../lib/grouping';
-import { defaultConfig, OPEN } from '../lib/views';
+import { configWithParams, defaultConfig, OPEN, paramsForConfig } from '../lib/views';
 import { useAiStatus } from '../lib/ai';
+import { useOnboarding } from '../lib/onboarding';
 import { useProject } from '../lib/useProject';
 import { ListView } from '../views/ListView';
-import type { TaskPatch } from '../views/types';
+import { useTaskUpdate, type TaskPatch } from '../lib/taskUpdates';
+import { toast } from '../lib/toast';
+import { usePageTitle } from '../lib/pageTitle';
+import { LoadError } from '../components/PageState';
 
 // Layouts and the task drawer load on demand to keep the first page small.
 const TaskDrawer = lazy(() => import('../components/TaskDrawer').then((m) => ({ default: m.TaskDrawer })));
@@ -28,20 +34,30 @@ const KINDS: { kind: ViewKind; label: string }[] = [
 ];
 export function ProjectPage() {
   const { projectKey = '' } = useParams();
+  // A fresh page per project: filters, search and a half-typed task never carry over to another one.
+  return <ProjectPageFor key={projectKey} projectKey={projectKey} />;
+}
+
+function ProjectPageFor({ projectKey }: { projectKey: string }) {
   const [params, setParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { project, fields, views, users } = useProject(projectKey);
   const p = project.data;
+  usePageTitle(p?.name ?? 'Project');
   const ai = useAiStatus();
-  const aiFeatures = (ai.data?.features ?? []).filter((f) => f !== 'search');
+  const aiFeatures = (ai.data?.features ?? []).filter(
+    (f) => f === 'summaries' || f === 'drafting' || f === 'risks',
+  );
   const [assistant, setAssistant] = useState(false);
 
   const viewId = params.get('view');
   const savedView = views.find((v) => v.id === viewId);
-  const [draft, setDraft] = useState<{ viewId: string | null; config: ViewConfig } | null>(null);
   const kind = (params.get('kind') as ViewKind | null) ?? savedView?.kind ?? 'list';
-  const config = draft && draft.viewId === viewId ? draft.config : (savedView?.config ?? defaultConfig(kind));
-  const setConfig = (next: ViewConfig) => setDraft({ viewId, config: next });
+  const baseConfig = savedView?.config ?? defaultConfig(kind);
+  const config = configWithParams(baseConfig, params);
+  // Filter changes replace the address entry instead of adding one per keystroke.
+  const setConfig = (next: ViewConfig) =>
+    setParams((prev) => paramsForConfig(baseConfig, next, prev), { replace: true });
   const setParam = (key: string, value: string | null) =>
     setParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -74,21 +90,13 @@ export function ProjectPage() {
   const tasks = useMemo(() => tasksQuery.data?.items ?? [], [tasksQuery.data]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['tasks', p?.id] });
-  const update = useMutation({
-    mutationFn: ({ task, patch }: { task: Task; patch: TaskPatch }) =>
-      unwrap(
-        api.PATCH('/api/v1/tasks/{ref}', {
-          params: { path: { ref: task.id } },
-          body: { ...patch, expected_version: task.version },
-        }),
-      ),
-    onSettled: () => void invalidate(),
-  });
+  const update = useTaskUpdate(p?.id, p?.statuses);
   const [title, setTitle] = useState('');
   const create = useMutation({
     mutationFn: () => unwrap(api.POST('/api/v1/tasks', { body: { project_id: p!.id, title } })),
-    onSuccess: () => {
+    onSuccess: (created) => {
       setTitle('');
+      toast(`${created.key} created`);
       void invalidate();
     },
   });
@@ -109,10 +117,71 @@ export function ProjectPage() {
     },
   });
 
-  const openTask = useCallback((task: Task) => setParam('task', task.key), []); // eslint-disable-line react-hooks/exhaustive-deps
-  const closeTask = useCallback(() => setParam('task', null), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Product tour: starts by itself the first time someone opens a project, or on demand (?tour=1
+  // from Help, the command palette or the getting-started checklist).
+  const onboarding = useOnboarding();
+  const tourRequested = params.get('tour') === '1';
+  const autoStarted = useRef(false);
+  const activeTour = useRef<{ destroy: () => void } | null>(null);
+  const ready = !!p && tasksQuery.isSuccess && !params.get('task');
+  useEffect(() => {
+    if (!ready || activeTour.current) return;
+    const firstVisit = onboarding.state?.tour === null && !autoStarted.current;
+    if (!tourRequested && !firstVisit) return;
+    autoStarted.current = true;
+    if (tourRequested) setParam('tour', null);
+    const previous = onboarding.state?.tour;
+    activeTour.current = { destroy: () => undefined };
+    void import('../components/onboarding/tour').then(({ startTour }) => {
+      if (!activeTour.current) return; // left the page meanwhile
+      activeTour.current = startTour((outcome) => {
+        activeTour.current = null;
+        // Skipping a repeat tour never undoes a finished one.
+        if (outcome === 'completed' || previous !== 'completed') onboarding.update({ tour: outcome });
+      });
+    });
+  }, [ready, tourRequested, onboarding]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(
+    () => () => {
+      activeTour.current?.destroy();
+      activeTour.current = null;
+    },
+    [],
+  );
 
-  if (project.isError) return <ErrorText error={project.error} />;
+  // Opening a task adds one history entry and closing it goes back, so Back after closing leaves the
+  // project instead of reopening the task. A drawer reached by a link closes in place.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const openedHere = (location.state as { drawer?: boolean } | null)?.drawer === true;
+  const openTask = useCallback(
+    (task: Task) =>
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('task', task.key);
+          return next;
+        },
+        { state: { drawer: true }, replace: !!params.get('task') },
+      ),
+    [setParams, params],
+  );
+  const closeTask = useCallback(() => {
+    if (openedHere) void navigate(-1);
+    else
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('task');
+          return next;
+        },
+        { replace: true },
+      );
+  }, [openedHere, navigate, setParams]);
+
+  if (project.isError) {
+    return <LoadError error={project.error} what="project" onRetry={() => void project.refetch()} />;
+  }
   if (!p) return <p role="status">Loading…</p>;
 
   const showCompleted = !filters.status_categories;
@@ -133,25 +202,34 @@ export function ProjectPage() {
         <h1 className="text-2xl font-bold">
           {p.name} <span className="font-mono text-sm text-slate-600 dark:text-slate-400">{p.key}</span>
         </h1>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <ProjectPeople project={p} users={users} defaultOpen={params.get('people') === '1'} />
           {aiFeatures.length > 0 && (
             <GhostButton aria-expanded={assistant} onClick={() => setAssistant((v) => !v)}>
-              Assistant
+              AI tools
             </GhostButton>
           )}
-          <Link
-            to={`/projects/${p.key}/report`}
-            className="text-sm text-sky-700 hover:underline dark:text-sky-400"
-          >
+          <Link to={`/projects/${p.key}/report`} className={`text-sm ${linkClass}`}>
             Report
           </Link>
-          {p.my_role === 'admin' && (
-            <Link
-              to={`/projects/${p.key}/settings`}
-              className="text-sm text-sky-700 hover:underline dark:text-sky-400"
-            >
-              Project settings
+          <Link to={`/projects/${p.key}/assistant`} className={`text-sm ${linkClass}`}>
+            Project assistant
+          </Link>
+          {(p.my_role === 'admin' || p.my_role === 'editor') && (
+            <Link to={`/projects/${p.key}/import`} className={`text-sm ${linkClass}`}>
+              Import
             </Link>
+          )}
+          {p.my_role === 'admin' && (
+            <span className="flex items-center gap-1">
+              <Link to={`/projects/${p.key}/settings`} className={`text-sm ${linkClass}`}>
+                Project settings
+              </Link>
+              <Beacon id="automations" title="Automations">
+                Project settings hold automations (“when a task moves to Done, notify the reporter”),
+                recurring tasks and custom fields.
+              </Beacon>
+            </span>
           )}
         </div>
       </div>
@@ -173,6 +251,7 @@ export function ProjectPage() {
               key={k.kind}
               type="button"
               aria-pressed={kind === k.kind}
+              data-tour={k.kind === 'timeline' ? 'timeline-switch' : undefined}
               onClick={() => setParam('kind', k.kind)}
               className={`px-3 py-1.5 text-sm first:rounded-l-md last:rounded-r-md ${kind === k.kind ? 'bg-sky-700 text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
             >
@@ -180,6 +259,12 @@ export function ProjectPage() {
             </button>
           ))}
         </div>
+        <span className="self-center">
+          <Beacon id="timeline" title="Timeline view">
+            Plan dates on a Gantt-style timeline: drag bars or use the arrow keys, and check the critical path
+            and dependencies.
+          </Beacon>
+        </span>
         <Select
           aria-label="Saved view"
           value={viewId ?? ''}
@@ -309,6 +394,7 @@ export function ProjectPage() {
 
       <form
         className="flex gap-2"
+        data-tour="create-task"
         onSubmit={(e) => {
           e.preventDefault();
           if (title.trim()) create.mutate();
@@ -331,18 +417,26 @@ export function ProjectPage() {
           Add
         </Button>
       </form>
-      <ErrorText error={create.error ?? update.error ?? saveView.error ?? tasksQuery.error} />
-      <Suspense fallback={<p role="status">Loading view…</p>}>
-        {
-          {
-            board: <BoardView {...props} />,
-            table: <TableView {...props} />,
-            timeline: <TimelineView {...props} />,
-            calendar: <CalendarView {...props} />,
-            list: <ListView {...props} />,
-          }[kind]
-        }
-      </Suspense>
+      <ErrorText error={create.error ?? update.error ?? saveView.error} />
+      <div data-tour="task-view">
+        <Suspense fallback={<p role="status">Loading view…</p>}>
+          {tasksQuery.isPending ? (
+            <p role="status" className="py-6 text-slate-600 dark:text-slate-400">
+              Loading tasks…
+            </p>
+          ) : tasksQuery.isError && !tasksQuery.data ? (
+            <LoadError error={tasksQuery.error} what="task list" onRetry={() => void tasksQuery.refetch()} />
+          ) : (
+            {
+              board: <BoardView {...props} />,
+              table: <TableView {...props} />,
+              timeline: <TimelineView {...props} />,
+              calendar: <CalendarView {...props} />,
+              list: <ListView {...props} />,
+            }[kind]
+          )}
+        </Suspense>
+      </div>
 
       {params.get('task') && (
         <Suspense fallback={null}>

@@ -15,6 +15,15 @@ async def test_version(client: AsyncClient) -> None:
     r = await client.get("/api/v1/version")
     assert r.status_code == 200
     assert r.json()["version"] == __version__
+    # AGPL-3.0 section 13: anyone using the server can find its source.
+    assert r.json()["license"] == "AGPL-3.0-only" and r.json()["source"].startswith("https://")
+
+
+async def test_third_party_licences_are_listed_without_signing_in(client: AsyncClient) -> None:
+    r = await client.get("/api/v1/licenses")
+    assert r.status_code == 200
+    names = {p["name"].lower(): p for p in r.json()}
+    assert "fastapi" in names and names["fastapi"]["license"]
 
 
 async def test_openapi_is_3_1(client: AsyncClient) -> None:

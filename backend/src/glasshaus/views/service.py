@@ -5,7 +5,7 @@ import uuid
 from sqlalchemy import func, or_, select
 
 from glasshaus.core import events
-from glasshaus.core.authz import require_project
+from glasshaus.core.authz import require_project, require_scope
 from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import NotFound, PermissionDenied
 from glasshaus.core.rbac import Permission
@@ -30,6 +30,7 @@ async def list_views(ctx: ServiceContext, project_id: uuid.UUID) -> list[ViewRea
 
 
 async def create_view(ctx: ServiceContext, project_id: uuid.UUID, data: ViewCreate) -> ViewRead:
+    require_scope(ctx, Permission.TASK_UPDATE)  # a read-only token changes nothing
     await require_project(
         ctx, project_id, Permission.PROJECT_UPDATE if data.shared else Permission.PROJECT_READ
     )
@@ -61,6 +62,7 @@ async def create_view(ctx: ServiceContext, project_id: uuid.UUID, data: ViewCrea
 
 
 async def _editable(ctx: ServiceContext, view_id: uuid.UUID, *, sharing: bool = False) -> SavedView:
+    require_scope(ctx, Permission.TASK_UPDATE)
     view = await ctx.session.get(SavedView, view_id)
     if view is None:
         raise NotFound("view not found")

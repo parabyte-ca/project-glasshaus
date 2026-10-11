@@ -3,7 +3,7 @@
 Glasshaus has an optional, built-in AI assistant. It is **off by default** and stays off until both:
 
 1. the server has a provider configured (`GLASSHAUS_AI_PROVIDER`), and
-2. an organization owner or admin turns it on in **Admin → AI assistant**, choosing which features
+2. an organization owner or admin turns it on in **Admin → AI**, choosing which features
    people may use.
 
 External AI tools (Claude, GitHub Copilot, any MCP client) do not need this: they use the
@@ -17,13 +17,16 @@ External AI tools (Claude, GitHub Copilot, any MCP client) do not need this: the
 | Task drafting | Project → **Assistant → Draft tasks** | The brief you type, the project name and description, and up to 100 open task titles (to avoid duplicates) | Proposed tasks (title, description, priority, estimate, tags). **Nothing is created** until you press **Add** |
 | Risk flags | Project → **Assistant → Risks** | The status summary plus up to 200 open tasks (key, title, status, priority, assignee name, dates, estimate) | Up to 10 risks with severity, evidence and a next step; task keys not in the data are dropped |
 | Ask in plain words | **Ctrl K / ⌘ K** → *Ask: …* | Only your question, today's date, visible project keys and names, and people's names. **No task content** | The filters it chose (shown in plain words) and the matching tasks, found with your permissions |
+| Questions about reports (off until an admin ticks it) | **Reports → Ask a question**, a saved report's **Ask about this report**, or **Ctrl K / ⌘ K** → *Ask reports: …* | Step 1: your question, today's date, visible project keys and names, people's names, and the names and descriptions of saved reports you can see. Step 2: the report table (group names such as projects, people and tags, and the numbers, up to 50 rows) and totals. **No task titles or descriptions** | The answer, the report it used (shown as a table or chart so the numbers can be checked), and **Open in the report builder** to adjust or save it |
+| Project assistant (off until an admin ticks it) | Project → **Project assistant** (daily digest and weekly status draft) | Project key and name, today's date, health numbers, and the key, title, status, due date, owner's name and days late/stale of overdue, due, stale, unassigned and recently done tasks (up to 20 each); schedule warnings | A digest summary and focus list, or a weekly headline, write-up, highlights and concerns. The facts go out without AI too. See [assistant.md](assistant.md) |
+| Project assistant suggestions (same switch) | Project → **Project assistant → Suggestions**, and **Turn meeting notes or an email into tasks** | Up to 60 open tasks (key, title, status, owner's name, due date, days since update) and the editors' names with their open task counts; for notes, the notes text and the editors' names | Proposed follow-ups, due dates, owners and tasks, checked against the data. **Nothing changes until a person approves** |
 
 Everything is read-only. The assistant has no tools and cannot change data; drafts and suggestions are
 applied by a person (or an MCP client) through the normal task API. Email addresses and credentials are
 never sent.
 
 The same features are available through the REST API (`/api/v1/ai/...`) and MCP (`ai_status`,
-`ai_status_report`, `ai_draft_tasks`, `ai_flag_risks`, `ai_search_tasks`); see the
+`ai_status_report`, `ai_draft_tasks`, `ai_flag_risks`, `ai_search_tasks`, `ai_ask_reports`); see the
 [coverage matrix](coverage-matrix.md).
 
 ## Providers
@@ -32,7 +35,7 @@ The same features are available through the REST API (`/api/v1/ai/...`) and MCP 
 | --- | --- | --- |
 | `none` (default) | Assistant unavailable | — |
 | `anthropic` | Claude through the official Anthropic SDK. Default model `claude-opus-5-5` | `GLASSHAUS_AI_API_KEY` (or `ANTHROPIC_API_KEY`), optional `GLASSHAUS_AI_MODEL`, `GLASSHAUS_AI_EFFORT` (`low`, `medium`, `high`; blank uses the model default), `GLASSHAUS_AI_FALLBACKS` |
-| `openai` | Any OpenAI-compatible `/chat/completions` server, e.g. **Ollama**, LM Studio, vLLM, LocalAI — keeps data on your network | `GLASSHAUS_AI_BASE_URL` (e.g. `http://ollama:11434/v1`), `GLASSHAUS_AI_MODEL` (default `llama3.1`), optional `GLASSHAUS_AI_API_KEY` |
+| `openai` | Any OpenAI-compatible `/chat/completions` server, e.g. **Ollama**, LM Studio, vLLM, LocalAI (keeps data on your network), or **Azure OpenAI** | `GLASSHAUS_AI_BASE_URL` (e.g. `http://ollama:11434/v1`), `GLASSHAUS_AI_MODEL` (default `llama3.1`), optional `GLASSHAUS_AI_API_KEY`; for Azure also `GLASSHAUS_AI_AUTH_HEADER` and, on classic deployment URLs, `GLASSHAUS_AI_API_VERSION` |
 | `fake` | Deterministic sample output for demos and tests | — |
 
 Other settings: `GLASSHAUS_AI_TIMEOUT_SECONDS` (default 120) and `GLASSHAUS_AI_RATE_LIMIT_PER_MINUTE`
@@ -44,6 +47,32 @@ Anthropic's recommended fallback model in the same call (beta `server-side-fallb
 to `false` to turn that off, or if you point `GLASSHAUS_AI_BASE_URL` at a gateway that does not support
 it. Local models get the schema in the prompt and as `response_format`; replies that are not valid JSON
 are rejected with a clear error.
+
+### Example: Azure OpenAI
+
+Microsoft 365 Copilot has no model API for apps, so for a Microsoft-hosted model use Azure OpenAI
+(Azure AI Foundry). Deploy a model (for example `gpt-4.1` or `gpt-5-mini`), then use either endpoint:
+
+```bash
+# v1 endpoint (recommended): no api-version needed
+GLASSHAUS_AI_PROVIDER=openai
+GLASSHAUS_AI_BASE_URL=https://<resource>.openai.azure.com/openai/v1
+GLASSHAUS_AI_MODEL=<deployment name>
+GLASSHAUS_AI_API_KEY=<key from Keys and Endpoint>
+GLASSHAUS_AI_AUTH_HEADER=api-key
+
+# Classic deployment endpoint: add the API version
+GLASSHAUS_AI_BASE_URL=https://<resource>.openai.azure.com/openai/deployments/<deployment name>
+GLASSHAUS_AI_API_VERSION=2024-10-21
+```
+
+`GLASSHAUS_AI_AUTH_HEADER=api-key` sends the key in Azure's `api-key` header instead of
+`Authorization: Bearer`. Newer reasoning models that refuse `max_tokens` are retried automatically with
+`max_completion_tokens`. Data stays in your Azure tenant under Microsoft's Azure OpenAI terms. Microsoft
+Entra ID (keyless) sign-in is not supported yet; use a key.
+
+Copilot itself (Microsoft 365 Copilot, Copilot Studio, GitHub Copilot) connects to Glasshaus through the
+MCP server instead; see [integrations](integrations/README.md).
 
 ### Example: Ollama on the same host
 
@@ -75,9 +104,13 @@ try a larger model.
   is untrusted data, never instructions. Because the assistant has no tools and its output is only shown
   or proposed, injected text cannot cause actions.
 - **Least data:** each feature sends only the fields listed above. Search sends no task content at all.
+- **Reports are run by Glasshaus, not the model:** the model only picks a saved report or fills in a
+  report definition from fixed lists (unknown projects, people and groupings are dropped); the report
+  then runs with the asker's access, exactly as in the report builder. The answer is shown as plain
+  text (no links or images) next to the table it was written from.
 - **Permissions:** every request runs as the person asking, so the assistant only sees what they can see
   (projects they cannot read return 404).
-- **Audit:** each request is recorded as `ai.summaries`, `ai.drafting`, `ai.risks` or `ai.search` with the
+- **Audit:** each request is recorded as `ai.summaries`, `ai.drafting`, `ai.risks`, `ai.search` or `ai.reports` with the
   outcome, provider, model, token counts and duration — **not** the prompt or the answer.
 - **Limits:** per-person rate limit, input caps (brief 4,000 characters, question 500) and output caps
   (15 drafts, 10 risks).

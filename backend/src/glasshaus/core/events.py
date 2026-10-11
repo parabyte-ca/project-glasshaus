@@ -94,9 +94,15 @@ async def relay_events(event_ids: list[uuid.UUID] | None = None, *, limit: int =
             redis = get_redis()
             async with redis.pipeline(transaction=False) as pipe:
                 for record in records:
-                    body = orjson.dumps(envelope(record)).decode()
-                    pipe.xadd(STREAM, {"event": body}, maxlen=STREAM_MAXLEN, approximate=True)
-                    pipe.publish(channel_for(record.tenant_id), body)
+                    full = envelope(record)
+                    pipe.xadd(
+                        STREAM, {"event": orjson.dumps(full).decode()}, maxlen=STREAM_MAXLEN, approximate=True
+                    )
+                    # Live updates only need identifiers (clients refetch through the API), so every
+                    # connected tab parses a few hundred bytes, not the whole task.
+                    slim = {k: v for k, v in full.items() if k not in ("data", "tenant_id", "occurred_at")}
+                    slim["actor"] = {"user_id": full["actor"]["user_id"]}
+                    pipe.publish(channel_for(record.tenant_id), orjson.dumps(slim).decode())
                 await pipe.execute()
             await session.execute(
                 update(DomainEventRecord)

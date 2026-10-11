@@ -69,6 +69,7 @@ class ProjectUpdate(Schema):
 class ProjectMemberRead(Schema):
     user_id: uuid.UUID
     role: ProjectRole
+    assistant: bool = Field(False, description="The organization's AI project assistant (read-only).")
 
 
 class ProjectMemberSet(Schema):

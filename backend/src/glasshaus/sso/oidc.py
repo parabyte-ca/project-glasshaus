@@ -42,7 +42,7 @@ def _pkce() -> tuple[str, str]:
     return verifier, challenge
 
 
-async def start(provider: IdentityProvider, next_path: str) -> str:
+async def start(provider: IdentityProvider, next_path: str, extra: dict[str, str] | None = None) -> str:
     cfg = OidcConfig.model_validate(provider.config)
     meta = await discover(str(cfg.issuer))
     verifier, challenge = _pkce()
@@ -55,6 +55,7 @@ async def start(provider: IdentityProvider, next_path: str) -> str:
             "verifier": verifier,
             "nonce": nonce,
             "next": next_path,
+            **(extra or {}),
         }
     )
     query = urlencode(
@@ -74,8 +75,8 @@ async def start(provider: IdentityProvider, next_path: str) -> str:
 
 async def finish(
     provider: IdentityProvider, state: dict[str, Any], code: str
-) -> tuple[str, str | None, str | None]:
-    """Exchange the code and validate the ID token. Returns (subject, email, name)."""
+) -> tuple[str, str | None, str | None, bool]:
+    """Exchange the code and validate the ID token. Returns (subject, email, name, email_verified)."""
     cfg = OidcConfig.model_validate(provider.config)
     meta = await discover(str(cfg.issuer))
     form = {
@@ -118,8 +119,11 @@ async def finish(
         raise Unauthenticated(f"invalid ID token: {exc}") from exc
     if not secrets.compare_digest(str(claims.get("nonce", "")), state["nonce"]):
         raise Unauthenticated("invalid ID token: nonce mismatch")
-    if claims.get("email_verified") is False:
+    if claims.get("email_verified") in (False, "false"):
         raise Unauthenticated("your email address is not verified at the identity provider")
     email = claims.get(cfg.email_claim)
     name = claims.get(cfg.name_claim)
-    return str(claims["sub"]), str(email) if email else None, str(name) if name else None
+    # Only the standard `email` claim with email_verified=true proves the address; other claims
+    # (preferred_username, upn) can be set by users at some IdPs.
+    verified = cfg.email_claim == "email" and claims.get("email_verified") in (True, "true")
+    return str(claims["sub"]), str(email) if email else None, str(name) if name else None, verified

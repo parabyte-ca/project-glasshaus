@@ -5,9 +5,11 @@ import { useNavigate } from 'react-router';
 import { api, unwrap, type Task } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { useAiStatus } from '../lib/ai';
+import { useOnboarding } from '../lib/onboarding';
 import { GO_TO } from '../lib/shortcuts';
 import { toggleTheme } from '../lib/theme';
 import { Dialog } from './Dialog';
+import { useStartTour } from './onboarding/useStartTour';
 import { ErrorText } from './ui';
 
 type Item = { id: string; label: string; hint?: string; group: string; run: () => void };
@@ -29,6 +31,9 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
   const { user } = useAuth();
   const ai = useAiStatus();
   const canAsk = ai.data?.features.includes('search') ?? false;
+  const canAskReports = ai.data?.features.includes('reports') ?? false;
+  const startTour = useStartTour();
+  const onboarding = useOnboarding();
   const [text, setText] = useState('');
   const [active, setActive] = useState(0);
   const listId = useId();
@@ -69,8 +74,17 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
         id: 'ask',
         label: `Ask: “${text.trim()}”`,
         hint: 'AI turns your question into task filters',
-        group: 'Assistant',
+        group: 'AI',
         run: () => ask.mutate(text.trim()),
+      });
+    }
+    if (canAskReports && needle.length >= 3) {
+      out.push({
+        id: 'ask-reports',
+        label: `Ask reports: “${text.trim()}”`,
+        hint: 'AI answers from a report run with your access',
+        group: 'AI',
+        run: go(`/reports?${new URLSearchParams({ ask: text.trim() }).toString()}`),
       });
     }
     for (const t of tasks.data?.items ?? []) {
@@ -86,12 +100,32 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
           run: go(`/projects/${p.key}`),
         });
       }
+      // Typed on purpose ("assistant", "digest", or the project's name): not in the default list.
+      if (needle && match(`${p.key} ${p.name} project assistant digests suggestions`)) {
+        out.push({
+          id: `pa-${p.id}`,
+          label: `${p.name}: project assistant`,
+          hint: 'digests and suggestions',
+          group: 'Projects',
+          run: go(`/projects/${p.key}/assistant`),
+        });
+      }
+      const canImport = p.my_role === 'admin' || p.my_role === 'editor';
+      if (canImport && needle && match(`${p.key} ${p.name} import tasks csv excel nimble spreadsheet`)) {
+        out.push({
+          id: `pi-${p.id}`,
+          label: `${p.name}: import tasks`,
+          hint: 'from CSV, Excel or Nimble',
+          group: 'Projects',
+          run: go(`/projects/${p.key}/import`),
+        });
+      }
     }
-    const pages: [string, string, string?][] = Object.entries(GO_TO).map(([key, [to, label]]) => [
-      to,
-      label,
-      `g ${key}`,
-    ]);
+    const pages: [string, string, string?][] = Object.entries(GO_TO)
+      // My team is for managers (people with reports in the directory).
+      .filter(([, [to]]) => to !== '/team' || (user.direct_reports ?? 0) > 0)
+      .map(([key, [to, label]]): [string, string, string] => [to, label, `g ${key}`]);
+    pages.push(['/about', 'About, privacy and source code']);
     if (user.org_role === 'owner' || user.org_role === 'admin') pages.push(['/admin', 'Admin']);
     for (const [to, label, hint] of pages) {
       if (match(label))
@@ -110,10 +144,42 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
         },
       },
     ];
+    if (startTour) {
+      actions.push({
+        id: 'tour',
+        label: 'Take the product tour',
+        group: 'Actions',
+        run: () => {
+          onClose();
+          startTour();
+        },
+      });
+    }
+    if (onboarding.state && onboarding.state.checklist !== 'open') {
+      actions.push({
+        id: 'checklist',
+        label: 'Show the getting-started checklist',
+        group: 'Actions',
+        run: () => {
+          onClose();
+          onboarding.update({ checklist: 'open' });
+        },
+      });
+    }
     out.push(...actions.filter((a) => match(a.label)));
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, ask.data, canAsk, tasks.data, projects.data, user.org_role]);
+  }, [
+    text,
+    ask.data,
+    canAsk,
+    canAskReports,
+    tasks.data,
+    projects.data,
+    user.org_role,
+    startTour,
+    onboarding.state,
+  ]);
 
   const current = Math.min(active, Math.max(items.length - 1, 0));
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -140,7 +206,11 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
         aria-activedescendant={items[current] ? `${listId}-${items[current].id}` : undefined}
         aria-autocomplete="list"
         aria-label="Search or type a command"
-        placeholder={canAsk ? 'Search, go to, or ask a question…' : 'Search tasks and projects, or go to…'}
+        placeholder={
+          canAsk || canAskReports
+            ? 'Search, go to, or ask a question…'
+            : 'Search tasks and projects, or go to…'
+        }
         value={text}
         onChange={(e) => {
           setText(e.target.value);
@@ -182,7 +252,7 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
                 {item.label}
               </span>
               <span
-                className={`shrink-0 text-xs ${i === current ? 'text-sky-100' : 'text-slate-600 dark:text-slate-400'}`}
+                className={`shrink-0 text-xs ${i === current ? 'text-white' : 'text-slate-600 dark:text-slate-400'}`}
               >
                 {item.hint ?? item.group}
               </span>
@@ -190,7 +260,9 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
           );
         })}
       </ul>
-      {items.length === 0 && <p className="text-sm text-slate-600 dark:text-slate-400">No matches.</p>}
+      <p role="status" className="text-sm text-slate-600 dark:text-slate-400">
+        {tasks.isFetching ? 'Searching tasks…' : items.length === 0 ? 'No matches.' : ''}
+      </p>
     </Dialog>
   );
 }

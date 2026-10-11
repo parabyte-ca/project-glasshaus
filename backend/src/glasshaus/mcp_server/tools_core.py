@@ -105,6 +105,21 @@ def register(server: MCPServer) -> None:
 
         return await invoke("list_users", Scope.READ, {"query": query}, run)
 
+    @server.tool(name="my_team", title="My team", annotations=READ)
+    async def my_team(
+        everyone: Annotated[
+            bool, Field(description="Include everyone further down, not only direct reports.")
+        ] = False,
+    ) -> dict[str, Any]:
+        """The people who report to you (from the organization's directory) with their open, overdue and
+        due-this-week work, time logged this week and last, projects, and work finished this week."""
+        from glasshaus.people import service as people
+
+        async def run(ctx: ServiceContext) -> dict[str, Any]:
+            return (await people.my_team(ctx, everyone=everyone)).model_dump(mode="json")
+
+        return await invoke("my_team", Scope.READ, {"everyone": everyone}, run)
+
     @server.tool(name="list_workspaces", title="List workspaces", annotations=READ)
     async def list_workspaces() -> dict[str, Any]:
         """Workspaces you can see (projects live in a workspace)."""

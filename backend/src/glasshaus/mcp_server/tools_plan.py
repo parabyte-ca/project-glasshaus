@@ -505,6 +505,147 @@ def register(server: MCPServer) -> None:
 
         return await invoke("list_dashboards", Scope.READ, {}, run)
 
+    # ------------------------------------------------------------------ custom reports
+
+    report_help = (
+        "A definition is {source: 'tasks'|'time', group_by: up to 2 of [tasks: project, status, "
+        "status_category, priority, assignee, reporter, tag, due_week, due_month, created_week, "
+        "created_month, completed_week, completed_month, cf:<select field id>; time: project, person, "
+        "task, day, week, month, billable], measures: up to 6 of [tasks: count, open, done, overdue, "
+        "estimate_hours, avg_age_days, avg_cycle_days, on_time_pct; time: hours, billable_hours, entries, "
+        "people], filters: {project_ids, people, status_categories, priorities, tags, billable, date: "
+        "{field: created|completed|due|spent, preset: last_7_days|last_30_days|last_90_days|this_month|"
+        "last_month|this_quarter|this_year|next_30_days|custom, date_from, date_to}}, chart: "
+        "table|bar|line|kpi, sort: {by: 'label' or a measure, descending}, limit (1-500)}."
+    )
+
+    @server.tool(name="list_reports", title="List saved reports", annotations=READ)
+    async def list_reports() -> dict[str, Any]:
+        """Your saved reports and those shared with you, with their definitions. Run one with
+        `run_report`."""
+        from glasshaus.reports import service as reports
+
+        async def run(ctx: ServiceContext) -> dict[str, Any]:
+            return {"reports": await reports.list_reports(ctx)}
+
+        return await invoke("list_reports", Scope.READ, {}, run)
+
+    @server.tool(
+        name="run_report",
+        title="Run a report",
+        annotations=READ,
+        description=(
+            "Run a saved report (report_id) or a report definition, with your access: you only get numbers "
+            "for projects and time you can see. Optional date_preset and projects override a saved report's "
+            "own range and projects (like dashboard filters). " + report_help + " " + UNTRUSTED
+        ),
+    )
+    async def run_report(
+        report_id: Annotated[uuid.UUID | None, Field(description="A saved report.")] = None,
+        definition: Annotated[
+            dict[str, Any] | None, Field(description="A report definition, when not using report_id.")
+        ] = None,
+        date_preset: Annotated[
+            Literal[
+                "last_7_days",
+                "last_30_days",
+                "last_90_days",
+                "this_month",
+                "last_month",
+                "this_quarter",
+                "this_year",
+                "next_30_days",
+            ]
+            | None,
+            Field(description="Saved reports: replace the report's date range."),
+        ] = None,
+        projects: Annotated[
+            list[ProjectRef] | None, Field(description="Saved reports: limit to these projects.")
+        ] = None,
+    ) -> dict[str, Any]:
+        from glasshaus.reports import service as reports
+        from glasshaus.reports.schemas import DateFilter, ReportDefinition, ReportOverrides
+
+        async def run(ctx: ServiceContext) -> Any:
+            if (report_id is None) == (definition is None):
+                raise InvalidInput("give either report_id or definition")
+            if report_id is not None:
+                overrides = None
+                if date_preset or projects:
+                    overrides = ReportOverrides(
+                        date=DateFilter(preset=date_preset) if date_preset else None,
+                        project_ids=[await project_id(ctx, p) for p in projects or []],
+                    )
+                return await reports.run_report(ctx, report_id, overrides)
+            try:
+                parsed = ReportDefinition.model_validate(definition)
+            except ValueError as exc:
+                raise InvalidInput(f"invalid report definition: {exc}") from None
+            return await reports.run_definition(ctx, parsed)
+
+        return await invoke(
+            "run_report",
+            Scope.READ,
+            {"report_id": str(report_id) if report_id else None, "date_preset": date_preset},
+            run,
+        )
+
+    @server.tool(
+        name="manage_reports",
+        title="Save, change or delete a report",
+        annotations=WRITE,
+        description=(
+            "Save a report definition for later (and for dashboards), change one you own, or delete it "
+            "(previews unless confirm=true). Check a definition with `run_report` first. " + report_help
+        ),
+    )
+    async def manage_reports(
+        action: Literal["create", "update", "delete"],
+        report_id: Annotated[uuid.UUID | None, Field(description="update/delete: the report.")] = None,
+        name: Annotated[str | None, Field(max_length=100)] = None,
+        description: Annotated[str | None, Field(max_length=500)] = None,
+        shared: Annotated[bool | None, Field(description="Visible to everyone in the organization.")] = None,
+        definition: dict[str, Any] | None = None,
+        confirm: Confirm = False,
+    ) -> dict[str, Any]:
+        from glasshaus.reports import service as reports
+        from glasshaus.reports.schemas import ReportDefinition, SavedReportCreate, SavedReportUpdate
+
+        async def run(ctx: ServiceContext) -> Any:
+            try:
+                parsed = ReportDefinition.model_validate(definition) if definition is not None else None
+            except ValueError as exc:
+                raise InvalidInput(f"invalid report definition: {exc}") from None
+            if action == "create":
+                if not name or parsed is None:
+                    raise InvalidInput("create needs name and definition")
+                return await reports.create_report(
+                    ctx,
+                    SavedReportCreate(
+                        name=name, description=description or "", shared=bool(shared), definition=parsed
+                    ),
+                )
+            if report_id is None:
+                raise InvalidInput(f"{action} needs report_id")
+            if action == "delete":
+                current = await reports.get_report(ctx, report_id)
+                if not confirm:
+                    return {"preview": True, "would_delete": current.name}
+                await reports.delete_report(ctx, report_id)
+                return {"deleted": str(report_id)}
+            return await reports.update_report(
+                ctx,
+                report_id,
+                SavedReportUpdate(name=name, description=description, shared=shared, definition=parsed),
+            )
+
+        return await invoke(
+            "manage_reports",
+            Scope.TASKS_WRITE,
+            {"action": action, "report_id": str(report_id) if report_id else None, "confirm": confirm},
+            run,
+        )
+
     @server.tool(name="get_portfolio", title="Get portfolio", annotations=READ)
     async def get_portfolio(portfolio_id: uuid.UUID | None = None) -> dict[str, Any]:
         """A portfolio with each project's health, or the list of portfolios when no id is given."""

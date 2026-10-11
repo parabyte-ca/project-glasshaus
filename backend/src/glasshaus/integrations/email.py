@@ -9,6 +9,8 @@ import asyncio
 import contextlib
 import email
 import imaplib
+import ipaddress
+import socket
 import ssl
 import uuid
 from datetime import UTC, datetime
@@ -19,6 +21,8 @@ from typing import Any
 
 from sqlalchemy import func, select
 
+from glasshaus.automation.webhooks import IP, WebhookRefused, check_address
+from glasshaus.config import get_settings
 from glasshaus.core.context import Actor
 from glasshaus.core.rbac import OrgRole
 from glasshaus.integrations.models import Integration
@@ -30,11 +34,64 @@ MAX_PER_POLL = 25
 MAX_BODY = 20_000
 
 
+class _PinnedIMAP4SSL(imaplib.IMAP4_SSL):
+    """IMAP over TLS to an address checked in advance; the certificate is verified for the host name."""
+
+    def __init__(
+        self, host: str, address: str, port: int, ssl_context: ssl.SSLContext, timeout: float
+    ) -> None:
+        self._address = address
+        super().__init__(host, port, ssl_context=ssl_context, timeout=timeout)
+
+    def _create_socket(self, timeout: float | None) -> socket.socket:
+        sock = socket.create_connection((self._address, self.port), timeout)
+        assert self.ssl_context is not None
+        wrapped: socket.socket = self.ssl_context.wrap_socket(sock, server_hostname=self.host)
+        return wrapped
+
+
+def mail_address(cfg: EmailConfig) -> str:
+    """Resolve the IMAP host with the same rules as webhooks: never loopback, link-local or cloud
+    metadata; private addresses only with GLASSHAUS_WEBHOOK_ALLOW_PRIVATE (homelab mail servers).
+    The connection then goes to the address that was checked (no DNS rebinding)."""
+    allow_private = get_settings().webhook_allow_private
+    try:
+        literal: list[IP] = [ipaddress.ip_address(cfg.host)]
+    except ValueError:
+        try:
+            infos = socket.getaddrinfo(cfg.host, cfg.port, type=socket.SOCK_STREAM)
+        except socket.gaierror as exc:
+            raise WebhookRefused(f"cannot resolve {cfg.host}") from exc
+        literal = list(dict.fromkeys(ipaddress.ip_address(info[4][0]) for info in infos))
+    if not literal:
+        raise WebhookRefused(f"cannot resolve {cfg.host}")
+    for ip in literal:
+        check_address(ip, allow_private=allow_private)
+    return str(literal[0])
+
+
 def connect(cfg: EmailConfig, password: str) -> imaplib.IMAP4:
     """Replaced in tests with a fake mailbox."""
-    client = imaplib.IMAP4_SSL(cfg.host, cfg.port, ssl_context=ssl.create_default_context(), timeout=20)
+    client = _PinnedIMAP4SSL(
+        cfg.host, mail_address(cfg), cfg.port, ssl_context=ssl.create_default_context(), timeout=20
+    )
     client.login(cfg.username, password)
     return client
+
+
+def describe_error(exc: BaseException) -> str:
+    """A short reason for the admin that does not echo server banners or internal details."""
+    if isinstance(exc, WebhookRefused):
+        return f"refused: {exc}"
+    if isinstance(exc, ssl.SSLError):
+        return "TLS failed (certificate or protocol); IMAP needs TLS on the configured port"
+    if isinstance(exc, imaplib.IMAP4.error):
+        return "the mail server refused the sign-in or the folder"
+    if isinstance(exc, (TimeoutError, socket.timeout)):
+        return "the mail server did not respond in time"
+    if isinstance(exc, OSError):
+        return "could not connect to the mail server"
+    return "the mailbox could not be read"
 
 
 def _text(msg: Message) -> str:
@@ -102,7 +159,8 @@ async def check_login(integration: Integration) -> str | None:
     try:
         await asyncio.to_thread(run)
     except Exception as exc:  # noqa: BLE001 - report any connection/login failure to the admin
-        return f"{type(exc).__name__}: {exc}"[:500]
+        log.info("email.check_failed", integration_id=str(integration.id), error=repr(exc)[:300])
+        return describe_error(exc)
     return None
 
 
@@ -126,7 +184,8 @@ async def poll_integration(integration_id: uuid.UUID) -> int:
             await apply_tenant(session, tenant_id)
             row = await session.get(Integration, integration_id)
             if row:
-                row.last_error, row.last_error_at = f"{type(exc).__name__}: {exc}"[:500], datetime.now(UTC)
+                row.last_error, row.last_error_at = describe_error(exc), datetime.now(UTC)
+        log.info("email.poll_failed", integration_id=str(integration_id), error=repr(exc)[:300])
         return 0
     created: list[bytes] = []
     actor = Actor(

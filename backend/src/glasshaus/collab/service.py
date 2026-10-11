@@ -4,10 +4,10 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, func, or_, select, tuple_, update
 
 from glasshaus.collab.mentions import extract_mentions
-from glasshaus.collab.models import Comment, Notification
+from glasshaus.collab.models import Comment, Notification, NotificationKind
 from glasshaus.collab.schemas import (
     ActivityItem,
     CommentCreate,
@@ -22,7 +22,7 @@ from glasshaus.core.errors import InvalidInput, NotFound, PermissionDenied
 from glasshaus.core.events import envelope
 from glasshaus.core.models import DomainEventRecord
 from glasshaus.core.rbac import Permission
-from glasshaus.core.schemas import Page, decode_cursor, encode_cursor
+from glasshaus.core.schemas import Page, decode_cursor, decode_keyset, encode_cursor, encode_keyset
 from glasshaus.projects.models import Project
 from glasshaus.tasks.models import Task
 
@@ -70,7 +70,9 @@ async def create_comment(ctx: ServiceContext, task_id: uuid.UUID, data: CommentC
         "task",
         task.id,
         {
-            "comment": result.model_dump(mode="json"),
+            # Comment text stays out of the event history (kept for years, shown in activity, sent to
+            # webhooks); consumers that need it read the comment, so a deleted comment is gone everywhere.
+            "comment": result.model_dump(mode="json", exclude={"body"}),
             "task_title": task.title,
             "assignee_id": task.assignee_id,
         },
@@ -104,7 +106,7 @@ async def update_comment(ctx: ServiceContext, comment_id: uuid.UUID, data: Comme
         "task",
         task.id,
         {
-            "comment": result.model_dump(mode="json"),
+            "comment": result.model_dump(mode="json", exclude={"body"}),
             "task_title": task.title,
             "new_mentions": [str(m) for m in set(comment.mentions) - previous],
         },
@@ -196,7 +198,7 @@ async def activity(
     if limit < 1 or limit > 200:
         raise InvalidInput("limit must be between 1 and 200")
     require_scope(ctx, Permission.PROJECT_READ)
-    offset = decode_cursor(cursor)
+    position = decode_keyset(cursor)
     stmt = select(DomainEventRecord)
     if task_id is not None:
         task = await _task(ctx, task_id, Permission.TASK_READ)
@@ -214,17 +216,64 @@ async def activity(
                 and_(DomainEventRecord.project_id.is_(None), DomainEventRecord.actor_id == ctx.actor.user_id),
             )
         )
+    # Keyset paging (newest first): deep pages cost the same as the first.
+    if isinstance(position, tuple):
+        stmt = stmt.where(tuple_(DomainEventRecord.occurred_at, DomainEventRecord.id) < tuple_(*position))
+    elif isinstance(position, int):
+        stmt = stmt.offset(position)
     rows = list(
         (
             await ctx.session.scalars(
-                stmt.order_by(DomainEventRecord.occurred_at.desc(), DomainEventRecord.id)
-                .offset(offset)
-                .limit(limit + 1)
+                stmt.order_by(DomainEventRecord.occurred_at.desc(), DomainEventRecord.id.desc()).limit(
+                    limit + 1
+                )
             )
         ).all()
     )
     more = len(rows) > limit
+    page = rows[:limit]
     return Page[ActivityItem](
-        items=[ActivityItem.model_validate(_public(envelope(r))) for r in rows[:limit]],
-        next_cursor=encode_cursor(offset + limit) if more else None,
+        items=[ActivityItem.model_validate(_public(envelope(r))) for r in page],
+        next_cursor=encode_keyset(page[-1].occurred_at, page[-1].id) if more else None,
     )
+
+
+async def notify_users(
+    ctx: ServiceContext,
+    user_ids: list[uuid.UUID],
+    *,
+    kind: NotificationKind,
+    title: str,
+    link: str | None = None,
+    event_id: uuid.UUID | None = None,
+) -> list[uuid.UUID]:
+    """Notify people about something that is not a task (a report alert, a backup problem).
+
+    With ``event_id`` each person is notified once for it, so a repeated check never piles up
+    duplicates. Returns the people who got a new notification. Callers check access themselves.
+    """
+    from sqlalchemy.dialects.postgresql import insert
+
+    event = event_id or uuid.uuid4()
+    created: list[uuid.UUID] = []
+    for user_id in dict.fromkeys(user_ids):
+        stmt = (
+            insert(Notification)
+            .values(
+                id=uuid.uuid4(),
+                tenant_id=ctx.tenant_id,
+                user_id=user_id,
+                kind=kind,
+                event_id=event,
+                title=title[:300],
+                link=link,
+            )
+            .on_conflict_do_nothing(index_elements=["event_id", "user_id"])
+        )
+        if (await ctx.session.execute(stmt)).rowcount:  # type: ignore[attr-defined]
+            created.append(user_id)
+    if created:
+        from glasshaus.realtime import publish_user_signal
+
+        await publish_user_signal(ctx.tenant_id, [str(u) for u in created], "notification.created")
+    return created

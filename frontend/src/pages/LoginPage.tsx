@@ -4,8 +4,10 @@ import { useSearchParams } from 'react-router';
 
 import { api, unwrap } from '../api/client';
 import { Button, ErrorText, Field, Input } from '../components/ui';
+import { usePageTitle } from '../lib/pageTitle';
 
 export function LoginPage() {
+  usePageTitle('Sign in');
   const queryClient = useQueryClient();
   const [params] = useSearchParams();
   const [email, setEmail] = useState('');
@@ -16,7 +18,11 @@ export function LoginPage() {
       unwrap(
         api.POST('/api/v1/auth/login', { body: { email, password, organization: organization || null } }),
       ),
-    onSuccess: (user) => queryClient.setQueryData(['me'], user),
+    onSuccess: async (user) => {
+      queryClient.setQueryData(['me'], user);
+      // The sign-in answer is the bare account; /users/me adds what depends on it (direct reports).
+      await queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
   });
 
   const providers = useQuery({
