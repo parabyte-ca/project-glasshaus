@@ -89,6 +89,7 @@ main() {
   if [[ "$pull" == 1 ]]; then compose pull api web backup || rollback
   else compose build || rollback; fi
   ensure_backup_key  # 0.22: backups are encrypted from now on
+  ensure_upgrade_dir  # 0.26: upgrades from Admin > Updates
 
   if [[ "$preflight" == 1 ]]; then
     if ! preflight_check "$backup"; then

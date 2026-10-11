@@ -200,6 +200,7 @@ backend/src/glasshaus/
 ## Observability
 
 - Logs: JSON to stdout (structlog), request-scoped context.
-- Metrics: `/metrics` on the API (`glasshaus_http_requests_total`, `glasshaus_http_request_duration_seconds`).
+- Metrics: `/metrics` on the API: request counts and latency (shared across API processes) plus system
+  status gauges from the worker's five-minute check (`monitoring.py`); see [monitoring.md](monitoring.md).
 - Traces: OTLP/HTTP when `GLASSHAUS_OTEL_ENABLED=true`.
 - Health: `/healthz` (liveness), `/readyz` (Postgres + Redis); worker liveness via `arq --check`.

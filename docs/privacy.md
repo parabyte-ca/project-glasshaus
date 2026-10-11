@@ -35,6 +35,7 @@ Nothing leaves the server unless an admin turns it on:
 | Webhooks | Event payloads (tasks, changes; comment metadata without text) | Admin → Integrations |
 | Email (your SMTP server) | Report emails, alerts, backup warnings | `GLASSHAUS_SMTP_*` |
 | Browser push services (Google, Mozilla, Apple) | Encrypted notification text; the service cannot read it | Each person, per device |
+| GitHub (release check) | Nothing about your server or people: a daily request for the latest release's version and notes | `GLASSHAUS_UPDATE_CHECK` (on by default) |
 | Microsoft Entra ID / identity provider | Sign-in and provisioning requests; the Graph sync reads people and managers | Admin → Single sign-on, Provisioning |
 
 Keep a list of the ones you use as your subprocessor register.

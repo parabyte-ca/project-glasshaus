@@ -102,7 +102,9 @@ test('import tasks from CSV, then update them from an Excel file', async ({ page
 
   await page.getByRole('link', { name: 'Open Imported work' }).click();
   await expect(page.getByText('Plan the launch')).toBeVisible();
-  await page.getByLabel('Show completed').check(); // "Done" in the file became the Done status
+  // "Done" in the file became the Done status. The box updates through the URL, so click and wait.
+  await page.getByLabel('Show completed').click();
+  await expect(page.getByLabel('Show completed')).toBeChecked();
   await expect(page.getByText('Write the FAQ')).toBeVisible();
 
   // The same items from Excel: matched by ID, so the renamed one updates instead of being added.
