@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Response, status
 
-from glasshaus import backups, updates
+from glasshaus import backups, monitoring, updates
 from glasshaus.api.deps import Ctx
 from glasshaus.governance import service as governance
 from glasshaus.governance.service import OrgSettingsRead, OrgSettingsUpdate, PasswordReset
@@ -34,6 +34,15 @@ async def update_settings(ctx: Ctx, data: OrgSettingsUpdate) -> OrgSettingsRead:
 )
 async def backup_status(ctx: Ctx) -> backups.BackupStatus:
     return await backups.get_status(ctx)
+
+
+@router.get(
+    "/status",
+    response_model=monitoring.SystemStatus,
+    summary="Health of the database, Redis, the worker, backups and disk (single-organization servers)",
+)
+async def system_status(ctx: Ctx) -> monitoring.SystemStatus:
+    return await monitoring.get_status(ctx)
 
 
 @router.get(

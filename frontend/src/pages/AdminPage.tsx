@@ -24,6 +24,10 @@ const TABS = {
     lazy(() => import('../components/admin/AuditLog').then((m) => ({ default: m.AuditLog }))),
   ],
   ai: ['AI', lazy(() => import('../components/admin/AiSettings').then((m) => ({ default: m.AiSettings })))],
+  status: [
+    'System status',
+    lazy(() => import('../components/admin/SystemStatus').then((m) => ({ default: m.SystemStatus }))),
+  ],
   backups: [
     'Backups',
     lazy(() => import('../components/admin/Backups').then((m) => ({ default: m.Backups }))),

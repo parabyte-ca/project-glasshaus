@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     multi_tenant: bool = False
 
     metrics_enabled: bool = True
+    # When set, /metrics needs "Authorization: Bearer <token>" (for scrapers on another host).
+    metrics_token: SecretStr | None = None
     otel_enabled: bool = False
     otel_service_name: str = "glasshaus"
 

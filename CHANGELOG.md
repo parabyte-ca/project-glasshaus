@@ -6,6 +6,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-10-11
+
+Health and monitoring.
+
+### Added
+- **Admin → System status** (owners and admins): the database, Redis, the background worker, the job
+  queue, live updates, Slack/Teams/webhook deliveries, backups, backup disk space and the version, each
+  marked OK, needs attention or problem, with the numbers behind it.
+- **Alerts.** The worker checks every five minutes and notifies owners and admins (in the app, and by
+  email when it is set up) when something needs attention, at most once every six hours per problem. The
+  API watches the worker, so a stopped worker is reported too.
+- **Prometheus gauges** on `/metrics` for every check (`glasshaus_check_state`, queue length, worker
+  heartbeat age, undelivered changes, backup age, free disk and more). `GLASSHAUS_METRICS_TOKEN` protects
+  `/metrics` for scraping from another host. See [docs/monitoring.md](docs/monitoring.md) for a scrape
+  config and example alert rules.
+
+### Fixed
+- `/metrics` request counters now cover all API processes, not just whichever one answered the scrape.
+
 ## [0.26.0] - 2026-10-10
 
 Upgrade Glasshaus from the app.
@@ -894,7 +913,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.23.0...v0.24.0

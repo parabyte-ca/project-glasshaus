@@ -83,6 +83,9 @@ services:
       GLASSHAUS_UPGRADE_DIR: /upgrade
       # API worker processes (uvicorn reads WEB_CONCURRENCY); raise on hosts with spare cores.
       WEB_CONCURRENCY: ${GLASSHAUS_API_WORKERS:-2}
+      # Shares /metrics counters between the API processes (on the /tmp tmpfs, so fresh each start).
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+      GLASSHAUS_METRICS_TOKEN: ${GLASSHAUS_METRICS_TOKEN:-}
     # Read-only view of the backups for Admin > Backups; the upgrade folder for upgrade requests.
     volumes:
       - "${GLASSHAUS_BACKUP_DIR:-./backups}:/backups:ro"
