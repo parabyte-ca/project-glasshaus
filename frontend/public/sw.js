@@ -1,7 +1,7 @@
 // Project Glasshaus service worker: makes the app installable and lets the shell open offline.
 // It caches only static files (the page shell, hashed /assets/, icons). API, SCIM, health and
 // WebSocket traffic always goes to the network and is never stored, so no project data is cached.
-const CACHE = 'glasshaus-shell-v1';
+const CACHE = 'glasshaus-shell-v2';
 const SHELL = ['/', '/manifest.webmanifest', '/icon.svg', '/theme-init.js'];
 const NETWORK_ONLY = /^\/(api|scim|healthz|readyz|nginx-health)(\/|$)/;
 
@@ -79,4 +79,49 @@ self.addEventListener('fetch', (event) => {
       ),
     );
   }
+});
+
+// Notifications pushed by the server (only when this device turned them on in Account settings).
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = (event.data ? event.data.json() : null) || {};
+  } catch {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+  // Only pages of this app: resolve the link and keep it when it stays on this origin.
+  let url = '/';
+  if (typeof data.url === 'string') {
+    try {
+      const resolved = new URL(data.url, self.location.origin);
+      if (resolved.origin === self.location.origin) url = resolved.pathname + resolved.search + resolved.hash;
+    } catch {
+      // keep '/'
+    }
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Glasshaus', {
+      body: data.body || '',
+      tag: data.tag || undefined,
+      icon: '/icon.svg',
+      badge: '/icon.svg',
+      data: { url },
+    }),
+  );
+});
+
+// Tapping a notification opens (or focuses) the app at its page.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || '/', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      for (const win of windows) {
+        if (new URL(win.url).origin === self.location.origin && 'focus' in win) {
+          return win.focus().then(() => ('navigate' in win ? win.navigate(target) : undefined));
+        }
+      }
+      return self.clients.openWindow(target);
+    }),
+  );
 });

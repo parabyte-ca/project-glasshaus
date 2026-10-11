@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { api, unwrap, type Schemas } from '../../api/client';
 import { Button, ErrorText, Field, GhostButton, Input, Select } from '../ui';
 import { Copyable, Section } from './common';
+import { useConfirm } from '../../lib/confirm';
 
 type Provider = Schemas['ProviderRead'];
 
@@ -23,6 +24,7 @@ const EMPTY = {
 };
 
 function ProviderCard({ p }: { p: Provider }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['sso-providers'] });
   const update = useMutation({
@@ -59,9 +61,21 @@ function ProviderCard({ p }: { p: Provider }) {
           <GhostButton onClick={() => update.mutate({ enforce: !p.enforce })}>
             {p.enforce ? 'Allow passwords' : 'Require SSO'}
           </GhostButton>
+          {p.allowed_domains.length > 0 && (
+            <GhostButton onClick={() => update.mutate({ link_existing_accounts: !p.link_existing_accounts })}>
+              {p.link_existing_accounts ? 'Stop linking by email' : 'Link existing accounts by email'}
+            </GhostButton>
+          )}
           <GhostButton
             aria-label={`Remove ${p.name}`}
-            onClick={() => window.confirm(`Remove ${p.name}? People keep their accounts.`) && remove.mutate()}
+            onClick={async () =>
+              (await confirm({
+                title: `Remove ${p.name}?`,
+                body: 'People keep their accounts.',
+                confirmLabel: 'Remove',
+                danger: true,
+              })) && remove.mutate()
+            }
           >
             Remove
           </GhostButton>
@@ -90,6 +104,13 @@ function ProviderCard({ p }: { p: Provider }) {
         )}
         <dt className="text-slate-600 dark:text-slate-400">Allowed domains</dt>
         <dd>{p.allowed_domains.length ? p.allowed_domains.join(', ') : 'any'}</dd>
+        <dt className="text-slate-600 dark:text-slate-400">Existing accounts</dt>
+        <dd>
+          {p.link_existing_accounts
+            ? 'members and guests are linked by email on first sign-in'
+            : 'linked only when the provider marks the email verified (or from Account settings)'}
+          ; owners always link from Account settings
+        </dd>
         <dt className="text-slate-600 dark:text-slate-400">New accounts</dt>
         <dd>
           {p.jit_provisioning ? `created on first sign-in as ${p.default_role}` : 'must be invited first'}

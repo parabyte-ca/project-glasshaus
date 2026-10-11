@@ -11,10 +11,11 @@ from sqlalchemy import (
     SmallInteger,
     String,
     UniqueConstraint,
+    Uuid,
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from glasshaus.core.orm import Base, TenantScoped, TimestampMixin, UUIDPk, utcnow
@@ -45,6 +46,24 @@ class User(UUIDPk, TenantScoped, TimestampMixin, Base):
     capacity_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=480, server_default="480")
     working_days: Mapped[list[int]] = mapped_column(
         ARRAY(SmallInteger), nullable=False, default=lambda: [0, 1, 2, 3, 4], server_default="{0,1,2,3,4}"
+    )
+    # "person", or "assistant" for the organization's AI project assistant: it cannot sign in, is
+    # not listed or provisioned as a person and is never assigned work (glasshaus.assistant).
+    kind: Mapped[str] = mapped_column(String(20), nullable=False, default="person", server_default="person")
+    # Reporting line (glasshaus.people): who this person reports to, and where that came from:
+    # "scim" (the identity provider pushes it) or "graph" (the nightly Microsoft Graph sync).
+    manager_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    manager_source: Mapped[str | None] = mapped_column(String(10))
+    job_title: Mapped[str | None] = mapped_column(String(200))
+    department: Mapped[str | None] = mapped_column(String(200))
+    # Set when an admin erased this person: name, email and personal data are gone; their work stays,
+    # attributed to "Former user" (glasshaus.people.privacy).
+    erased_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # First-run guidance this person has seen or dismissed (product tour, checklist, tips).
+    onboarding: Mapped[dict[str, object]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
 
 
@@ -99,3 +118,19 @@ class AuthSession(UUIDPk, TenantScoped, Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     user_agent: Mapped[str] = mapped_column(String(300), default="", server_default="")
     ip: Mapped[str] = mapped_column(String(64), default="", server_default="")
+    # Sessions rotated from one sign-in share a family; reusing an old refresh token ends them all.
+    family_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, index=True)
+
+
+ASSISTANT_KIND = "assistant"
+
+
+RESERVED_DOMAIN = "glasshaus.invalid"  # the assistant's address; no person may take it
+
+
+def reserved_email(email: str) -> bool:
+    return email.strip().lower().endswith("@" + RESERVED_DOMAIN)
+
+
+def is_assistant(user: User | None) -> bool:
+    return user is not None and user.kind == ASSISTANT_KIND

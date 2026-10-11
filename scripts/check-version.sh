@@ -7,4 +7,5 @@ py="$(sed -nE 's/^version = "(.*)"/\1/p' "$root/backend/pyproject.toml" | head -
 js="$(sed -nE 's/^  "version": "(.*)",/\1/p' "$root/frontend/package.json" | head -1)"
 [[ "$v" == "$py" && "$v" == "$js" ]] || { echo "version mismatch: VERSION=$v pyproject=$py package.json=$js" >&2; exit 1; }
 grep -q "^## \[$v\]" "$root/CHANGELOG.md" || { echo "CHANGELOG.md has no entry for $v" >&2; exit 1; }
+python3 "$root/scripts/release_docs.py" --check
 echo "version $v consistent"

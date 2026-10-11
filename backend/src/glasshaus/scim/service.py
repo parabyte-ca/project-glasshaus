@@ -21,11 +21,20 @@ from glasshaus.core.errors import Conflict, InvalidInput, NotFound, Unauthentica
 from glasshaus.core.rbac import OrgRole, Permission, WorkspaceRole
 from glasshaus.core.schemas import Schema
 from glasshaus.identity import security
-from glasshaus.identity.models import User, Workspace, WorkspaceMember
+from glasshaus.identity.models import (
+    ASSISTANT_KIND,
+    User,
+    Workspace,
+    WorkspaceMember,
+    is_assistant,
+    reserved_email,
+)
 from glasshaus.scim.models import ScimToken
 
 USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User"
 GROUP_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:Group"
+# Microsoft Entra ID (and most identity providers) send the manager and department here.
+ENTERPRISE = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
 LIST_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:ListResponse"
 PATCH_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:PatchOp"
 ERROR_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:Error"
@@ -136,8 +145,13 @@ async def actor_from_scim_token(session: AsyncSession, raw: str) -> Actor:
 
 def user_resource(user: User) -> dict[str, Any]:
     given, _, family = user.name.partition(" ")
-    return {
-        "schemas": [USER_SCHEMA],
+    enterprise: dict[str, Any] = {}
+    if user.department:
+        enterprise["department"] = user.department
+    if user.manager_id:
+        enterprise["manager"] = {"value": str(user.manager_id)}
+    out: dict[str, Any] = {
+        "schemas": [USER_SCHEMA, ENTERPRISE] if enterprise else [USER_SCHEMA],
         "id": str(user.id),
         "externalId": user.external_id,
         "userName": user.email,
@@ -152,6 +166,11 @@ def user_resource(user: User) -> dict[str, Any]:
             "location": f"{base_url()}/Users/{user.id}",
         },
     }
+    if user.job_title:
+        out["title"] = user.job_title
+    if enterprise:
+        out[ENTERPRISE] = enterprise
+    return out
 
 
 async def group_resource(session: AsyncSession, ws: Workspace) -> dict[str, Any]:
@@ -195,6 +214,8 @@ def _email_of(body: dict[str, Any]) -> str:
     email = (primary or {}).get("value") or body.get("userName")
     if not email or "@" not in str(email):
         raise ScimError(400, "userName or emails must hold an email address", "invalidValue")
+    if reserved_email(str(email)):
+        raise ScimError(400, "this address is reserved for the project assistant", "invalidValue")
     return str(email).strip()
 
 
@@ -213,11 +234,51 @@ def _uuid(value: str) -> uuid.UUID:
         raise ScimError(404, "resource not found") from exc
 
 
+def _manager_ref(value: Any) -> str | None:
+    """A manager is sent as {"value": "<id>"} or as the bare id; empty means none."""
+    if isinstance(value, list):
+        value = value[0] if value else None
+    if isinstance(value, dict):
+        value = value.get("value")
+    return str(value).strip() if value else None
+
+
+async def _set_manager(ctx: ServiceContext, user: User, value: Any) -> None:
+    from glasshaus.people.service import set_manager
+
+    ref = _manager_ref(value)
+    if ref is None:
+        await set_manager(ctx.session, user, None, "scim")
+        return
+    manager_id: uuid.UUID | None
+    try:
+        manager_id = uuid.UUID(ref)
+    except ValueError:
+        # Some providers send the manager's externalId instead of our id.
+        manager_id = await ctx.session.scalar(select(User.id).where(User.external_id == ref))
+    if manager_id is None:
+        return  # not provisioned yet; it is sent again on the next change
+    await set_manager(ctx.session, user, manager_id, "scim")
+
+
+async def _apply_extras(ctx: ServiceContext, user: User, body: dict[str, Any]) -> None:
+    """Job title (core ``title``) and the enterprise extension's department and manager."""
+    if "title" in body:
+        user.job_title = str(body["title"])[:200] if body["title"] else None
+    ext = body.get(ENTERPRISE)
+    if isinstance(ext, dict):
+        if "department" in ext:
+            user.department = str(ext["department"])[:200] if ext["department"] else None
+        if "manager" in ext:
+            await _set_manager(ctx, user, ext["manager"])
+
+
 # --------------------------------------------------------------------------- users
 
 
 async def list_users(ctx: ServiceContext, filter_: str | None, start: int, count: int) -> dict[str, Any]:
-    stmt = select(User)
+    # The AI assistant is not provisioned, and erased people are gone.
+    stmt = select(User).where(User.kind != ASSISTANT_KIND, User.erased_at.is_(None))
     if filter_:
         m = FILTER.match(filter_)
         if not m:
@@ -239,7 +300,7 @@ async def list_users(ctx: ServiceContext, filter_: str | None, start: int, count
 
 async def get_user(ctx: ServiceContext, user_id: str) -> dict[str, Any]:
     user = await ctx.session.get(User, _uuid(user_id))
-    if user is None:
+    if user is None or is_assistant(user) or user.erased_at is not None:  # erased people are gone
         raise ScimError(404, "user not found")
     return user_resource(user)
 
@@ -263,15 +324,59 @@ async def create_user(ctx: ServiceContext, body: dict[str, Any]) -> dict[str, An
         await ctx.session.flush()
     except IntegrityError as exc:
         raise ScimError(409, "a user with this userName already exists", "uniqueness") from exc
+    await _apply_extras(ctx, user, body)
+    await ctx.session.flush()
     events.emit(ctx, "user.created", "user", user.id, {"email": user.email, "source": "scim"})
     return user_resource(user)
+
+
+PROTECTED_ROLES = (OrgRole.OWNER, OrgRole.ADMIN)
+
+
+def _guard(user: User, change: str) -> None:
+    """SCIM manages ordinary accounts only. Owners and admins are changed in Glasshaus itself, so a
+    leaked SCIM token or a compromised IdP cannot take them over (email change) or lock them out."""
+    if user.org_role in PROTECTED_ROLES:
+        raise ScimError(
+            400,
+            f"{user.org_role.value} accounts are managed in Glasshaus, not through SCIM ({change})",
+            "mutability",
+        )
+
+
+async def _set_email(ctx: ServiceContext, user: User, email: str) -> None:
+    if email.lower() == user.email.lower():
+        if email != user.email:
+            user.email = email  # case-only change
+        return
+    _guard(user, "email")
+    if user.external_id is None:
+        raise ScimError(
+            400, "set externalId first: SCIM changes the email only of accounts it provisioned", "mutability"
+        )
+    clash = await ctx.session.scalar(
+        select(User.id).where(func.lower(User.email) == email.lower(), User.id != user.id)
+    )
+    if clash:
+        raise ScimError(409, "a user with this userName already exists", "uniqueness")
+    user.email = email
+    from glasshaus.governance.service import revoke_user_sessions
+
+    await revoke_user_sessions(ctx, user.id)
+
+
+def _set_external_id(user: User, value: str | None) -> None:
+    if value != user.external_id:
+        _guard(user, "externalId")
+        user.external_id = value
 
 
 async def _set_active(ctx: ServiceContext, user: User, active: bool) -> None:
     if user.is_active == active:
         return
-    if not active and user.org_role == OrgRole.OWNER:
-        raise ScimError(400, "owners cannot be deactivated through SCIM", "mutability")
+    _guard(user, "active")
+    if active and user.external_id is None:
+        raise ScimError(400, "this account was deactivated in Glasshaus; reactivate it there", "mutability")
     user.is_active = active
     if not active:
         from glasshaus.governance.service import revoke_user_sessions
@@ -281,20 +386,15 @@ async def _set_active(ctx: ServiceContext, user: User, active: bool) -> None:
 
 async def replace_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) -> dict[str, Any]:
     user = await ctx.session.get(User, _uuid(user_id))
-    if user is None:
+    if user is None or is_assistant(user) or user.erased_at is not None:  # erased people are gone
         raise ScimError(404, "user not found")
     email = _email_of(body)
-    if email.lower() != user.email.lower():
-        clash = await ctx.session.scalar(
-            select(User.id).where(func.lower(User.email) == email.lower(), User.id != user.id)
-        )
-        if clash:
-            raise ScimError(409, "a user with this userName already exists", "uniqueness")
-        user.email = email
-    user.name = _name_of(body, email)
     if "externalId" in body:
-        user.external_id = str(body["externalId"])[:255] if body["externalId"] else None
+        _set_external_id(user, str(body["externalId"])[:255] if body["externalId"] else None)
+    await _set_email(ctx, user, email)
+    user.name = _name_of(body, email)
     await _set_active(ctx, user, bool(body.get("active", True)))
+    await _apply_extras(ctx, user, body)
     await ctx.session.flush()
     events.emit(ctx, "user.updated", "user", user.id, {"source": "scim", "active": user.is_active})
     return user_resource(user)
@@ -302,7 +402,7 @@ async def replace_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) 
 
 async def patch_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) -> dict[str, Any]:
     user = await ctx.session.get(User, _uuid(user_id))
-    if user is None:
+    if user is None or is_assistant(user) or user.erased_at is not None:  # erased people are gone
         raise ScimError(404, "user not found")
     for op in body.get("Operations") or []:
         kind = str(op.get("op", "")).lower()
@@ -313,6 +413,20 @@ async def patch_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) ->
         updates: dict[str, Any] = value if not path and isinstance(value, dict) else {path: value}
         for key, val in updates.items():
             k = key.lower()
+            prefix = ENTERPRISE.lower() + ":"
+            if k == ENTERPRISE.lower() and isinstance(val, dict):
+                await _apply_extras(ctx, user, {ENTERPRISE: val if kind != "remove" else dict.fromkeys(val)})
+                continue
+            if k.startswith(prefix):
+                attr = k[len(prefix) :]
+                if attr in ("manager", "manager.value"):
+                    await _set_manager(ctx, user, None if kind == "remove" else val)
+                elif attr == "department":
+                    user.department = str(val)[:200] if val and kind != "remove" else None
+                continue
+            if k == "title":
+                user.job_title = str(val)[:200] if val and kind != "remove" else None
+                continue
             if k == "active":
                 active = val if isinstance(val, bool) else str(val).lower() == "true"
                 await _set_active(ctx, user, kind != "remove" and active)
@@ -321,10 +435,10 @@ async def patch_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) ->
             elif k == "name" and isinstance(val, dict):
                 user.name = _name_of({"name": val}, user.email)
             elif k == "externalid":
-                user.external_id = str(val)[:255] if val and kind != "remove" else None
+                _set_external_id(user, str(val)[:255] if val and kind != "remove" else None)
             elif k in ("username", 'emails[type eq "work"].value', "emails"):
                 email = _email_of({"userName": val} if not isinstance(val, list) else {"emails": val})
-                user.email = email
+                await _set_email(ctx, user, email)
             # Other attributes (title, phoneNumbers, …) are accepted and ignored.
     await ctx.session.flush()
     events.emit(ctx, "user.updated", "user", user.id, {"source": "scim", "active": user.is_active})
@@ -333,7 +447,7 @@ async def patch_user(ctx: ServiceContext, user_id: str, body: dict[str, Any]) ->
 
 async def delete_user(ctx: ServiceContext, user_id: str) -> None:
     user = await ctx.session.get(User, _uuid(user_id))
-    if user is None:
+    if user is None or is_assistant(user) or user.erased_at is not None:  # erased people are gone
         raise ScimError(404, "user not found")
     await _set_active(ctx, user, False)
     events.emit(ctx, "user.updated", "user", user.id, {"source": "scim", "active": False})
@@ -353,7 +467,7 @@ async def _set_members(ctx: ServiceContext, ws: Workspace, add: list[str], remov
 
     for raw in add:
         uid = _uuid(raw)
-        if await ctx.session.get(User, uid) is None:
+        if (member := await ctx.session.get(User, uid)) is None or is_assistant(member):
             raise ScimError(400, f"unknown member {raw}", "invalidValue")
         await ctx.session.execute(
             insert(WorkspaceMember)
@@ -501,13 +615,14 @@ SERVICE_PROVIDER_CONFIG: dict[str, Any] = {
     ],
 }
 
-RESOURCE_TYPES = [
+RESOURCE_TYPES: list[dict[str, Any]] = [
     {
         "schemas": ["urn:ietf:params:scim:schemas:core:2.0:ResourceType"],
         "id": "User",
         "name": "User",
         "endpoint": "/Users",
         "schema": USER_SCHEMA,
+        "schemaExtensions": [{"schema": ENTERPRISE, "required": False}],
     },
     {
         "schemas": ["urn:ietf:params:scim:schemas:core:2.0:ResourceType"],

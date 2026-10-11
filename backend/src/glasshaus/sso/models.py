@@ -31,6 +31,11 @@ class IdentityProvider(UUIDPk, TenantScoped, TimestampMixin, Base):
     default_role: Mapped[str] = mapped_column(
         String(20), nullable=False, default="member", server_default="member"
     )
+    # Link a first sign-in to an existing member/guest account with the same email even when the
+    # IdP does not assert the address is verified (SAML, Entra ID). Needs allowed domains.
+    link_existing_accounts: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     # When on, members and admins must use SSO; owners keep password sign-in as break-glass access.
     enforce: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")

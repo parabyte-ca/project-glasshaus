@@ -1,6 +1,7 @@
 import uuid
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Response, status
 
 from glasshaus.api.deps import Ctx
 from glasshaus.identity import service as identity
@@ -12,6 +13,7 @@ from glasshaus.identity.schemas import (
     UserRead,
     UserUpdate,
 )
+from glasshaus.people import privacy
 
 router = APIRouter(tags=["users"])
 
@@ -19,6 +21,22 @@ router = APIRouter(tags=["users"])
 @router.get("/users/me", response_model=UserRead, summary="The authenticated user")
 async def get_current_user(ctx: Ctx) -> UserRead:
     return await identity.get_me(ctx)
+
+
+@router.get(
+    "/users/me/export",
+    response_class=Response,
+    summary="Download everything Glasshaus holds about you (a zip of JSON Lines files)",
+)
+async def export_me(ctx: Ctx) -> Response:
+    assert ctx.actor.user_id is not None
+    data = await privacy.export_person(ctx, ctx.actor.user_id)
+    name = f"glasshaus-my-data-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.zip"
+    return Response(
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store"},
+    )
 
 
 @router.get("/users", response_model=list[UserRead], summary="List users in the organization")

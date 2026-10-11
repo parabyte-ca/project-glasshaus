@@ -14,6 +14,7 @@ from urllib.parse import urlencode, urlsplit
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from glasshaus.audit import service as audit
 from glasshaus.core.context import Actor, ServiceContext
 from glasshaus.core.errors import InvalidInput, NotFound, PermissionDenied
 from glasshaus.core.rbac import Scope
@@ -87,7 +88,11 @@ async def _pending(session: AsyncSession, request_id: str) -> tuple[OAuthRequest
 
 
 def _redirect(params: dict[str, Any], query: dict[str, str]) -> str:
+    from glasshaus.mcp_server.auth import safe_redirect_uri
+
     base = params["redirect_uri"]
+    if not safe_redirect_uri(str(base)):  # clients registered before this check existed
+        raise InvalidInput("this app's redirect address is not allowed")
     if params.get("state") is not None:
         query["state"] = params["state"]
     return f"{base}{'&' if '?' in base else '?'}{urlencode(query)}"
@@ -122,11 +127,18 @@ async def decide(ctx: ServiceContext, request_id: str, decision: ConsentDecision
     params = req.params
     await ctx.session.delete(req)
     if not decision.approve:
+        await audit.record(ctx.actor, "oauth.consent", outcome="denied", detail={"client": client.client_id})
         return ConsentResult(redirect_to=_redirect(params, {"error": "access_denied"}))
     requested = _offerable(ctx, params.get("scopes") or DEFAULT_SCOPES)
     granted = decision.scopes if decision.scopes is not None else requested
     if not granted or set(granted) - set(requested):
         raise InvalidInput("choose at least one of the requested permissions")
+    await audit.record(
+        ctx.actor,
+        "oauth.consent",
+        outcome="ok",
+        detail={"client": client.client_id, "name": client.client_name, "scopes": sorted(granted)},
+    )
     code = new_secret()
     ctx.session.add(
         OAuthGrant(
@@ -207,7 +219,7 @@ async def actor_from_access_token(session: AsyncSession, raw: str) -> tuple[Acto
 
     await apply_tenant(session, grant.tenant_id)
     user = await session.get(User, grant.user_id)
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or user.kind == "assistant":
         return None
     if grant.last_used_at is None or now() - grant.last_used_at > timedelta(minutes=5):
         grant.last_used_at = now()

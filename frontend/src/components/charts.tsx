@@ -392,9 +392,10 @@ export function ProgressBar({ value, label }: { value: number; label: string }) 
 }
 
 const HEALTH = {
-  on_track: { label: 'On track', icon: '✓', color: 'var(--status-good)' },
-  at_risk: { label: 'At risk', icon: '!', color: 'var(--status-warning)' },
-  off_track: { label: 'Off track', icon: '✕', color: 'var(--status-critical)' },
+  on_track: { label: 'On track', icon: '✓', color: 'var(--status-good)', ink: 'text-white' },
+  // White on amber is hard to read; the glyph is dark there.
+  at_risk: { label: 'At risk', icon: '!', color: 'var(--status-warning)', ink: 'text-slate-900' },
+  off_track: { label: 'Off track', icon: '✕', color: 'var(--status-critical)', ink: 'text-white' },
 } as const;
 
 /** Status always pairs colour with an icon and a label. */
@@ -406,7 +407,7 @@ export function HealthBadge({ health }: { health: string | null | undefined }) {
     <span className="inline-flex items-center gap-1 text-xs font-medium whitespace-nowrap">
       <span
         aria-hidden
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
+        className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${h.ink}`}
         style={{ backgroundColor: h.color }}
       >
         {h.icon}
