@@ -5,7 +5,7 @@ notes come back; nothing about this server is sent). Owners and admins get one n
 release.
 
 The app runs in containers and can't run ``update.sh`` itself. An owner's "Upgrade" writes a request
-into the upgrade folder, which is shared with the host; ``scripts/upgrade-agent.sh``, run every minute
+into the upgrade folder, which is shared with the host; ``scripts/upgrade-agent.sh``, run every few minutes
 by cron on the host, picks it up, runs ``update.sh`` (backup, pre-flight on a copy, migrate, health
 check, rollback on failure) and writes its progress and log back to the same folder. Like backups, this
 is server-wide, so it is only offered when the server hosts a single organization.
@@ -43,7 +43,7 @@ log = get_logger(__name__)
 LINK = "/admin?tab=updates"
 LATEST_KEY = "glasshaus:updates:latest"
 SEMVER = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
-AGENT_STALE = timedelta(minutes=3)
+AGENT_STALE = timedelta(minutes=3)  # the least slack, whatever the helper's interval
 MAX_NOTES = 20_000
 MAX_LOG = 64 * 1024
 RECHECK_AFTER = timedelta(seconds=60)
@@ -73,6 +73,7 @@ class Helper(Schema):
     configured: bool = Field(description="The upgrade folder is mounted into the app.")
     connected: bool = Field(description="The host helper checked in during the last few minutes.")
     last_seen: datetime | None = None
+    every_minutes: int = Field(default=1, description="How often the host helper runs, as it reports itself.")
 
 
 class UpdateStatus(Schema):
@@ -220,7 +221,14 @@ def _helper(now: datetime) -> Helper:
         return Helper(configured=False, connected=False)
     agent = _read_json(folder / "agent.json") or {}
     seen = _when(agent.get("last_seen"))
-    return Helper(configured=True, connected=bool(seen and now - seen < AGENT_STALE), last_seen=seen)
+    try:
+        every = min(max(int(agent.get("every_minutes") or 1), 1), 60)
+    except (TypeError, ValueError):
+        every = 1
+    limit = max(AGENT_STALE, timedelta(minutes=2 * every + 1))  # tolerate one missed run
+    return Helper(
+        configured=True, connected=bool(seen and now - seen < limit), last_seen=seen, every_minutes=every
+    )
 
 
 def _upgrade() -> UpgradeState | None:
