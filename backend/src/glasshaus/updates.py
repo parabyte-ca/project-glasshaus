@@ -43,8 +43,11 @@ log = get_logger(__name__)
 LINK = "/admin?tab=updates"
 LATEST_KEY = "glasshaus:updates:latest"
 SEMVER = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
+CLOCK_SKEW = timedelta(minutes=1)  # a heartbeat from the future is the helper's clock, not a live helper
 AGENT_STALE = timedelta(minutes=3)  # the least slack, whatever the helper's interval
 MAX_NOTES = 20_000
+STALE_REQUEST = timedelta(hours=1)  # a request nobody picked up
+STALE_RUNNING = timedelta(hours=3)  # an upgrade whose helper stopped reporting
 MAX_LOG = 64 * 1024
 RECHECK_AFTER = timedelta(seconds=60)
 
@@ -227,36 +230,54 @@ def _helper(now: datetime) -> Helper:
         every = 1
     limit = max(AGENT_STALE, timedelta(minutes=2 * every + 1))  # tolerate one missed run
     return Helper(
-        configured=True, connected=bool(seen and now - seen < limit), last_seen=seen, every_minutes=every
+        configured=True,
+        connected=bool(seen and -CLOCK_SKEW < now - seen < limit),
+        last_seen=seen,
+        every_minutes=every,
     )
 
 
-def _upgrade() -> UpgradeState | None:
+def _text(value: object, limit: int = 320) -> str | None:
+    return value[:limit] if isinstance(value, str) and value else None
+
+
+def _upgrade(now: datetime) -> UpgradeState | None:
     folder = _dir()
     if folder is None:
         return None
     request = _read_json(folder / "request.json")
     if request:  # waiting for the helper
-        return UpgradeState(
-            id=str(request.get("id", "")),
+        requested_at = _when(request.get("requested_at"))
+        state = UpgradeState(
+            id=str(request.get("id", ""))[:64],
             state="requested",
-            to_version=request.get("version"),
-            requested_by=request.get("requested_by"),
-            requested_at=_when(request.get("requested_at")),
+            to_version=_text(request.get("version"), 32),
+            requested_by=_text(request.get("requested_by")),
+            requested_at=requested_at,
         )
+        if requested_at is not None and now - requested_at > STALE_REQUEST:
+            state.state = "failed"
+            state.message = (
+                "The upgrade helper never picked this request up. Check it is running, then try again."
+            )
+        return state
     status = _read_json(folder / "status.json")
     if not status or status.get("state") not in ("running", "succeeded", "failed"):
         return None
-    return UpgradeState(
+    state = UpgradeState(
         id=str(status.get("id", ""))[:64],
         state=status["state"],
-        from_version=status.get("from_version"),
-        to_version=status.get("to_version"),
-        requested_by=status.get("requested_by"),
+        from_version=_text(status.get("from_version"), 32),
+        to_version=_text(status.get("to_version"), 32),
+        requested_by=_text(status.get("requested_by")),
         started_at=_when(status.get("started_at")),
         finished_at=_when(status.get("finished_at")),
-        message=str(status.get("message") or "")[:500] or None,
+        message=_text(status.get("message"), 500),
     )
+    if state.state == "running" and state.started_at is not None and now - state.started_at > STALE_RUNNING:
+        state.state = "failed"
+        state.message = "The upgrade helper stopped reporting. See the log, and check the server."
+    return state
 
 
 def _log_tail() -> str | None:
@@ -286,7 +307,7 @@ async def get_status(ctx: ServiceContext, *, now: datetime | None = None) -> Upd
     latest = Release.model_validate(cached["release"]) if cached.get("release") else None
     available = bool(latest and newer(latest.version, __version__))
     helper = _helper(now)
-    upgrade = _upgrade()
+    upgrade = _upgrade(now)
     owner = ctx.actor.org_role == OrgRole.OWNER
     busy = upgrade is not None and upgrade.state in ("requested", "running")
     return UpdateStatus(

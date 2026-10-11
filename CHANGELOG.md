@@ -6,6 +6,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-10-12
+
+### Changed
+- **Headings are blue** (a deeper blue on light pages, a bright sky blue on dark) so they read apart from body
+  text, and **cards and widgets sit on their own surface**: a pale steel blue on light pages, a lifted
+  near-black on dark ones. The secondary grey text is a touch darker so it stays readable on the cards.
+
+### Security
+- **The audit log no longer stores who a person is.** User events keep the names of the fields that changed,
+  not the name or email; sign-in entries keep a short hash of the address typed (not the address) next to
+  the network address and browser. Entries written before this release keep what they had until they expire.
+- **Only an owner, signed in, can shorten audit retention.** An admin token or an AI agent can no longer
+  trigger the permanent deletion of older entries.
+- **The upgrade helper (which runs as root) no longer follows links in the upgrade folder**, which the app
+  can write to: the lock is taken on the folder, the log is created exclusively and written through the
+  open file, and a request that is a link is dropped.
+- **The list of installed software (`/api/v1/licenses`) needs a sign-in.**
+- **A personal data export no longer includes notifications sent to colleagues** about the person's actions.
+- **OAuth redirect addresses** with a backslash or user info in the host are refused, and a used code
+  presented by another client no longer revokes the owner's tokens.
+
+### Fixed
+- **Import**: an estimate such as `inf` or `1e999`, or a number field of `nan`, is a row problem instead of an
+  error for the whole file; `12 Oct 26` is 2026, not the year 12.
+- **A stuck upgrade no longer blocks the next one**: a request nobody picked up for an hour, or a run that
+  stopped reporting for three, is shown as failed. A heartbeat dated in the future no longer counts as a live
+  helper, and odd values in the helper's files can no longer break the Updates page.
+- A flaky end-to-end test of the `c` shortcut now waits for the New task field.
+
 ## [0.27.3] - 2026-10-11
 
 ### Added
@@ -945,7 +974,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.3...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.3...v0.28.0
 [0.27.3]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.2...v0.27.3
 [0.27.2]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.1...v0.27.2
 [0.27.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.0...v0.27.1

@@ -163,3 +163,32 @@ async def test_owner_requests_an_upgrade_for_the_host_helper(
     async with unit_of_work(token) as ctx:
         with pytest.raises(PermissionDenied, match="web app"):
             await updates.request_upgrade(ctx, want)
+
+
+def test_stale_requests_and_runs_stop_blocking_upgrades(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(get_settings(), "upgrade_dir", str(tmp_path))
+    now = datetime.now(UTC)
+    old = (now - timedelta(hours=5)).isoformat()
+    (tmp_path / "request.json").write_text(
+        json.dumps({"id": "r1", "version": "99.0.0", "requested_at": old, "requested_by": 7})
+    )
+    state = updates._upgrade(now)
+    assert state is not None and state.state == "failed" and "never picked" in (state.message or "")
+    assert state.requested_by is None  # not a string: ignored rather than a 500
+
+    (tmp_path / "request.json").unlink()
+    (tmp_path / "status.json").write_text(json.dumps({"id": "r1", "state": "running", "started_at": old}))
+    state = updates._upgrade(now)
+    assert state is not None and state.state == "failed" and "stopped reporting" in (state.message or "")
+
+    (tmp_path / "status.json").write_text(
+        json.dumps({"id": "r1", "state": "running", "started_at": (now - timedelta(minutes=5)).isoformat()})
+    )
+    running = updates._upgrade(now)
+    assert running is not None and running.state == "running"
+
+    # A heartbeat from the future is not a live helper.
+    (tmp_path / "agent.json").write_text(json.dumps({"last_seen": (now + timedelta(hours=2)).isoformat()}))
+    assert not updates._helper(now).connected

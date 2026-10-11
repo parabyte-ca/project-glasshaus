@@ -3,7 +3,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * House style (from ghsystems.com: #000 page, #121212/#212121/#303030 panels, #1c75bc buttons,
+ * House style (from ghsystems.com: #000 page, #121212/#212121/#303030 panels, #1c75bc buttons (sky-700 is a touch deeper so links keep AA contrast on cards),
  * #00aeef bright blue, #ff8900 orange, Inter): near-black surfaces, a clear blue for actions and links, orange for highlights, and
  * Inter with heavy headings. The app's slate and sky utilities are remapped here, so every screen
  * picks the palette up without per-component changes. Text pairs keep WCAG AA contrast:
@@ -17,7 +17,7 @@
   --color-slate-200: #e2e2e2;
   --color-slate-300: #cdcdcd;
   --color-slate-400: #a3a3a3;
-  --color-slate-500: #737373;
+  --color-slate-500: #6b6b6b;
   --color-slate-600: #525252;
   --color-slate-700: #303030;
   --color-slate-800: #212121;
@@ -31,7 +31,7 @@
   --color-sky-400: #00aeef;
   --color-sky-500: #1690d6;
   --color-sky-600: #1a82c8;
-  --color-sky-700: #1c75bc;
+  --color-sky-700: #1a6cae;
   --color-sky-800: #155d96;
   --color-sky-900: #114a78;
   --color-sky-950: #0a2a47;
@@ -40,6 +40,12 @@
   --color-accent-400: #ff8900;
   --color-accent-500: #ff8900;
   --color-accent-700: #b45309;
+
+  /* Headings and the surface of cards, so both read apart from body text and the page. */
+  --color-heading: #155d96;
+  --color-heading-dark: #5cc8f5;
+  --color-card: #f2f6fa;
+  --color-card-dark: #121212;
 }
 
 :root {
@@ -55,6 +61,20 @@
   /* Bold, tight headings. */
   h1 {
     @apply font-extrabold tracking-tight;
+  }
+
+  /* Headings are blue (not the body text colour); a class that sets its own colour still wins. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--color-heading);
+  }
+  .dark h1,
+  .dark h2,
+  .dark h3,
+  .dark h4 {
+    color: var(--color-heading-dark);
   }
 
   /* Dark mode: a faint warm glow behind the page, as on the house site. */
@@ -78,6 +98,21 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+/*
+ * Cards: a bordered, rounded box with no background of its own is a widget, so it gets a surface a shade
+ * off the page (a pale steel blue on white; the lifted near-black on black). Anything that sets a
+ * background itself (menus, dialogs, the sign-in card) keeps it.
+ */
+@layer components {
+  [class~='border-slate-200'][class*='rounded']:not([class*='bg-']) {
+    background-color: var(--color-card);
+  }
+  .dark [class~='border-slate-200'][class*='rounded']:not([class*='bg-']),
+  [class~='border-slate-200'][class*='rounded']:not([class*='bg-']):where(.dark *) {
+    background-color: var(--color-card-dark);
   }
 }
 

@@ -26,6 +26,7 @@ from tests.factories import (
     events_for,
     make_user,
     make_world,
+    session_headers,
     token_for,
 )
 
@@ -57,8 +58,14 @@ async def test_settings_require_org_admin(client: AsyncClient) -> None:
     assert (await client.get("/api/v1/admin/settings", headers=member)).status_code == 403
     current = (await client.get("/api/v1/admin/settings", headers=world.headers)).json()
     assert current["audit_retention_days"] == 365 and current["deleted_task_retention_days"] == 30
-    r = await client.patch("/api/v1/admin/settings", json={"audit_retention_days": 30}, headers=world.headers)
+    refused = await client.patch(
+        "/api/v1/admin/settings", json={"audit_retention_days": 30}, headers=world.headers
+    )
+    assert refused.status_code == 403  # shortening audit retention is for an owner signed in, not a token
+    signed_in = await session_headers(client, world)
+    r = await client.patch("/api/v1/admin/settings", json={"audit_retention_days": 30}, headers=signed_in)
     assert r.status_code == 200 and r.json()["audit_retention_days"] == 30
+    client.cookies.clear()
     bad = await client.patch(
         "/api/v1/admin/settings", json={"audit_retention_days": -1}, headers=world.headers
     )
@@ -67,11 +74,13 @@ async def test_settings_require_org_admin(client: AsyncClient) -> None:
 
 async def test_retention_purges_old_rows_only(client: AsyncClient) -> None:
     world = await make_world()
+    signed_in = await session_headers(client, world)
     await client.patch(
         "/api/v1/admin/settings",
         json={"audit_retention_days": 30, "notification_retention_days": 5, "deleted_task_retention_days": 7},
-        headers=world.headers,
+        headers=signed_in,
     )
+    client.cookies.clear()
     old, recent = (
         await create_task(client, world, title="old"),
         await create_task(client, world, title="recent"),

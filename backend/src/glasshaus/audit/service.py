@@ -14,6 +14,30 @@ from glasshaus.core.schemas import Schema
 
 MAX_DETAIL_CHARS = 2000
 SECRET_KEYS = {"password", "token", "secret", "client_secret", "authorization"}
+# Who a person is. The audit log is append-only, so it must never hold these: erasing a person could not
+# reach them. Entries name people by id; a failed sign-in keeps only a short hash of the address typed.
+PERSON_KEYS = {"email", "name", "display_name", "avatar_url", "phone", "user"}
+
+
+def email_hash(email: str) -> str:
+    """Enough to tell attempts on one address apart, not to read it back."""
+    import hashlib
+
+    return hashlib.sha256(email.strip().lower().encode()).hexdigest()[:16]
+
+
+def scrub_person(value: Any, depth: int = 0) -> Any:
+    """Replace who-a-person-is fields by a marker, keeping the names of the fields that changed."""
+    if depth > 4:
+        return value
+    if isinstance(value, dict):
+        return {
+            k: ("[not recorded]" if k in PERSON_KEYS else scrub_person(v, depth + 1))
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [scrub_person(v, depth + 1) for v in value]
+    return value
 
 
 class AuditRead(Schema):
