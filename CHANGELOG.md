@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.27.3] - 2026-10-11
+
+### Added
+- **Rename a workspace** from the Home page (Workspaces → Rename). Owners, admins and workspace managers
+  can do it; anyone else sees the permission error.
+
 ## [0.27.2] - 2026-10-11
 
 ### Fixed
@@ -939,7 +945,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.2...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.3...HEAD
+[0.27.3]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.2...v0.27.3
 [0.27.2]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.1...v0.27.2
 [0.27.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.26.0...v0.27.0
