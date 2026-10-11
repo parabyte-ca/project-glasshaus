@@ -114,6 +114,14 @@ export function Updates() {
                     ? 'Glasshaus is restarting with the new version…'
                     : `Upgrading to ${s.upgrade!.to_version}… This takes a few minutes; you can leave this page.`}
               </p>
+              {s.upgrade!.state === 'requested' && !s.helper.connected && (
+                <p className="mt-1 font-normal">
+                  The upgrade helper hasn’t checked in lately, so nothing will start until it runs again. On
+                  the server, check that its schedule is installed (
+                  <code>sudo ./scripts/upgrade-agent.sh --print</code>
+                  shows the command), or run <code>sudo ./scripts/upgrade-agent.sh</code> once by hand.
+                </p>
+              )}
             </div>
           )}
           {s.upgrade?.state === 'succeeded' && (

@@ -64,6 +64,29 @@ describe('Admin › Updates', () => {
     expect(await screen.findByText(/requested; the server starts it at its next check/)).toBeInTheDocument();
   });
 
+  it('warns when a requested upgrade is waiting on a helper that has stopped', async () => {
+    mockApi([
+      ...baseRoutes,
+      { method: 'GET', path: '/api/v1/users/me', body: user } as Route,
+      {
+        method: 'GET',
+        path: '/api/v1/admin/updates',
+        body: status({
+          helper: {
+            configured: true,
+            connected: false,
+            last_seen: '2026-10-11T11:00:00Z',
+            every_minutes: 15,
+          },
+          upgrade: { id: 'u1', state: 'requested', to_version: '0.27.0' },
+          can_upgrade: false,
+        }),
+      },
+    ]);
+    renderAt('/admin?tab=updates');
+    expect(await screen.findByText(/helper hasn’t checked in lately/)).toBeInTheDocument();
+  });
+
   it('explains how to set up the helper, and only owners get the button', async () => {
     mockApi([
       ...baseRoutes,
