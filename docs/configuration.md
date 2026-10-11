@@ -101,7 +101,7 @@ Used only on the first start, when the organization has no people yet. After tha
 | `GLASSHAUS_ADMIN_EMAIL` | `admin@example.com` | First owner's sign-in email. Also the contact address in Web Push requests. |
 | `GLASSHAUS_ADMIN_NAME` | `Administrator` | First owner's display name. |
 | `GLASSHAUS_ADMIN_PASSWORD` | generated | See [Secrets](#secrets). |
-| `GLASSHAUS_DEFAULT_TENANT_NAME` | `My organization` | Organization name shown in the app (rename later in Admin). |
+| `GLASSHAUS_DEFAULT_TENANT_NAME` | `My organization` | Organization name shown in the app. |
 | `GLASSHAUS_DEFAULT_TENANT_SLUG` | `default` | Internal short name of the organization. Leave as is. |
 | `GLASSHAUS_MULTI_TENANT` | `false` | `true` hosts several separate organizations on one server. Server-wide pages (Backups, Updates, System status) are then hidden from organization admins. Leave `false` for one team or company. |
 
@@ -234,7 +234,139 @@ Set these in the shell when running a script, e.g. `GLASSHAUS_PREFLIGHT_TIMEOUT=
 `--skip-preflight`. `scripts/backup.sh [label]` makes a backup now; `scripts/restore.sh <file> [--yes]`
 restores one.
 
-<!-- ADMIN-SETTINGS -->
+## Settings in the app (Admin)
+
+Open **Admin** (owners and admins only). Every change is recorded in the audit log.
+
+### Roles
+
+| Role | Can |
+| --- | --- |
+| **Owner** | Everything, including managing other owners and admins, upgrading Glasshaus and reading the upgrade log. Keep at least two. |
+| **Admin** | Manage people, sign-in, integrations and organization settings. Can't change or remove owners. |
+| **Member** | Work in the projects they belong to. |
+| **Guest** | See only the projects they are added to; nothing organization-wide. |
+
+Inside projects: **Admin** (settings, members, assistant), **Editor** (tasks), **Commenter**, **Viewer**.
+Workspace roles map to these: workspace admin → project admin, member → editor, viewer → viewer.
+Organization owners and admins act as project admins everywhere.
+
+Some actions need a signed-in browser session and refuse API tokens: resetting passwords, making
+someone an admin or owner, exporting data, erasing a person and upgrading.
+
+### People
+
+| Setting | Options | Default | Notes |
+| --- | --- | --- | --- |
+| Add a person: email, name, role | Owner (owners only), Admin, Member, Guest | Member | Name 1–200 characters. |
+| Temporary password | 12+ characters, or empty | empty | Leave empty for people who sign in with single sign-on. |
+| Role | Owner, Admin, Member, Guest | — | You can't change your own role. Only owners change owners. |
+| Deactivate / Reactivate | — | active | Deactivating signs the person out everywhere. |
+| Reset password | 12+ characters | — | Signs them out. Not for your own account (use Account). |
+| Sign out everywhere | — | — | Ends sessions, API tokens and assistant connections. |
+| Download data / Erase | — | — | Personal data export, or permanent anonymisation (type their email to confirm). See [privacy.md](privacy.md). |
+
+**Capacity** (hours a person can work per day, 0–24, default 8) is set by admins on the **Workload**
+page.
+
+### Single sign-on
+
+See [sso-scim.md](sso-scim.md). Add one provider per identity system.
+
+| Setting | Options | Default | Notes |
+| --- | --- | --- | --- |
+| Protocol | OpenID Connect, SAML 2.0 | OpenID Connect | |
+| Button label | 1–100 characters | — | Shown on the sign-in page. |
+| Short name (in URLs) | lowercase letters, digits, `-` | — | Part of the redirect URI; must be unique. |
+| Allowed email domains | comma-separated, up to 50 | empty = any | Restricts who can sign in with this provider. |
+| Role for new accounts | Member, Guest, Admin | Member | Accounts are created on first sign-in. |
+| OIDC: Issuer URL, Client ID, Client secret | from your identity provider | — | The secret is stored encrypted and never shown again. |
+| SAML: IdP entity ID, IdP SSO URL, signing certificate (PEM), email attribute | from your identity provider | email: NameID | |
+| Enable / Disable | — | enabled | |
+| Require SSO | on, off | off | Everyone except owners must use SSO (owners keep a password as a way back in). |
+| Link existing accounts by email | on, off | off | Needs allowed domains. Never links owner or admin accounts. |
+
+Set through the API only: create accounts on first sign-in (on by default), OIDC scopes
+(`openid email profile`) and claims (`email`, `name`), the SAML name attribute, and editing a
+provider's name, domains, role or identity-provider details after it is created. To change those in
+the app, remove the provider and add it again.
+
+### Provisioning
+
+| Setting | Options | Default | Notes |
+| --- | --- | --- | --- |
+| SCIM token | a name (e.g. "Entra ID") | — | Shown once. Base URL: `<GLASSHAUS_PUBLIC_URL>/scim/v2`. People created by SCIM are Members; SCIM can't change owners or admins. Groups become workspaces. Revoke any time. |
+| Managers from Microsoft Entra ID: Directory (tenant) ID, Application (client) ID, Client secret | from an Entra app with the `User.Read.All` application permission | off | Fills in managers, job titles and departments. |
+| Sync every night | on, off | off | Needs all three values above. **Sync now** runs it immediately. |
+| What managers see on My team | Only in projects the manager can open (counts elsewhere); Their reports' work in every project | Only in projects the manager can open | See [my-team.md](my-team.md). |
+
+### Integrations
+
+See [connectors.md](connectors.md). Each integration can be turned off, tested, and (outbound) shows
+its delivery log. Failed deliveries are retried for about five hours.
+
+| Type | You enter | Notes |
+| --- | --- | --- |
+| Slack, Microsoft Teams | Name, webhook URL, project (or all), events | Also **Scheduled posts**: a saved report or a project's status, daily, weekly or monthly at a set time. |
+| Signed webhook | Name, URL, project (or all), events, signing secret (generated if empty) | Private-network URLs need `GLASSHAUS_WEBHOOK_ALLOW_PRIVATE=true`. |
+| GitHub, GitLab | Name, project, signing secret (generated if empty) | Inbound: commits and pull/merge requests that mention a task key comment on it; `fixes WEB-12` completes it. |
+| Email to task | Name, project, IMAP host (TLS, port 993), username, password, allowed senders (empty = anyone) | The `INBOX` folder; other folders and ports through the API. |
+| Slack command (`/glasshaus`) | Name, signing secret, bot token (`xoxb-…`) | Organization-wide. |
+
+Events for outbound integrations: task created, updated, completed, deleted or restored; comment
+created; dependency created; project created, updated or imported; time logged; automation failed.
+Default: task created, task completed, comment created.
+
+Changing an integration's name, URL, events or credentials is API-only; in the app, remove it and
+connect it again.
+
+### AI
+
+Needs `GLASSHAUS_AI_PROVIDER` on the server first. See [ai.md](ai.md).
+
+| Setting | Options | Default |
+| --- | --- | --- |
+| Turn on the AI assistant for this organization | on, off | off |
+| Features | Status updates, Task drafting, Risk flags, Ask in plain words, Questions about reports, Project assistant | the first four |
+| What the project assistant may do without approval | Post follow-up comments | nothing (projects can't go beyond this ceiling) |
+
+### Data & retention
+
+| Setting | Options | Default |
+| --- | --- | --- |
+| Audit log (days) | 0 (forever) or 30–3650 | 365 |
+| Activity history (days) | 0 (forever) to 3650 | 730 |
+| Notifications (days) | 0 (forever) to 3650 | 90 |
+| Deleted tasks, restorable until purged (days) | 0 (forever) to 3650 | 30 (tasks with logged time are kept) |
+
+Ended sign-in sessions are deleted after 90 days (fixed). **Download export** saves the organization's
+data (without secrets).
+
+### Pages without settings
+
+- **Audit log**: search, filter and **Check integrity**. Retention is under Data & retention.
+- **System status**, **Backups**, **Updates**: single-organization servers only. Their schedules and
+  switches are server settings (`GLASSHAUS_BACKUP_*`, `GLASSHAUS_UPDATE_CHECK`). Only owners can press
+  **Upgrade**; it needs the [upgrade helper](#host-side-setup).
+
+### Per project (project admins)
+
+| Where | Setting | Options | Default |
+| --- | --- | --- | --- |
+| Project page → People | Members and their role | Admin, Editor, Commenter, Viewer | Editor |
+| Project settings → Custom fields | Name and type | Text, Number, Date, Single select, Multi select, Person, Checkbox, URL | — |
+| Timeline | Auto-schedule dependents | on, off | off |
+| Project page → Project assistant | Assistant on | on, off | off until a project admin saves the page |
+| | Daily digest: send, time, weekdays only | on/off, 00:00–23:59, on/off | on, 08:00, weekdays |
+| | Weekly status draft: write, day, hour | on/off, Monday–Sunday, 0–23 | on, Friday, 14:00 |
+| | Time zone | any time zone | your browser's |
+| | Stale after (days without an update) | 1–60 | 5 |
+| | Suggest follow-ups, dates and owners | on, off | on |
+| | Post follow-up comments without approval; at most per day | on/off (only if the organization allows it); 1–50 | off; 10 |
+| | Deliver by | Notification, Email (needs SMTP), a Slack or Teams channel | Notification |
+
+The assistant's AI write-up also needs the **Project assistant** feature on under Admin → AI. See
+[assistant.md](assistant.md).
 
 ## Host-side setup
 

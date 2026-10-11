@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- **[docs/configuration.md](docs/configuration.md)**: every setting with its options, in one place: server
+  settings (`.env`), Admin and project settings, host setup, and what each secret protects and how to
+  rotate it. A test keeps it complete when settings are added.
+
 ## [0.27.0] - 2026-10-11
 
 Health and monitoring.

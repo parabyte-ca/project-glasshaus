@@ -21,6 +21,8 @@ One release per PR. Minor version for features, patch for fixes.
      `list_tools()` length).
    - `docs/coverage-matrix.md`: every new MCP tool (a test fails otherwise).
    - Feature guides in `docs/` (`reports.md`, `ai.md`, …) and `.env.example` for new settings.
+   - `docs/configuration.md` for every new setting: `.env` variables (a test fails if one is missing),
+     Admin and project settings, host setup and secrets.
    - `docs/monitoring.md` when a release adds or changes a system check, a threshold or a
      Prometheus gauge (the "What is checked" and metrics tables; `GAUGES` in `monitoring.py`).
 4. **Checks**: `make check` (ruff, mypy on src *and* tests, eslint, prettier, pytest, vitest,
