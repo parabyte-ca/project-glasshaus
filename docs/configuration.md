@@ -32,6 +32,7 @@ and out of version control. Defaults are what you get when the line is missing o
   - [Advanced (set by Compose; rarely changed)](#advanced-set-by-compose-rarely-changed)
   - [Script options (environment, not .env)](#script-options-environment-not-env)
 - [Settings in the app (Admin)](#settings-in-the-app-admin)
+- [Installing on a Linux server](#installing-on-a-linux-server)
 - [Host-side setup](#host-side-setup)
 - [Secrets: what they protect and how to rotate them](#secrets-what-they-protect-and-how-to-rotate-them)
 
@@ -368,6 +369,108 @@ data (without secrets).
 The assistant's AI write-up also needs the **Project assistant** feature on under Admin → AI. See
 [assistant.md](assistant.md).
 
+## Installing on a Linux server
+
+These steps work on any 64-bit Linux server that can run Docker (Debian, Ubuntu, Fedora, RHEL, Rocky,
+Alma, openSUSE, Arch and others). Commands that differ by family are shown for both
+**Debian/Ubuntu** (`apt`, `ufw`) and **Fedora/RHEL** (`dnf`, `firewalld`).
+
+1. **Install Docker Engine and the Compose plugin**, and start it on boot. Use your distribution's
+   instructions at <https://docs.docker.com/engine/install/>, or Docker's script:
+
+   ```bash
+   curl -fsSL https://get.docker.com | sudo sh
+   sudo systemctl enable --now docker
+   docker compose version   # must be 2.20 or later
+   ```
+
+   Also install Git: `sudo apt install git` or `sudo dnf install git`.
+
+2. **Create a user to run Glasshaus** (optional but tidy). Membership of the `docker` group is
+   equivalent to root, so give it only to this user:
+
+   ```bash
+   sudo useradd --create-home --groups docker glasshaus
+   sudo mkdir -p /opt/glasshaus && sudo chown glasshaus: /opt/glasshaus
+   sudo -iu glasshaus
+   ```
+
+3. **Get the code** and prepare the configuration without starting:
+
+   ```bash
+   git clone https://github.com/parabyte-ca/project-glasshaus.git /opt/glasshaus
+   cd /opt/glasshaus
+   ./setup.sh --no-start      # builds images, creates .env with secrets (add --pull to download images)
+   ```
+
+4. **Put backups on another disk** (recommended). Mount it (for example at `/srv/glasshaus-backups`
+   through `/etc/fstab`), then let the backup service write to it and the app read it:
+
+   ```bash
+   sudo mkdir -p /srv/glasshaus-backups
+   sudo chown glasshaus: /srv/glasshaus-backups
+   sudo setfacl -m u:10001:rx /srv/glasshaus-backups   # the app (uid 10001) reads it; needs the acl package
+   ```
+
+   Without ACL support, `sudo chmod 755 /srv/glasshaus-backups` works too: the app only lists the folder;
+   the backup files themselves stay readable by the backup service alone.
+
+5. **Edit `.env`**: at least `GLASSHAUS_PUBLIC_URL`, `GLASSHAUS_ADMIN_EMAIL`, `GLASSHAUS_ADMIN_NAME` and
+   `GLASSHAUS_BACKUP_DIR=/srv/glasshaus-backups`; add email settings if you have them (see
+   [Server settings](#server-settings-env)). Copy `GLASSHAUS_BACKUP_KEY` and `GLASSHAUS_SECRET_KEY` to a
+   password manager now.
+
+6. **Start it**:
+
+   ```bash
+   ./setup.sh
+   grep ^GLASSHAUS_ADMIN_PASSWORD= .env   # first sign-in; change it under Account afterwards
+   ```
+
+   Every container restarts on its own after a reboot (`restart: unless-stopped`), as long as Docker
+   starts on boot (step 1).
+
+7. **Open the firewall** for the web port (and the MCP port if assistants on other machines connect):
+
+   ```bash
+   sudo ufw allow 8470/tcp                                                     # Debian/Ubuntu
+   sudo firewall-cmd --permanent --add-port=8470/tcp && sudo firewall-cmd --reload   # Fedora/RHEL
+   ```
+
+   Docker publishes ports through its own firewall rules, which `ufw` and `firewalld` zones don't
+   filter. To keep a port private, bind it to an address instead: `GLASSHAUS_BIND_ADDRESS=127.0.0.1`
+   (only this host) or the server's LAN address.
+
+8. **Add HTTPS** (recommended, and needed for phone notifications and assistant sign-in). With
+   [Caddy](https://caddyserver.com/) on the same host, which gets certificates automatically:
+
+   ```text
+   # /etc/caddy/Caddyfile
+   glasshaus.example.com {
+       reverse_proxy 127.0.0.1:8470
+   }
+   ```
+
+   Then in `.env`: `GLASSHAUS_PUBLIC_URL=https://glasshaus.example.com`,
+   `GLASSHAUS_BIND_ADDRESS=127.0.0.1` (so only Caddy reaches Glasshaus) and `GLASSHAUS_UPSTREAM_PROXY`
+   set to the address Caddy's connections arrive from. For a proxy on the same host that is the gateway
+   of Glasshaus's Docker network:
+
+   ```bash
+   docker network inspect glasshaus_frontend -f '{{(index .IPAM.Config 0).Gateway}}'   # e.g. 172.18.0.1
+   ```
+
+   Apply with `docker compose up -d`. Any other proxy (Nginx, Traefik, HAProxy) works the same way; it
+   must pass WebSocket upgrades for `/api/v1/ws`.
+
+9. **Set up upgrades from the app** (optional): `sudo ./scripts/upgrade-agent.sh --install`. It uses cron
+   if installed, otherwise a systemd timer.
+
+10. **Keep a copy of backups elsewhere**: replicate `GLASSHAUS_BACKUP_DIR` to another machine or cloud
+    storage (rsync, restic, rclone or your NAS's replication). The backup service only writes locally.
+
+To upgrade later: `cd /opt/glasshaus && sudo ./update.sh` (or **Admin → Updates**).
+
 ## Host-side setup
 
 | Item | How | Notes |
@@ -376,8 +479,9 @@ The assistant's AI write-up also needs the **Project assistant** feature on unde
 | Install folder | Clone the repository; run `./setup.sh` from it | Keep `.env` in this folder (permissions `600`). |
 | Ports | `8470` (web), `8471` (API, this host only), `8472` (MCP) | Change in `.env` if taken; `setup.sh` warns about conflicts. Open `8470` (and `8472` if assistants on other machines connect) in the firewall. |
 | Backup folder | `GLASSHAUS_BACKUP_DIR`, writable by `GLASSHAUS_BACKUP_UID:GID` | On a NAS, a separate dataset with snapshots and replication. |
-| Upgrade helper (optional) | `sudo ./scripts/upgrade-agent.sh --install` | Runs every minute as root from `/etc/cron.d`. On TrueNAS it prints a Cron Job to add under **System → Advanced Settings → Cron Jobs**. Only needed to upgrade from **Admin → Updates**. |
+| Upgrade helper (optional) | `sudo ./scripts/upgrade-agent.sh --install` | Runs every minute as root, via `/etc/cron.d` when cron is installed or a systemd timer otherwise. Where the scheduler is managed elsewhere (a NAS web interface), `--print` shows the command to add yourself. `--uninstall` removes it. Only needed to upgrade from **Admin → Updates**. |
 | Upgrade folder | Created by `setup.sh`, `update.sh` and the helper | Owned by `10001:10001`, mode `0770`. |
+| Start on boot | `sudo systemctl enable docker` | The containers restart themselves once Docker is running. |
 | Reverse proxy and TLS (optional) | Point your proxy at `http://<host>:8470` | Set `GLASSHAUS_PUBLIC_URL` to the `https://` address and `GLASSHAUS_UPSTREAM_PROXY` to the proxy's IP. WebSockets (`/api/v1/ws`) must be allowed. For assistants over OAuth, proxy `8472` too and set `GLASSHAUS_MCP_PUBLIC_URL`. |
 | Uptime checks (optional) | `http://<host>:8470/readyz` | 200 when the database and Redis are reachable. |
 | Prometheus (optional) | Scrape `http://<host>:8471/metrics` | See [monitoring.md](monitoring.md). |

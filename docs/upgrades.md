@@ -31,9 +31,12 @@ you:
    sudo ./scripts/upgrade-agent.sh --install
    ```
 
-   On most Linux servers this adds `/etc/cron.d/glasshaus-upgrade` (every minute, as root). On TrueNAS,
-   whose `/etc` is replaced on system updates, it prints a **Cron Job** to add instead (System → Advanced
-   Settings → Cron Jobs: the command it shows, run as root, every minute).
+   It runs the helper every minute as root: with cron installed it adds `/etc/cron.d/glasshaus-upgrade`;
+   otherwise, on systemd, it adds and starts a `glasshaus-upgrade.timer`. With neither it prints the
+   command to schedule. On a host whose scheduler is managed elsewhere (for example a NAS web
+   interface, where `/etc` is replaced on system updates), run `sudo ./scripts/upgrade-agent.sh --print`
+   and add the command it shows as a job that runs every minute as root.
+   To remove it: `sudo ./scripts/upgrade-agent.sh --uninstall`.
 2. **Admin → Updates** shows "helper connected" within a minute.
 3. When a new release is out, an owner presses **Upgrade to x.y.z** and confirms. Within a minute the
    helper runs `update.sh` (backup, check on a copy, upgrade, health check, roll back on failure). The page
