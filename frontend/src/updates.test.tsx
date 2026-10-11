@@ -28,7 +28,7 @@ const status = (over: Record<string, unknown> = {}) => ({
   update_available: true,
   checked_at: '2026-10-11T11:00:00Z',
   check_error: null,
-  helper: { configured: true, connected: true, last_seen: '2026-10-11T11:59:00Z' },
+  helper: { configured: true, connected: true, last_seen: '2026-10-11T11:59:00Z', every_minutes: 15 },
   upgrade: null,
   can_upgrade: true,
   log: null,
@@ -61,7 +61,7 @@ describe('Admin › Updates', () => {
     await waitFor(() => expect(calls.some((c) => c.url.endsWith('/admin/updates/upgrade'))).toBe(true));
     const post = calls.find((c) => c.url.endsWith('/admin/updates/upgrade'))!;
     expect(await post.json()).toEqual({ version: '0.27.0' });
-    expect(await screen.findByText(/requested; the server starts it within a minute/)).toBeInTheDocument();
+    expect(await screen.findByText(/requested; the server starts it at its next check/)).toBeInTheDocument();
   });
 
   it('explains how to set up the helper, and only owners get the button', async () => {
@@ -72,7 +72,7 @@ describe('Admin › Updates', () => {
         method: 'GET',
         path: '/api/v1/admin/updates',
         body: status({
-          helper: { configured: false, connected: false, last_seen: null },
+          helper: { configured: false, connected: false, last_seen: null, every_minutes: 1 },
           can_upgrade: false,
         }),
       },

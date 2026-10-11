@@ -4662,6 +4662,12 @@ export interface components {
       connected: boolean;
       /** Last Seen */
       last_seen: string | null;
+      /**
+       * Every Minutes
+       * @description How often the host helper runs, as it reports itself.
+       * @default 1
+       */
+      every_minutes: number;
     };
     /** ImportProblem */
     ImportProblem: {

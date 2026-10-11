@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.27.1] - 2026-10-11
+
+### Changed
+- **The upgrade helper runs every 15 minutes, not every minute.** It only looks for an upgrade you started
+  in the app, so one begins within that time. `--install --every N` picks another interval; the helper
+  reports it and Admin → Updates tolerates a missed run. Existing installs keep their schedule until you
+  run `sudo ./scripts/upgrade-agent.sh --install` again.
+
 ### Added
 - **Upgrade helper on any Linux:** `scripts/upgrade-agent.sh --install` uses cron when it is installed and
   a systemd timer otherwise; `--print` shows what to schedule on hosts whose scheduler is managed
@@ -922,7 +930,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.1...HEAD
+[0.27.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.24.0...v0.25.0
