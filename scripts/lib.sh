@@ -90,6 +90,25 @@ backup_image_ready() {
 }
 
 # ensure_backup_key -> generate the age key that encrypts backups, once (setup.sh and update.sh)
+# upgrade_dir -> the host folder shared with the API for upgrades started in Admin > Updates.
+upgrade_dir() {
+  local dir
+  dir="$(get_env GLASSHAUS_UPGRADE_FOLDER)"
+  dir="${dir:-./upgrade}"
+  [[ "$dir" == /* ]] || dir="$ROOT_DIR/${dir#./}"
+  printf '%s\n' "$dir"
+}
+
+# ensure_upgrade_dir -> create the upgrade folder, writable by the app (uid 10001) and root only.
+ensure_upgrade_dir() {
+  local dir
+  dir="$(upgrade_dir)"
+  mkdir -p "$dir"
+  if [[ "$(id -u)" == 0 ]]; then
+    chown 10001:10001 "$dir" && chmod 0770 "$dir"
+  fi
+}
+
 ensure_backup_key() {
   [[ -n "$(get_env GLASSHAUS_BACKUP_KEY)" ]] && return 0
   local key
@@ -184,19 +203,21 @@ preflight_check() {
          migrate glasshaus migrate; then
     GLASSHAUS_DATABASE_URL="$app" GLASSHAUS_REDIS_URL="$redis" \
       compose run -d --no-deps --name "$name" -e GLASSHAUS_DATABASE_URL -e GLASSHAUS_REDIS_URL api >/dev/null || true
-    deadline=$((SECONDS + 120))
+    # Ask the API itself: Docker's health status can read "unhealthy" while a slow host is still
+    # starting the worker processes. Give up early only if the container stops.
+    deadline=$((SECONDS + ${GLASSHAUS_PREFLIGHT_TIMEOUT:-240}))
     while (( SECONDS < deadline )); do
-      status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$name" 2>/dev/null)"
-      if [[ "$status" == "healthy" ]] && docker exec "$name" python -c \
+      status="$(docker inspect -f '{{.State.Status}}' "$name" 2>/dev/null)"
+      [[ "$status" == "exited" || "$status" == "dead" || -z "$status" ]] && break
+      if docker exec "$name" python -c \
         "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=5).status == 200 else 1)" \
         >/dev/null 2>&1; then
         rc=0; break
       fi
-      [[ "$status" == "exited" || "$status" == "dead" || "$status" == "unhealthy" || -z "$status" ]] && break
       sleep 3
     done
     if (( rc != 0 )); then
-      warn "the new API did not become ready on the copy (state: ${status:-missing})"
+      warn "the new API did not become ready on the copy within ${GLASSHAUS_PREFLIGHT_TIMEOUT:-240}s (state: ${status:-missing})"
       docker logs --tail 40 "$name" >&2 2>&1 || true
     fi
   else

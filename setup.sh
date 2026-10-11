@@ -53,6 +53,7 @@ else
   info "Building images"; compose build
 fi
 ensure_backup_key
+ensure_upgrade_dir
 
 [[ "$START" == 1 ]] || { ok "configuration ready; start with: docker compose up -d"; exit 0; }
 

@@ -117,6 +117,9 @@ async def describe(session: AsyncSession, event: dict[str, Any]) -> dict[str, An
     elif t == "time.logged":
         mins = (data.get("entry") or data).get("minutes")
         out["text"] = f"{who} logged {mins} min on {subject}" if mins else f"{who} logged time on {subject}"
+    elif t == "project.imported":
+        counts = f"{data.get('created', 0)} new and {data.get('updated', 0)} updated tasks"
+        out["text"] = f"{who} imported {counts} into {out['project'] or 'a project'}"
     elif t.startswith("project."):
         out["text"] = f"{who} {t.split('.', 1)[1].replace('_', ' ')} project {out['project'] or ''}"
     elif t == "integration.test":

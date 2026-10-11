@@ -7,6 +7,73 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [Unreleased]
 
 ### Added
+- **Upgrade helper on any Linux:** `scripts/upgrade-agent.sh --install` uses cron when it is installed and
+  a systemd timer otherwise; `--print` shows what to schedule on hosts whose scheduler is managed
+  elsewhere, and `--uninstall` removes it.
+- **Installing on Linux** guide in [docs/configuration.md](docs/configuration.md#installing-on-a-linux-server).
+- **[docs/configuration.md](docs/configuration.md)**: every setting with its options, in one place: server
+  settings (`.env`), Admin and project settings, host setup, and what each secret protects and how to
+  rotate it. A test keeps it complete when settings are added.
+
+## [0.27.0] - 2026-10-11
+
+Health and monitoring.
+
+### Added
+- **Admin → System status** (owners and admins): the database, Redis, the background worker, the job
+  queue, live updates, Slack/Teams/webhook deliveries, backups, backup disk space and the version, each
+  marked OK, needs attention or problem, with the numbers behind it.
+- **Alerts.** The worker checks every five minutes and notifies owners and admins (in the app, and by
+  email when it is set up) when something needs attention, at most once every six hours per problem. The
+  API watches the worker, so a stopped worker is reported too.
+- **Prometheus gauges** on `/metrics` for every check (`glasshaus_check_state`, queue length, worker
+  heartbeat age, undelivered changes, backup age, free disk and more). `GLASSHAUS_METRICS_TOKEN` protects
+  `/metrics` for scraping from another host. See [docs/monitoring.md](docs/monitoring.md) for a scrape
+  config and example alert rules.
+
+### Fixed
+- `/metrics` request counters now cover all API processes, not just whichever one answered the scrape.
+
+## [0.26.0] - 2026-10-10
+
+Upgrade Glasshaus from the app.
+
+### Added
+- **New release notices.** Glasshaus checks GitHub once a day for a new release (only the version and
+  notes come back; nothing about your server is sent). Owners and admins get one notification per
+  release. Turn it off with `GLASSHAUS_UPDATE_CHECK=false`.
+- **Admin → Updates:** this version, the latest release with its notes, and **Check now**.
+- **Upgrade from the app (owners).** After a one-time setup on the server
+  (`sudo ./scripts/upgrade-agent.sh --install`, a scheduled job that runs every minute),
+  **Upgrade** asks a helper on the server to run `update.sh`: backup, a check on a copy of the database,
+  the upgrade, a health check and an automatic roll-back on failure. The page shows progress and the log.
+  The app never gets Docker or root access; it can only leave a request in the upgrade folder. Each
+  request is in the audit log. See [docs/upgrades.md](docs/upgrades.md).
+
+## [0.25.0] - 2026-10-10
+
+Import tasks from a CSV or Excel file, including exports from Nimble and other tools.
+
+### Added
+- **Import** on a project (editors and admins; also "import" in the command palette):
+  - reads CSV and Excel (.xlsx) files in the browser; pick the sheet if there are several;
+  - guesses what each column is from its name, with a *Nimble* choice for Nimble's export columns;
+    change any column, or leave it out;
+  - imports titles, descriptions, statuses, priorities, owners, start and due dates, estimates, tags,
+    parent items (as subtasks), comments, links and custom fields;
+  - matches each status and priority in the file to the project's, and asks whether dates like
+    03/04/2026 are day/month or month/day;
+  - **Check** shows what would happen first: new, updated and unchanged tasks, rows with problems, and
+    people who couldn't be matched;
+  - owners are matched by email (or exact name); people not found are listed and their tasks left
+    unassigned;
+  - with an ID column, importing again updates the same tasks (only the fields in the file), adds each
+    comment once and skips tasks deleted since;
+  - imported tasks don't notify anyone or run automations; one *project imported* entry records the
+    import, and Slack, Teams and webhooks can subscribe to it.
+  - See [docs/import.md](docs/import.md). API: `POST /api/v1/projects/{id}/import`.
+- **Releases tag themselves.** When a release merges to `main`, the *Tag release* workflow tags it
+  `vX.Y.Z` and publishes its images and GitHub Release. No more manual tagging; just run `update.sh`.
 - `scripts/release-tags.sh` lists every release and whether it has its `vX.Y.Z` tag; `--tag --push`
   adds the missing ones. CI fails, and a daily check reports, when a release merged over a day ago is
   still untagged.
@@ -14,6 +81,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Changed
 - Pushing a tag for an older release no longer publishes it: only the newest version's tag builds
   images and a GitHub Release, so catching up on tags can't move `latest` back.
+
+### Fixed
+- **Upgrade pre-flight on slower servers.** The check could stop an upgrade while the new version was
+  still starting on the copy of the database ("did not become ready (state: unhealthy)"). It now asks
+  the new version directly for up to 4 minutes (`GLASSHAUS_PREFLIGHT_TIMEOUT` to change it), and the
+  containers allow a minute to start before Docker calls them unhealthy.
 
 ## [0.24.0] - 2026-10-10
 
@@ -460,7 +533,7 @@ Custom reports and dashboards.
 ### Fixed
 - **Upgrades could roll back on some hosts** with "container glasshaus-api-1 is unhealthy". Since
   0.9.2 the API looked up the `web` container's name inside every request, blocking it; during an
-  upgrade `web` is not running yet, and where DNS is slow to answer (seen on TrueNAS) each health
+  upgrade `web` is not running yet, and where DNS is slow to answer each health
   check stalled past its timeout. The lookup now runs in the background and never delays a request.
 - Command palette: the hint text on the highlighted item has enough contrast.
 
@@ -849,7 +922,10 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.26.0...v0.27.0
+[0.26.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.25.0...v0.26.0
+[0.25.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.24.0...v0.25.0
 [0.24.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.23.0...v0.24.0
 [0.23.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.22.0...v0.23.0
 [0.22.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.1...v0.22.0

@@ -1,5 +1,7 @@
 """FastAPI application factory."""
 
+import asyncio
+import contextlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -35,7 +37,16 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         )
         if get_settings().is_production:
             raise RuntimeError("refusing to start: database role bypasses row-level security")
+    watchdog = None
+    if get_settings().env != "test":
+        from glasshaus.monitoring import watchdog_loop
+
+        watchdog = asyncio.create_task(watchdog_loop())
     yield
+    if watchdog is not None:
+        watchdog.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await watchdog
     await get_engine().dispose()
 
 

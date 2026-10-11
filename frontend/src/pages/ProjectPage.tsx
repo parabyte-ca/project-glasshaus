@@ -215,6 +215,11 @@ function ProjectPageFor({ projectKey }: { projectKey: string }) {
           <Link to={`/projects/${p.key}/assistant`} className={`text-sm ${linkClass}`}>
             Project assistant
           </Link>
+          {(p.my_role === 'admin' || p.my_role === 'editor') && (
+            <Link to={`/projects/${p.key}/import`} className={`text-sm ${linkClass}`}>
+              Import
+            </Link>
+          )}
           {p.my_role === 'admin' && (
             <span className="flex items-center gap-1">
               <Link to={`/projects/${p.key}/settings`} className={`text-sm ${linkClass}`}>

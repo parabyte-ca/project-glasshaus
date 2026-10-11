@@ -77,6 +77,7 @@ RLS_TABLES = (
     "report_subscriptions",
     "report_alerts",
     "channel_posts",
+    "import_links",
     "push_subscriptions",
     "project_assistants",
     "project_briefs",

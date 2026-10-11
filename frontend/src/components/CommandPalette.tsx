@@ -110,6 +110,16 @@ export function CommandPalette({ onClose, onHelp }: { onClose: () => void; onHel
           run: go(`/projects/${p.key}/assistant`),
         });
       }
+      const canImport = p.my_role === 'admin' || p.my_role === 'editor';
+      if (canImport && needle && match(`${p.key} ${p.name} import tasks csv excel nimble spreadsheet`)) {
+        out.push({
+          id: `pi-${p.id}`,
+          label: `${p.name}: import tasks`,
+          hint: 'from CSV, Excel or Nimble',
+          group: 'Projects',
+          run: go(`/projects/${p.key}/import`),
+        });
+      }
     }
     const pages: [string, string, string?][] = Object.entries(GO_TO)
       // My team is for managers (people with reports in the directory).
