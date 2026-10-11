@@ -2104,6 +2104,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/admin/status': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Health of the database, Redis, the worker, backups and disk (single-organization servers) */
+    get: operations['system_status'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/admin/updates': {
     parameters: {
       query?: never;
@@ -3831,6 +3848,27 @@ export interface components {
       last_sent_at: string | null;
       /** Last Error */
       last_error: string | null;
+    };
+    /** Check */
+    Check: {
+      /** Key */
+      key: string;
+      /** Name */
+      name: string;
+      /**
+       * State
+       * @enum {string}
+       */
+      state: 'ok' | 'warning' | 'critical' | 'unknown';
+      /** Message */
+      message: string;
+      /**
+       * Metrics
+       * @description Numbers behind the check.
+       */
+      metrics: {
+        [key: string]: number;
+      };
     };
     /** CheckInCreate */
     CheckInCreate: {
@@ -7347,6 +7385,23 @@ export interface components {
       due_date: string | null;
       /** Completed At */
       completed_at: string | null;
+    };
+    /** SystemStatus */
+    SystemStatus: {
+      /**
+       * Checked At
+       * Format: date-time
+       */
+      checked_at: string;
+      /**
+       * Overall
+       * @enum {string}
+       */
+      overall: 'ok' | 'warning' | 'critical' | 'unknown';
+      /** Version */
+      version: string;
+      /** Checks */
+      checks: components['schemas']['Check'][];
     };
     /** TaskBulkPatch */
     TaskBulkPatch: {
@@ -19751,6 +19806,66 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['BackupStatus'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Permission denied */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+      /** @description Invalid input */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': unknown;
+          'application/json': components['schemas']['glasshaus__api__errors__Problem'];
+        };
+      };
+    };
+  };
+  system_status: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SystemStatus'];
         };
       };
       /** @description Not authenticated */

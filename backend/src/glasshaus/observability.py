@@ -1,10 +1,25 @@
 """Prometheus metrics and optional OpenTelemetry tracing."""
 
+import hmac
+import os
 import time
 from collections.abc import Awaitable, Callable
 
+# With several API processes (WEB_CONCURRENCY), each keeps its own counters; multiprocess mode
+# shares them through files so every scrape sees the whole API. The folder must exist before the
+# first metric is created.
+if _multiproc := os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+    os.makedirs(_multiproc, exist_ok=True)
+
 from fastapi import FastAPI, Request, Response
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    Counter,
+    Histogram,
+    generate_latest,
+    multiprocess,
+)
 
 from glasshaus.config import get_settings
 
@@ -29,8 +44,21 @@ def install_metrics(app: FastAPI) -> None:
         return response
 
     @app.get("/metrics", include_in_schema=False)
-    async def metrics() -> Response:
-        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+    async def metrics(request: Request) -> Response:
+        from glasshaus import monitoring
+
+        token = get_settings().metrics_token
+        if token is not None and token.get_secret_value():
+            given = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+            if not hmac.compare_digest(given.encode(), token.get_secret_value().encode()):
+                return Response(status_code=401, headers={"WWW-Authenticate": "Bearer"})
+        if _multiproc:
+            registry = CollectorRegistry()
+            multiprocess.MultiProcessCollector(registry)  # type: ignore[no-untyped-call]
+            body = generate_latest(registry)
+        else:
+            body = generate_latest()
+        return Response(body + (await monitoring.prometheus_text()).encode(), media_type=CONTENT_TYPE_LATEST)
 
 
 def install_tracing(app: FastAPI) -> None:

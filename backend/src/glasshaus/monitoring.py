@@ -15,7 +15,7 @@ import json
 import shutil
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import Field
 from sqlalchemy import func, select, text
@@ -84,7 +84,9 @@ async def _database() -> Check:
             used = await session.scalar(
                 text("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()")
             )
-            limit = await session.scalar(text("SELECT setting::int FROM pg_settings WHERE name = 'max_connections'"))
+            limit = await session.scalar(
+                text("SELECT setting::int FROM pg_settings WHERE name = 'max_connections'")
+            )
     except Exception as exc:  # noqa: BLE001 - any failure means the database is not usable
         return _check("database", "Database", "critical", f"Can't reach the database ({type(exc).__name__}).")
     ratio = (used or 0) / (limit or 100)
@@ -121,7 +123,9 @@ async def _worker(now: datetime) -> Check:
     seen = datetime.fromisoformat(raw)
     age = max(0.0, (now - seen).total_seconds())
     state: State = "warning" if age > 120 else "ok"
-    return _check("worker", "Background worker", state, f"Last checked in {int(age)} s ago.", heartbeat_age_seconds=age)
+    return _check(
+        "worker", "Background worker", state, f"Last checked in {int(age)} s ago.", heartbeat_age_seconds=age
+    )
 
 
 async def _queue() -> Check:
@@ -147,7 +151,9 @@ async def _events(now: datetime) -> Check:
                 )
             ).one()
     except Exception:  # noqa: BLE001
-        return _check("events", "Live updates and integrations", "unknown", "Can't tell: the database is not reachable.")
+        return _check(
+            "events", "Live updates and integrations", "unknown", "Can't tell: the database is not reachable."
+        )
     count, oldest = int(row[0]), row[1]
     age = (now - oldest).total_seconds() if oldest else 0.0
     state: State = "critical" if age > 1800 else "warning" if age > 300 else "ok"
@@ -156,7 +162,9 @@ async def _events(now: datetime) -> Check:
         if count == 0
         else f"{count} changes waiting to be delivered; the oldest is {int(age // 60)} min old."
     )
-    return _check("events", "Live updates and integrations", state, message, unpublished=count, oldest_seconds=age)
+    return _check(
+        "events", "Live updates and integrations", state, message, unpublished=count, oldest_seconds=age
+    )
 
 
 async def _integrations(now: datetime) -> Check:
@@ -182,14 +190,21 @@ async def _integrations(now: datetime) -> Check:
                 or 0
             )
     except Exception:  # noqa: BLE001
-        return _check("integrations", "Slack, Teams and webhooks", "unknown", "Can't tell: the database is not reachable.")
+        return _check(
+            "integrations",
+            "Slack, Teams and webhooks",
+            "unknown",
+            "Can't tell: the database is not reachable.",
+        )
     state: State = "warning" if failed else "ok"
     message = (
         f"{failed} messages gave up in the last 24 hours (see Admin > Integrations)."
         if failed
         else "All messages delivered."
     ) + (f" {retrying} being retried." if retrying else "")
-    return _check("integrations", "Slack, Teams and webhooks", state, message, failed_24h=failed, retrying=retrying)
+    return _check(
+        "integrations", "Slack, Teams and webhooks", state, message, failed_24h=failed, retrying=retrying
+    )
 
 
 def _backups(now: datetime) -> Check | None:
@@ -209,11 +224,19 @@ def _backups(now: datetime) -> Check | None:
         return Check(
             key="backups",
             name="Backups",
-            state="critical" if any(p.code in ("backup_missing", "drill_failed") for p in found.problems) else "warning",
+            state="critical"
+            if any(p.code in ("no_backup", "backup_stale", "drill_failed") for p in found.problems)
+            else "warning",
             message=" ".join(p.message for p in found.problems),
             metrics=metrics,
         )
-    return Check(key="backups", name="Backups", state="ok", message="Up to date; the last restore drill passed.", metrics=metrics)
+    return Check(
+        key="backups",
+        name="Backups",
+        state="ok",
+        message="Up to date; the last restore drill passed.",
+        metrics=metrics,
+    )
 
 
 def _disk() -> Check | None:
@@ -236,8 +259,20 @@ async def _updates() -> Check:
     cached = await updates._cached()
     latest = (cached.get("release") or {}).get("version")
     if latest and updates.newer(latest, __version__):
-        return _check("updates", "Version", "ok", f"{__version__}; {latest} is available (Admin > Updates).", update_available=1)
-    return _check("updates", "Version", "ok", f"{__version__}, the latest release." if latest else __version__, update_available=0)
+        return _check(
+            "updates",
+            "Version",
+            "ok",
+            f"{__version__}; {latest} is available (Admin > Updates).",
+            update_available=1,
+        )
+    return _check(
+        "updates",
+        "Version",
+        "ok",
+        f"{__version__}, the latest release." if latest else __version__,
+        update_available=0,
+    )
 
 
 async def collect(now: datetime | None = None) -> SystemStatus:
@@ -278,12 +313,16 @@ async def _alert(problems: list[Check], now: datetime) -> int:
         async with unit_of_work(Actor.system(tenant_id)) as ctx:
             admins = (
                 await ctx.session.execute(
-                    select(User.id, User.email).where(User.is_active.is_(True), User.org_role.in_(ORG_ADMIN_ROLES))
+                    select(User.id, User.email).where(
+                        User.is_active.is_(True), User.org_role.in_(ORG_ADMIN_ROLES)
+                    )
                 )
             ).all()
             emails = {row.id: row.email for row in admins}
             for check in problems:
-                event = uuid.uuid5(uuid.NAMESPACE_URL, f"glasshaus:status:{tenant_id}:{check.key}:{check.state}:{window}")
+                event = uuid.uuid5(
+                    uuid.NAMESPACE_URL, f"glasshaus:status:{tenant_id}:{check.key}:{check.state}:{window}"
+                )
                 for uid in await notify_users(
                     ctx,
                     list(emails),
@@ -302,7 +341,15 @@ async def _alert(problems: list[Check], now: datetime) -> int:
                         mail.Mail(
                             to=emails[uid],
                             subject="Glasshaus needs attention",
-                            text="\n".join(["Glasshaus found a problem:", "", *(f"- {m}" for m in lines), "", f"Details: {link}"]),
+                            text="\n".join(
+                                [
+                                    "Glasshaus found a problem:",
+                                    "",
+                                    *(f"- {m}" for m in lines),
+                                    "",
+                                    f"Details: {link}",
+                                ]
+                            ),
                         )
                     )
                 except ServiceError as exc:
@@ -347,11 +394,23 @@ GAUGES = {
     ("database", "size_bytes"): ("glasshaus_database_size_bytes", "Size of the database"),
     ("database", "connections"): ("glasshaus_database_connections", "Open database connections"),
     ("redis", "memory_bytes"): ("glasshaus_redis_memory_bytes", "Memory used by Redis"),
-    ("worker", "heartbeat_age_seconds"): ("glasshaus_worker_heartbeat_age_seconds", "Seconds since the worker checked in"),
+    ("worker", "heartbeat_age_seconds"): (
+        "glasshaus_worker_heartbeat_age_seconds",
+        "Seconds since the worker checked in",
+    ),
     ("queue", "jobs"): ("glasshaus_queue_jobs", "Background jobs waiting"),
-    ("events", "unpublished"): ("glasshaus_events_unpublished", "Changes not yet delivered to live updates and integrations"),
-    ("events", "oldest_seconds"): ("glasshaus_events_oldest_unpublished_seconds", "Age of the oldest undelivered change"),
-    ("integrations", "failed_24h"): ("glasshaus_integration_failures_24h", "Integration messages that gave up in 24 hours"),
+    ("events", "unpublished"): (
+        "glasshaus_events_unpublished",
+        "Changes not yet delivered to live updates and integrations",
+    ),
+    ("events", "oldest_seconds"): (
+        "glasshaus_events_oldest_unpublished_seconds",
+        "Age of the oldest undelivered change",
+    ),
+    ("integrations", "failed_24h"): (
+        "glasshaus_integration_failures_24h",
+        "Integration messages that gave up in 24 hours",
+    ),
     ("integrations", "retrying"): ("glasshaus_integration_retrying", "Integration messages being retried"),
     ("backups", "newest_age_seconds"): ("glasshaus_backup_newest_age_seconds", "Age of the newest backup"),
     ("backups", "count"): ("glasshaus_backups", "Backups kept"),
@@ -378,15 +437,17 @@ async def prometheus_text(now: datetime | None = None) -> str:
     if snapshot is None:
         return "\n".join(lines) + "\n"
     lines += [
-        "# HELP glasshaus_status_age_seconds Age of the status snapshot (the worker refreshes it every 5 minutes)",
+        "# HELP glasshaus_status_age_seconds Age of the status snapshot (refreshed every 5 minutes)",
         "# TYPE glasshaus_status_age_seconds gauge",
         f"glasshaus_status_age_seconds {(now - snapshot.checked_at).total_seconds():.0f}",
         "# HELP glasshaus_check_state Check state: 0 ok, 1 unknown, 2 warning, 3 critical",
         "# TYPE glasshaus_check_state gauge",
         *(f'glasshaus_check_state{{check="{c.key}"}} {RANK[c.state]}' for c in snapshot.checks),
     ]
-    values: dict[str, Any] = {(c.key, k): v for c in snapshot.checks for k, v in c.metrics.items()}
+    values: dict[tuple[str, str], float] = {
+        (c.key, k): v for c in snapshot.checks for k, v in c.metrics.items()
+    }
     for key, (name, help_text) in GAUGES.items():
         if key in values:
-            lines += [f"# HELP {name} {help_text}", f"# TYPE {name} gauge", f"{name} {float(values[key]):g}"]
+            lines += [f"# HELP {name} {help_text}", f"# TYPE {name} gauge", f"{name} {float(values[key])!r}"]
     return "\n".join(lines) + "\n"
