@@ -397,7 +397,7 @@ async def resolve_user(
     link from Account settings), admins only when the IdP asserts the email is verified, members and
     guests when it is verified or the provider is set to trust its addresses (`link_existing_accounts`).
     """
-    from glasshaus.audit.service import record_raw
+    from glasshaus.audit.service import email_hash, record_raw
 
     now = datetime.now(UTC)
     link = await session.scalar(
@@ -423,7 +423,7 @@ async def resolve_user(
                 outcome="denied",
                 method="sso",
                 client=f"sso:{provider.slug}",
-                detail={"email": email, "reason": "domain not allowed"},
+                detail={"email_hash": email_hash(email), "reason": "domain not allowed"},
             )
             raise Unauthenticated("your email domain is not allowed to sign in with this provider")
         user = await session.scalar(select(User).where(func.lower(User.email) == email.lower()))
@@ -437,7 +437,7 @@ async def resolve_user(
                     actor_id=user.id,
                     method="sso",
                     client=f"sso:{provider.slug}",
-                    detail={"email": email, "reason": reason},
+                    detail={"email_hash": email_hash(email), "reason": reason},
                 )
                 raise Unauthenticated(
                     "an account with this email already exists; sign in with your password and link "
@@ -464,7 +464,7 @@ async def resolve_user(
                 method="sso",
                 client=f"sso:{provider.slug}",
                 target=f"user:{user.id}",
-                detail={"email": email},
+                detail={},
             )
         link = UserIdentity(
             tenant_id=provider.tenant_id, user_id=user.id, provider_id=provider.id, subject=subject
@@ -481,7 +481,7 @@ async def resolve_user(
         actor_id=user.id,
         method="sso",
         client=f"sso:{provider.slug}",
-        detail={"email": user.email},
+        detail={},
     )
     return user
 

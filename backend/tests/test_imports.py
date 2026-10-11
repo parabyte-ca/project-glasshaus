@@ -190,6 +190,7 @@ def test_date_and_duration_parsing() -> None:
     assert parse_date("03/04/2026", "mdy") == date(2026, 3, 4)
     assert parse_date("12 Oct 2026", "auto") == date(2026, 10, 12)
     assert parse_date("Oct 12, 2026", "auto") == date(2026, 10, 12)
+    assert parse_date("12 Oct 26", "auto") == date(2026, 10, 12)  # a two-digit year, not year 12
     assert parse_date("46310", "auto") == date(2026, 10, 15)
     assert parse_date("", "auto") is None
     for bad in ("31/02/2026", "soon", "03/04/2026"):
@@ -202,3 +203,6 @@ def test_date_and_duration_parsing() -> None:
     assert parse_estimate("") is None
     with pytest.raises(RowError):
         parse_estimate("a while")
+    for odd in ("inf", "nan", "1e999", "-1e999"):
+        with pytest.raises(RowError):  # a spreadsheet cell must not crash the whole import
+            parse_estimate(odd)

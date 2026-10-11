@@ -117,11 +117,18 @@ main() {
   local dir
   dir="$(upgrade_dir)"
   ensure_upgrade_dir
-  exec 9>"$dir/.lock"
+  # The folder is shared with the app (a container), and this runs as root: never open a name in it in a way
+  # that follows a link the app could have planted. Lock the folder itself; create files with O_EXCL.
+  exec 9<"$dir"
   flock -n 9 || exit 0  # an upgrade is already running
   write_json "$dir/agent.json" last_seen "$(now)" helper "1" every_minutes "$EVERY"
 
   [[ -f "$dir/request.json" ]] || return 0
+  if [[ -L "$dir/request.json" ]]; then
+    rm -f "$dir/request.json"
+    warn "ignoring an upgrade request that was a link"
+    return 0
+  fi
   local id version by
   id="$(field id "$dir/request.json")"
   version="$(field version "$dir/request.json")"
@@ -133,17 +140,20 @@ main() {
   }
   [[ "$by" =~ ^[A-Za-z0-9._%+@-]{0,320}$ ]] || by=""
 
-  local args=() arg from started
-  for arg in $(get_env GLASSHAUS_UPGRADE_ARGS); do
+  local args=() arg from started raw=()
+  read -ra raw <<< "$(get_env GLASSHAUS_UPGRADE_ARGS)"  # no glob expansion of what is in .env
+  for arg in ${raw[@]+"${raw[@]}"}; do
     case "$arg" in --pull|--skip-preflight) args+=("$arg") ;; *) warn "ignoring GLASSHAUS_UPGRADE_ARGS option $arg" ;; esac
   done
   from="$(get_env GLASSHAUS_VERSION)"
   started="$(now)"
   write_json "$dir/status.json" id "$id" state running from_version "$from" to_version "$version" \
     requested_by "$by" started_at "$started"
-  : > "$dir/upgrade.log"
-  chmod 0644 "$dir/upgrade.log"
-  if "$ROOT_DIR/update.sh" "${args[@]}" >> "$dir/upgrade.log" 2>&1; then
+  rm -f "$dir/upgrade.log"  # removes a planted link without following it
+  (set -o noclobber; exec 8> "$dir/upgrade.log") 2>/dev/null || die "cannot create $dir/upgrade.log"
+  exec 8>> "$dir/upgrade.log"
+  chmod 0644 "/proc/self/fd/8" 2>/dev/null || true
+  if "$ROOT_DIR/update.sh" ${args[@]+"${args[@]}"} >&8 2>&1; then
     write_json "$dir/status.json" id "$id" state succeeded from_version "$from" \
       to_version "$(get_env GLASSHAUS_VERSION)" requested_by "$by" started_at "$started" finished_at "$(now)" \
       message "Upgraded to $(get_env GLASSHAUS_VERSION)."

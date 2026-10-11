@@ -128,6 +128,14 @@ async def update_settings(ctx: ServiceContext, data: OrgSettingsUpdate) -> OrgSe
     row = await _settings_row(ctx)
     changes = data.model_dump(exclude_unset=True, exclude_none=True)
     before = {field: getattr(row, field) for field in changes}
+    new_days = changes.get("audit_retention_days")
+    if new_days is not None and new_days != before["audit_retention_days"]:
+        old_days = before["audit_retention_days"]
+        shortened = new_days > 0 and (old_days == 0 or new_days < old_days)
+        if shortened and (ctx.actor.method != "session" or ctx.actor.org_role != OrgRole.OWNER):
+            # The next purge deletes the older entries for good: an owner, signed in, decides that. Not an
+            # admin token or an AI agent, which is who someone covering their tracks would use.
+            raise PermissionDenied("only an owner, signed in, can shorten how long audit entries are kept")
     for field, value in changes.items():
         setattr(row, field, value)
     await ctx.session.flush()

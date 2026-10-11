@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.27.3. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
+> **Status:** v0.28.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -474,8 +474,9 @@ ago is still untagged.
 | 22 | 0.25.x | Nimble: recognise the exact columns of a real Nimble export (waiting on a sample header row) | ⏳ |
 | 23 | 0.26.0 | Upgrade from the app: "update available" notice with release notes, one-click upgrade with pre-flight and rollback | ✅ |
 | 24 | 0.27.0 | Health and monitoring: Prometheus `/metrics`, Admin status page, alerts when the worker, backups or disk fall behind | ✅ |
-| 25 | 0.28.0 | Code review of everything since 0.21 (security, correctness, speed) and fixes | Planned |
-| 26 | later | Nimble REST API connector: import straight from Nimble, no export (waiting on Nimble's API reference) | ⏳ |
+| 25 | 0.28.0 | Code review of everything since 0.21 (security, correctness, speed) and fixes; teal headings and card surfaces | Planned |
+| 26 | 0.29.0 | Personal appearance: each person picks colours for individual elements (headings, tiles, and so on) from a set of choices that fit the Glasshaus brand and keep text readable, in light and dark | Planned |
+| 27 | later | Nimble REST API connector: import straight from Nimble, no export (waiting on Nimble's API reference) | ⏳ |
 
 ## Licence
 

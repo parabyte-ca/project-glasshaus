@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy.dialects.postgresql import insert
 
 from glasshaus.audit.models import AuditEntry
-from glasshaus.audit.service import redact
+from glasshaus.audit.service import redact, scrub_person
 from glasshaus.core.consumers import handles
 
 
@@ -16,6 +16,9 @@ async def record_event(event: dict[str, Any]) -> None:
     from glasshaus.models import Tenant
 
     actor = event.get("actor") or {}
+    data = event.get("data")
+    if event["aggregate_type"] == "user":
+        data = scrub_person(data)  # who the person is stays out of an append-only log
     async with system_session() as session:
         if await session.get(Tenant, uuid.UUID(event["tenant_id"])) is None:
             return  # organization deleted since the event was published
@@ -30,7 +33,7 @@ async def record_event(event: dict[str, Any]) -> None:
                 action=event["type"][:100],
                 target=f"{event['aggregate_type']}:{event['aggregate_id']}"[:200],
                 outcome="ok",
-                detail=redact({"project_id": event.get("project_id"), "data": event.get("data")}),
+                detail=redact({"project_id": event.get("project_id"), "data": data}),
                 # created_at is the time of recording (set by the database, keeping the chain in order).
             )
             .on_conflict_do_nothing(index_elements=["id"])
