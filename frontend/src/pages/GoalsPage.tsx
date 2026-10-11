@@ -3,9 +3,12 @@ import { useState, type FormEvent } from 'react';
 
 import { api, unwrap, type KeyResult, type Objective, type Schemas } from '../api/client';
 import { useAuth } from '../auth/useAuth';
+import { LoadError } from '../components/PageState';
 import { HealthBadge, ProgressBar } from '../components/charts';
 import { Button, ErrorText, Field, GhostButton, Input, Select } from '../components/ui';
 import { currentQuarter } from '../lib/format';
+import { usePageTitle } from '../lib/pageTitle';
+import { useConfirm } from '../lib/confirm';
 
 type KrInput = Schemas['KeyResultCreate'];
 type Confidence = Schemas['Confidence'];
@@ -110,6 +113,7 @@ function ObjectiveCard({
   ownerName: string;
   canEdit: boolean;
 }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const remove = useMutation({
     mutationFn: () =>
@@ -133,7 +137,14 @@ function ObjectiveCard({
             <GhostButton
               className="px-2 py-0.5 text-xs"
               aria-label={`Delete objective ${objective.title}`}
-              onClick={() => window.confirm(`Delete "${objective.title}"?`) && remove.mutate()}
+              onClick={async () =>
+                (await confirm({
+                  title: `Delete the objective "${objective.title}"?`,
+                  body: 'Its key results and check-ins are deleted too.',
+                  confirmLabel: 'Delete',
+                  danger: true,
+                })) && remove.mutate()
+              }
             >
               Delete
             </GhostButton>
@@ -300,6 +311,7 @@ function NewObjective({ period, onCreated }: { period: string; onCreated: () => 
 }
 
 export function GoalsPage() {
+  usePageTitle('Goals');
   const { user } = useAuth();
   const [period, setPeriod] = useState(currentQuarter);
   const [creating, setCreating] = useState(false);
@@ -334,7 +346,14 @@ export function GoalsPage() {
         {!creating && period && <Button onClick={() => setCreating(true)}>New objective</Button>}
       </div>
       {creating && <NewObjective period={period} onCreated={() => setCreating(false)} />}
-      <ErrorText error={objectives.error} />
+      {objectives.error && (
+        <LoadError
+          inline
+          error={objectives.error}
+          what="these objectives"
+          onRetry={() => void objectives.refetch()}
+        />
+      )}
       {objectives.data?.length === 0 && !creating && (
         <p className="text-sm text-slate-600 dark:text-slate-400">No objectives for this period yet.</p>
       )}

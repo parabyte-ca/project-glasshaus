@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api, unwrap, type Schemas } from '../../api/client';
+import { toast } from '../../lib/toast';
 import { Button, ErrorText } from '../ui';
 import { Section } from './common';
 
@@ -13,6 +14,16 @@ const AI_FEATURES: [Feature, string, string][] = [
     'search',
     'Ask in plain words',
     'Turn a question into task filters (only the question, project keys and names are sent).',
+  ],
+  [
+    'reports',
+    'Questions about reports',
+    'Answer a question from a report run with the asker’s access. The question, project keys, people’s names and saved report names are sent, then the report table (group names such as projects, people and tags, and the numbers); never task titles or descriptions.',
+  ],
+  [
+    'assistant',
+    'Project assistant',
+    'Add a short AI summary and focus list to the daily stand-up digest, and write the weekly status draft, for projects that turn the assistant on. Sends the open, due, overdue, stale and recently done tasks (keys, titles, statuses, due dates, owners’ names). Without this, digests list the facts only.',
   ],
 ];
 
@@ -28,6 +39,7 @@ export function AiSettings() {
     mutationFn: (body: Schemas['OrgSettingsUpdate']) => unwrap(api.PATCH('/api/v1/admin/settings', { body })),
     onSuccess: async (data) => {
       queryClient.setQueryData(['org-settings'], data);
+      toast('AI settings saved.');
       await queryClient.invalidateQueries({ queryKey: ['ai-status'] });
     },
   });
@@ -35,13 +47,13 @@ export function AiSettings() {
   const available = status.data?.available ?? false;
   return (
     <Section
-      title="AI assistant"
+      title="AI"
       intro={
         <>
-          Optional help with status updates, task drafting, risk flags and plain-language search. It only
-          reads: drafts and suggestions change nothing until someone applies them. Project data is sent to the
-          configured model provider, every request is recorded in the audit log (without the content), and
-          people are limited to a few requests a minute.
+          Optional help with status updates, task drafting, risk flags, plain-language search and questions
+          about reports. It only reads: drafts and suggestions change nothing until someone applies them.
+          Project data is sent to the configured model provider, every request is recorded in the audit log
+          (without the content), and people are limited to a few requests a minute.
         </>
       }
     >
@@ -66,8 +78,16 @@ export function AiSettings() {
             e.preventDefault();
             const form = new FormData(e.currentTarget);
             save.mutate({
-              ai_enabled: form.get('ai_enabled') === 'on',
-              ai_features: AI_FEATURES.map(([key]) => key).filter((key) => form.get(`f-${key}`) === 'on'),
+              // Without a provider those boxes are disabled (and missing from the form): keep what is saved.
+              ...(available
+                ? {
+                    ai_enabled: form.get('ai_enabled') === 'on',
+                    ai_features: AI_FEATURES.map(([key]) => key).filter(
+                      (key) => form.get(`f-${key}`) === 'on',
+                    ),
+                  }
+                : {}),
+              assistant_trusted: form.get('trust-comment') === 'on' ? ['comment'] : [],
             });
           }}
         >
@@ -94,15 +114,32 @@ export function AiSettings() {
               </div>
             ))}
           </fieldset>
+          <fieldset className="flex flex-col gap-2 rounded border border-slate-200 p-3 dark:border-slate-700">
+            <legend className="px-1 text-sm font-medium">
+              What the project assistant may do without approval
+            </legend>
+            <div className="flex items-start gap-2 text-sm">
+              <input
+                id="ai-trust-comment"
+                type="checkbox"
+                name="trust-comment"
+                className="mt-1"
+                defaultChecked={s.assistant_trusted.includes('comment')}
+              />
+              <label htmlFor="ai-trust-comment">
+                <span className="font-medium">Post follow-up comments</span>
+                <span className="block text-slate-600 dark:text-slate-400">
+                  Projects may then let the assistant post its follow-ups on overdue and stale work by itself,
+                  up to a daily limit they set. The task’s owner is mentioned, and project editors can undo a
+                  follow-up for 7 days. Everything else still waits for approval.
+                </span>
+              </label>
+            </div>
+          </fieldset>
           <div>
-            <Button type="submit" disabled={!available || save.isPending}>
+            <Button type="submit" disabled={save.isPending}>
               Save AI settings
             </Button>
-            {save.isSuccess && (
-              <span role="status" className="ml-3 text-sm text-emerald-700 dark:text-emerald-400">
-                Saved
-              </span>
-            )}
           </div>
         </form>
       )}

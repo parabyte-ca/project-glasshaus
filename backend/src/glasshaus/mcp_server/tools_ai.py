@@ -2,19 +2,27 @@
 and risk flags are proposals to show the user, not changes. They fail with 'unavailable' when the
 server has no AI provider or the organization has the assistant turned off."""
 
+import uuid
 from typing import Annotated, Any
 
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from glasshaus.core.context import ServiceContext
+from glasshaus.core.context import Actor, ServiceContext
 from glasshaus.core.rbac import Scope
-from glasshaus.mcp_server.runtime import UNTRUSTED, invoke
+from glasshaus.mcp_server.runtime import UNTRUSTED, invoke, invoke_as
 from glasshaus.mcp_server.tools_core import READ, ProjectRef, project_id
 
 # Calls a configured model provider (possibly an external API), so not a closed world.
 AI_READ = ToolAnnotations(readOnlyHint=True, openWorldHint=True)
+
+
+async def _project(actor: Actor, ref: ProjectRef) -> uuid.UUID:
+    from glasshaus.db import unit_of_work
+
+    async with unit_of_work(actor) as ctx:
+        return await project_id(ctx, ref)
 
 
 def register(server: MCPServer) -> None:
@@ -43,10 +51,10 @@ def register(server: MCPServer) -> None:
     ) -> dict[str, Any]:
         from glasshaus.ai import service as ai
 
-        async def run(ctx: ServiceContext) -> Any:
-            return await ai.status_report(ctx, await project_id(ctx, project), days=days)
+        async def run(actor: Actor) -> Any:
+            return await ai.status_report(actor, await _project(actor, project), days=days)
 
-        result: dict[str, Any] = await invoke(
+        result: dict[str, Any] = await invoke_as(
             "ai_status_report", Scope.READ, {"project": project, "days": days}, run
         )
         return result
@@ -68,11 +76,11 @@ def register(server: MCPServer) -> None:
         from glasshaus.ai import service as ai
         from glasshaus.ai.service import AiDraftRequest
 
-        async def run(ctx: ServiceContext) -> Any:
+        async def run(actor: Actor) -> Any:
             data = AiDraftRequest(brief=brief, max_tasks=max_tasks)
-            return await ai.draft_tasks(ctx, await project_id(ctx, project), data)
+            return await ai.draft_tasks(actor, await _project(actor, project), data)
 
-        result: dict[str, Any] = await invoke(
+        result: dict[str, Any] = await invoke_as(
             "ai_draft_tasks", Scope.READ, {"project": project, "max_tasks": max_tasks}, run
         )
         return result
@@ -86,10 +94,10 @@ def register(server: MCPServer) -> None:
     async def ai_flag_risks(project: ProjectRef) -> dict[str, Any]:
         from glasshaus.ai import service as ai
 
-        async def run(ctx: ServiceContext) -> Any:
-            return await ai.flag_risks(ctx, await project_id(ctx, project))
+        async def run(actor: Actor) -> Any:
+            return await ai.flag_risks(actor, await _project(actor, project))
 
-        result: dict[str, Any] = await invoke("ai_flag_risks", Scope.READ, {"project": project}, run)
+        result: dict[str, Any] = await invoke_as("ai_flag_risks", Scope.READ, {"project": project}, run)
         return result
 
     @server.tool(
@@ -110,11 +118,36 @@ def register(server: MCPServer) -> None:
         from glasshaus.ai import service as ai
         from glasshaus.ai.service import AiSearchRequest
 
-        async def run(ctx: ServiceContext) -> Any:
-            pid = await project_id(ctx, project) if project else None
-            return await ai.search(ctx, AiSearchRequest(query=query, project_id=pid, limit=limit))
+        async def run(actor: Actor) -> Any:
+            pid = await _project(actor, project) if project else None
+            return await ai.search(actor, AiSearchRequest(query=query, project_id=pid, limit=limit))
 
-        result: dict[str, Any] = await invoke(
+        result: dict[str, Any] = await invoke_as(
             "ai_search_tasks", Scope.READ, {"query": query, "project": project}, run
+        )
+        return result
+
+    @server.tool(
+        name="ai_ask_reports",
+        title="Answer a question from reports (AI)",
+        annotations=AI_READ,
+        description=(
+            "Have the in-app AI answer a question with a report: it picks a saved report or builds one, "
+            "runs it with your access, and writes a short answer with the numbers and the report used. "
+            "Prefer `run_report` if you can choose the report yourself. " + UNTRUSTED
+        ),
+    )
+    async def ai_ask_reports(
+        question: Annotated[str, Field(min_length=2, max_length=500)],
+        report_id: Annotated[uuid.UUID | None, Field(description="Answer from this saved report.")] = None,
+    ) -> dict[str, Any]:
+        from glasshaus.ai import service as ai
+        from glasshaus.ai.service import AiReportQuestion
+
+        async def run(actor: Actor) -> Any:
+            return await ai.ask_reports(actor, AiReportQuestion(question=question, report_id=report_id))
+
+        result: dict[str, Any] = await invoke_as(
+            "ai_ask_reports", Scope.READ, {"report_id": str(report_id) if report_id else None}, run
         )
         return result

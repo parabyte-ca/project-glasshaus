@@ -1,14 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 
-import { api, unwrap, type Schemas, type User } from '../../api/client';
+import { api, fieldError, type Schemas, unwrap, type User } from '../../api/client';
 import { useAuth } from '../../auth/useAuth';
 import { Button, ErrorText, Field, GhostButton, Input, ScrollArea, Select } from '../ui';
 import { Section } from './common';
 import { dateTime, table, td, th } from './format';
+import { useConfirm } from '../../lib/confirm';
 
 type Role = Schemas['OrgRole'];
 const ROLES: Role[] = ['owner', 'admin', 'member', 'guest'];
+const ROLE_HELP: Record<Role, string> = {
+  owner: 'Owners have full control, including over other owners and admins.',
+  admin: 'Admins manage people, sign-in, integrations and organization settings.',
+  member: 'Members work in the projects they belong to.',
+  guest: 'Guests see only the projects they are added to, with no organization-wide access.',
+};
 
 function ResetPassword({ user, onDone }: { user: User; onDone: () => void }) {
   const [password, setPassword] = useState('');
@@ -49,11 +56,63 @@ function ResetPassword({ user, onDone }: { user: User; onDone: () => void }) {
   );
 }
 
+/** Erase: keep the work, remove the person. Typing their email confirms it is the right person. */
+function ErasePerson({ user, onDone }: { user: User; onDone: (message: string | null) => void }) {
+  const [typed, setTyped] = useState('');
+  const erase = useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.POST('/api/v1/admin/users/{user_id}/erase', {
+          params: { path: { user_id: user.id } },
+          body: { confirm_email: typed },
+        }),
+      ),
+    onSuccess: (r) =>
+      onDone(`${user.name} was erased and is now shown as “${r.name}”. Their tasks and time stay.`),
+  });
+  return (
+    <form
+      className="flex max-w-md flex-col gap-2 rounded-md border border-red-300 p-3 whitespace-normal dark:border-red-800"
+      onSubmit={(e) => {
+        e.preventDefault();
+        erase.mutate();
+      }}
+    >
+      <p className="text-sm">
+        Erasing removes {user.name}’s name, email, sign-ins, tokens, devices and notifications, and the text
+        of their comments. Their tasks, time and history stay, shown as “Former user”. The audit log keeps its
+        entries until its retention ends. This cannot be undone; download their data first if you need a copy.
+      </p>
+      <Field label={`Type ${user.email} to confirm`} id={`erase-${user.id}`}>
+        <Input
+          id={`erase-${user.id}`}
+          autoComplete="off"
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+        />
+      </Field>
+      <div className="flex gap-2">
+        <Button
+          type="submit"
+          danger
+          disabled={typed.trim().toLowerCase() !== user.email.toLowerCase() || erase.isPending}
+        >
+          Erase {user.name}
+        </Button>
+        <GhostButton onClick={() => onDone(null)}>Cancel</GhostButton>
+      </div>
+      <ErrorText error={erase.error} />
+    </form>
+  );
+}
+
 export function People() {
+  const confirm = useConfirm();
   const { user: me } = useAuth();
   const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [resetFor, setResetFor] = useState<string | null>(null);
+  const [eraseFor, setEraseFor] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [draft, setDraft] = useState({ email: '', name: '', org_role: 'member' as Role, password: '' });
   const users = useQuery({
@@ -102,7 +161,7 @@ export function People() {
     <div className="flex flex-col gap-8">
       <Section
         title="People"
-        intro="Deactivated people cannot sign in and their sessions end immediately; their work and history stay. Owners can only be changed by owners."
+        intro="Deactivated people cannot sign in and their sessions end immediately; their work and history stay. Owners can only be changed by owners. For privacy requests, download everything held about a person, or erase them: their work stays, anonymised."
       >
         <Field label="Search people" id="people-search">
           <Input
@@ -142,9 +201,15 @@ export function People() {
                       aria-label={`Role for ${u.name}`}
                       value={u.org_role}
                       disabled={u.id === me.id || (u.org_role === 'owner' && me.org_role !== 'owner')}
-                      onChange={(e) =>
-                        update.mutate({ id: u.id, body: { org_role: e.target.value as Role } })
-                      }
+                      onChange={async (e) => {
+                        const role = e.target.value as Role;
+                        const ok = await confirm({
+                          title: `Make ${u.name} ${role === 'admin' || role === 'owner' ? 'an' : 'a'} ${role}?`,
+                          body: ROLE_HELP[role],
+                          confirmLabel: 'Change role',
+                        });
+                        if (ok) update.mutate({ id: u.id, body: { org_role: role } });
+                      }}
                     >
                       {ROLES.filter(
                         (r) => r !== 'owner' || me.org_role === 'owner' || u.org_role === 'owner',
@@ -156,16 +221,21 @@ export function People() {
                     </Select>
                   </td>
                   <td className={td}>{dateTime(u.last_login_at)}</td>
-                  <td className={td}>{u.is_active ? 'Active' : 'Deactivated'}</td>
+                  <td className={td}>{u.erased_at ? 'Erased' : u.is_active ? 'Active' : 'Deactivated'}</td>
                   <td className={`${td} whitespace-nowrap`}>
-                    {u.id !== me.id && (
+                    {u.id !== me.id && !u.erased_at && (
                       <div className="flex flex-wrap gap-1">
                         <GhostButton
                           aria-label={`${u.is_active ? 'Deactivate' : 'Reactivate'} ${u.name}`}
-                          onClick={() => {
+                          onClick={async () => {
                             if (
                               !u.is_active ||
-                              window.confirm(`Deactivate ${u.name}? Their sessions end now.`)
+                              (await confirm({
+                                title: `Deactivate ${u.name}?`,
+                                body: 'They are signed out everywhere now and cannot sign in until reactivated.',
+                                confirmLabel: 'Deactivate',
+                                danger: true,
+                              }))
                             )
                               update.mutate({ id: u.id, body: { is_active: !u.is_active } });
                           }}
@@ -184,6 +254,37 @@ export function People() {
                         >
                           Sign out everywhere
                         </GhostButton>
+                        <a
+                          href={`/api/v1/admin/users/${u.id}/export`}
+                          download
+                          aria-label={`Download ${u.name}’s data`}
+                          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-800"
+                        >
+                          Download data
+                        </a>
+                        {(u.org_role !== 'owner' || me.org_role === 'owner') && (
+                          <GhostButton
+                            aria-label={`Erase ${u.name}`}
+                            className="text-red-700 dark:text-red-400"
+                            onClick={() => setEraseFor(u.id)}
+                          >
+                            Erase…
+                          </GhostButton>
+                        )}
+                      </div>
+                    )}
+                    {eraseFor === u.id && (
+                      <div className="mt-2">
+                        <ErasePerson
+                          user={u}
+                          onDone={(message) => {
+                            setEraseFor(null);
+                            if (message) {
+                              setNotice(message);
+                              void refresh();
+                            }
+                          }}
+                        />
                       </div>
                     )}
                     {resetFor === u.id && (
@@ -210,7 +311,7 @@ export function People() {
         intro="Leave the password empty when they will sign in with single sign-on, or set a temporary one and share it securely."
       >
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-          <Field label="Email" id="new-email">
+          <Field label="Email" id="new-email" error={fieldError(create.error, 'email')}>
             <Input
               id="new-email"
               type="email"
@@ -219,7 +320,7 @@ export function People() {
               onChange={(e) => setDraft({ ...draft, email: e.target.value })}
             />
           </Field>
-          <Field label="Name" id="new-name">
+          <Field label="Name" id="new-name" error={fieldError(create.error, 'name')}>
             <Input
               id="new-name"
               required
@@ -240,7 +341,11 @@ export function People() {
               ))}
             </Select>
           </Field>
-          <Field label="Temporary password (optional)" id="new-password">
+          <Field
+            label="Temporary password (optional)"
+            id="new-password"
+            error={fieldError(create.error, 'password')}
+          >
             <Input
               id="new-password"
               type="password"

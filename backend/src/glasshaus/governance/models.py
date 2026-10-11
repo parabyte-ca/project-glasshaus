@@ -20,7 +20,7 @@ class OrgSettings(TimestampMixin, Base):
         Integer, nullable=False, default=365, server_default="365"
     )
     activity_retention_days: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default="0"
+        Integer, nullable=False, default=730, server_default="730"
     )
     notification_retention_days: Mapped[int] = mapped_column(
         Integer, nullable=False, default=90, server_default="90"
@@ -35,4 +35,13 @@ class OrgSettings(TimestampMixin, Base):
         nullable=False,
         default=lambda: ["summaries", "drafting", "risks", "search"],
         server_default="{summaries,drafting,risks,search}",
+    )
+    # What managers see on My team: "shared" (only projects the manager can open themselves; elsewhere
+    # just counts) or "all" (their reports' work in every project).
+    manager_visibility: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="shared", server_default="shared"
+    )
+    # Kinds of project-assistant suggestion that projects may let it apply without approval (a ceiling).
+    assistant_trusted: Mapped[list[str]] = mapped_column(
+        ARRAY(String(20)), nullable=False, default=list, server_default="{}"
     )

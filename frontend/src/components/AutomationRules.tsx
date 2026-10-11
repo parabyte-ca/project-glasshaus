@@ -15,7 +15,8 @@ import {
   type User,
 } from '../api/client';
 import { TRIGGERS, triggerLabel, WEEKDAYS } from '../lib/automation';
-import { Button, ErrorText, Field, GhostButton, Input, Select } from './ui';
+import { Button, ErrorText, Field, GhostButton, Input, ScrollArea, Select } from './ui';
+import { useConfirm } from '../lib/confirm';
 
 type ActionType = Schemas['ActionType'];
 type Operator = Schemas['Operator'];
@@ -59,6 +60,14 @@ const blankRule = (): RuleInput => ({
   actions: [{ type: 'add_tags', tags: [] }],
 });
 
+let nextRowKey = 0;
+/** Keep one key per row: existing keys stay with their rows, new rows get new keys. */
+function fitKeys(keys: string[], length: number): string[] {
+  const out = keys.slice(0, length);
+  while (out.length < length) out.push(`row-${++nextRowKey}`);
+  return out;
+}
+
 function splitList(text: string): string[] {
   return text
     .split(',')
@@ -66,7 +75,7 @@ function splitList(text: string): string[] {
     .filter(Boolean);
 }
 
-/** Comma-separated list input that keeps the raw text while typing. */
+/** Comma-separated list input that keeps the raw text while typing and follows outside changes. */
 function ListInput({
   id,
   value,
@@ -79,6 +88,12 @@ function ListInput({
   onChange: (items: string[]) => void;
 }) {
   const [text, setText] = useState(value.join(', '));
+  const joined = value.join('\n');
+  const [seen, setSeen] = useState(joined);
+  if (joined !== seen) {
+    setSeen(joined);
+    if (splitList(text).join('\n') !== joined) setText(value.join(', '));
+  }
   return (
     <Input
       id={id}
@@ -524,51 +539,53 @@ function RunLog({ projectId, rules }: { projectId: string; rules: Rule[] }) {
       </h3>
       {runs.data?.length === 0 && <p className="text-sm text-slate-600 dark:text-slate-400">No runs yet.</p>}
       {!!runs.data?.length && (
-        <table className="w-full text-left text-sm">
-          <thead className="text-xs text-slate-600 dark:text-slate-400">
-            <tr>
-              <th className="py-1 font-medium">When</th>
-              <th className="font-medium">Rule</th>
-              <th className="font-medium">Task</th>
-              <th className="font-medium">Result</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {runs.data.map((r) => (
-              <tr key={r.id}>
-                <td className="py-1.5 whitespace-nowrap">{new Date(r.started_at).toLocaleString()}</td>
-                <td>{r.rule_name}</td>
-                <td className="font-mono text-xs whitespace-nowrap">{String(r.results.task_key ?? '—')}</td>
-                <td>
-                  <span
-                    className={
-                      r.status === 'failed'
-                        ? 'text-red-700 dark:text-red-400'
-                        : 'text-emerald-700 dark:text-emerald-400'
-                    }
-                  >
-                    {r.status === 'success' && !r.finished_at ? 'sending…' : r.status}
-                  </span>
-                  {r.error && (
-                    <span className="block text-xs text-slate-600 dark:text-slate-400">{r.error}</span>
-                  )}
-                </td>
-                <td className="text-right">
-                  {r.status === 'failed' && (
-                    <GhostButton
-                      aria-label={`Retry run of ${r.rule_name}`}
-                      disabled={retry.isPending}
-                      onClick={() => retry.mutate(r.id)}
-                    >
-                      Retry
-                    </GhostButton>
-                  )}
-                </td>
+        <ScrollArea label="Run history">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs text-slate-600 dark:text-slate-400">
+              <tr>
+                <th className="py-1 font-medium">When</th>
+                <th className="font-medium">Rule</th>
+                <th className="font-medium">Task</th>
+                <th className="font-medium">Result</th>
+                <th />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {runs.data.map((r) => (
+                <tr key={r.id}>
+                  <td className="py-1.5 whitespace-nowrap">{new Date(r.started_at).toLocaleString()}</td>
+                  <td>{r.rule_name}</td>
+                  <td className="font-mono text-xs whitespace-nowrap">{String(r.results.task_key ?? '—')}</td>
+                  <td>
+                    <span
+                      className={
+                        r.status === 'failed'
+                          ? 'text-red-700 dark:text-red-400'
+                          : 'text-emerald-700 dark:text-emerald-400'
+                      }
+                    >
+                      {r.status === 'success' && !r.finished_at ? 'sending…' : r.status}
+                    </span>
+                    {r.error && (
+                      <span className="block text-xs text-slate-600 dark:text-slate-400">{r.error}</span>
+                    )}
+                  </td>
+                  <td className="text-right">
+                    {r.status === 'failed' && (
+                      <GhostButton
+                        aria-label={`Retry run of ${r.rule_name}`}
+                        disabled={retry.isPending}
+                        onClick={() => retry.mutate(r.id)}
+                      >
+                        Retry
+                      </GhostButton>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </ScrollArea>
       )}
       <ErrorText error={retry.error} />
     </section>
@@ -584,6 +601,7 @@ export function AutomationRules({
   fields: CustomField[];
   users: User[];
 }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const key = ['automation-rules', project.id];
   const rules = useQuery({
@@ -595,7 +613,30 @@ export function AutomationRules({
         }),
       ),
   });
-  const [draft, setDraft] = useState<RuleInput | null>(null);
+  const [draft, setDraftState] = useState<RuleInput | null>(null);
+  // Stable keys for condition and action rows, so removing one never shows another's values.
+  const [rowKeys, setRowKeys] = useState<{ conditions: string[]; actions: string[] }>({
+    conditions: [],
+    actions: [],
+  });
+  const setDraft = (next: RuleInput | null) => {
+    setDraftState(next);
+    setRowKeys((keys) => ({
+      conditions: fitKeys(keys.conditions, next?.conditions?.length ?? 0),
+      actions: fitKeys(keys.actions, next?.actions.length ?? 0),
+    }));
+  };
+  const startDraft = (next: RuleInput) => {
+    setDraftState(next);
+    setRowKeys({
+      conditions: fitKeys([], next.conditions?.length ?? 0),
+      actions: fitKeys([], next.actions.length),
+    });
+  };
+  const removeRow = (list: 'conditions' | 'actions', index: number, next: RuleInput) => {
+    setDraftState(next);
+    setRowKeys((keys) => ({ ...keys, [list]: keys[list].filter((_, j) => j !== index) }));
+  };
   const [editing, setEditing] = useState<string | null>(null);
   const [testTask, setTestTask] = useState('');
   const refresh = () => void queryClient.invalidateQueries({ queryKey: key });
@@ -692,7 +733,7 @@ export function AutomationRules({
                 aria-label={`Edit ${r.name}`}
                 onClick={() => {
                   setEditing(r.id);
-                  setDraft({
+                  startDraft({
                     name: r.name,
                     enabled: r.enabled,
                     trigger: r.trigger,
@@ -706,7 +747,13 @@ export function AutomationRules({
               </GhostButton>
               <GhostButton
                 aria-label={`Delete ${r.name}`}
-                onClick={() => window.confirm(`Delete the rule "${r.name}"?`) && remove.mutate(r.id)}
+                onClick={async () =>
+                  (await confirm({
+                    title: `Delete the rule "${r.name}"?`,
+                    confirmLabel: 'Delete',
+                    danger: true,
+                  })) && remove.mutate(r.id)
+                }
               >
                 Delete
               </GhostButton>
@@ -721,7 +768,7 @@ export function AutomationRules({
           <Button
             onClick={() => {
               setEditing(null);
-              setDraft(blankRule());
+              startDraft(blankRule());
             }}
           >
             New rule
@@ -751,7 +798,7 @@ export function AutomationRules({
             <ul className="flex flex-col gap-2">
               {(draft.conditions ?? []).map((c, i) => (
                 <ConditionRow
-                  key={i}
+                  key={rowKeys.conditions[i] ?? i}
                   index={i}
                   value={c}
                   fields={fields}
@@ -762,7 +809,10 @@ export function AutomationRules({
                     })
                   }
                   onRemove={() =>
-                    setDraft({ ...draft, conditions: (draft.conditions ?? []).filter((_, j) => j !== i) })
+                    removeRow('conditions', i, {
+                      ...draft,
+                      conditions: (draft.conditions ?? []).filter((_, j) => j !== i),
+                    })
                   }
                 />
               ))}
@@ -785,7 +835,7 @@ export function AutomationRules({
             <ul className="flex flex-col gap-2">
               {draft.actions.map((a, i) => (
                 <ActionRow
-                  key={i}
+                  key={rowKeys.actions[i] ?? i}
                   index={i}
                   value={a}
                   project={project}
@@ -794,7 +844,9 @@ export function AutomationRules({
                   onChange={(next) =>
                     setDraft({ ...draft, actions: draft.actions.map((x, j) => (j === i ? next : x)) })
                   }
-                  onRemove={() => setDraft({ ...draft, actions: draft.actions.filter((_, j) => j !== i) })}
+                  onRemove={() =>
+                    removeRow('actions', i, { ...draft, actions: draft.actions.filter((_, j) => j !== i) })
+                  }
                 />
               ))}
             </ul>

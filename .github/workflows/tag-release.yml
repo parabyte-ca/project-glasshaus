@@ -1,0 +1,41 @@
+name: Tag release
+
+# After a release merges (VERSION changed on main), tag its merge commit vX.Y.Z and publish it.
+# Tags pushed with the workflow token start no workflows, so this starts Release itself.
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: tag-release
+
+jobs:
+  tag:
+    name: Tag and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Tag untagged releases
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          scripts/release-tags.sh --ref HEAD --tag --push | tee tags.log
+      - name: Publish the newest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="v$(tr -d '[:space:]' < VERSION)"
+          if grep -qx "tagged   $v" tags.log; then
+            gh workflow run release.yml --ref "$v"
+            echo "::notice::Tagged $v and started Release."
+          else
+            echo "$v was already tagged; nothing to publish."
+          fi
