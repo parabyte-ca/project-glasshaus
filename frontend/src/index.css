@@ -42,10 +42,10 @@
   --color-accent-700: #b45309;
 
   /* Headings and the surface of cards, so both read apart from body text and the page. */
-  --color-heading: #155d96;
-  --color-heading-dark: #5cc8f5;
-  --color-card: #f2f6fa;
-  --color-card-dark: #121212;
+  --color-heading: #0f6b73;
+  --color-heading-dark: #4fd1d9;
+  --color-card: #f1f6f6;
+  --color-card-dark: #111616;
 }
 
 :root {
@@ -103,7 +103,7 @@
 
 /*
  * Cards: a bordered, rounded box with no background of its own is a widget, so it gets a surface a shade
- * off the page (a pale steel blue on white; the lifted near-black on black). Anything that sets a
+ * off the page (a quiet grey-green on white; a lifted near-black on black). Anything that sets a
  * background itself (menus, dialogs, the sign-in card) keeps it.
  */
 @layer components {

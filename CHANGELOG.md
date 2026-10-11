@@ -9,9 +9,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ## [0.28.0] - 2026-10-12
 
 ### Changed
-- **Headings are blue** (a deeper blue on light pages, a bright sky blue on dark) so they read apart from body
-  text, and **cards and widgets sit on their own surface**: a pale steel blue on light pages, a lifted
-  near-black on dark ones. The secondary grey text is a touch darker so it stays readable on the cards.
+- **Headings are teal** (a deep teal on light pages, a bright teal on dark) so they read apart from body
+  text, and **cards and widgets sit on their own surface**: a quiet grey-green on light pages, a lifted
+  near-black on dark ones. The secondary grey text and the link blue are a touch darker so they stay readable
+  on the cards.
 
 ### Security
 - **The audit log no longer stores who a person is.** User events keep the names of the fields that changed,
