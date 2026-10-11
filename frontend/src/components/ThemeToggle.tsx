@@ -15,9 +15,13 @@ export function ThemeToggle() {
       type="button"
       onClick={toggleTheme}
       aria-pressed={dark}
-      className="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 dark:border-slate-600 dark:hover:bg-slate-800"
+      className="rounded-md border border-slate-300 px-2 py-1.5 sm:px-3 text-sm hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 dark:border-slate-600 dark:hover:bg-slate-800"
     >
-      Dark mode
+      {/* Phones: a symbol, so the header keeps room for the name. */}
+      <span aria-hidden="true" className="sm:hidden">
+        ◐
+      </span>
+      <span className="sr-only sm:not-sr-only">Dark mode</span>
     </button>
   );
 }

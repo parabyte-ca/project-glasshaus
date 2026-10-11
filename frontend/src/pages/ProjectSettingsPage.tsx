@@ -2,11 +2,24 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 
-import { api, unwrap, type CustomField } from '../api/client';
+import { api, type CustomField, fieldError, unwrap } from '../api/client';
 import { AutomationRules } from '../components/AutomationRules';
 import { RecurringTasks, SaveAsTemplate } from '../components/RecurringTasks';
-import { Button, ErrorText, Field, GhostButton, Input, Select } from '../components/ui';
+import {
+  Button,
+  ErrorText,
+  Field,
+  GhostButton,
+  Input,
+  linkClass,
+  Select,
+  TabPanel,
+  Tabs,
+} from '../components/ui';
 import { useProject } from '../lib/useProject';
+import { usePageTitle } from '../lib/pageTitle';
+import { LoadError } from '../components/PageState';
+import { useConfirm } from '../lib/confirm';
 
 const TYPES: { value: CustomField['type']; label: string }[] = [
   { value: 'text', label: 'Text' },
@@ -33,54 +46,38 @@ export function ProjectSettingsPage() {
   const [params, setParams] = useSearchParams();
   const tab: Tab = TABS.find((t) => t.id === params.get('tab'))?.id ?? 'fields';
 
+  usePageTitle(project.data ? `Settings · ${project.data.name}` : 'Project settings');
+  if (project.isError)
+    return <LoadError error={project.error} what="project" onRetry={() => void project.refetch()} />;
   if (!project.data) return <p role="status">Loading…</p>;
   const p = project.data;
   return (
     <div className="flex max-w-5xl flex-col gap-6">
       <div>
-        <Link
-          to={`/projects/${projectKey}`}
-          className="text-sm text-sky-700 hover:underline dark:text-sky-400"
-        >
+        <Link to={`/projects/${projectKey}`} className={`text-sm ${linkClass}`}>
           ← {p.name}
         </Link>
         <h1 className="text-2xl font-bold">Project settings</h1>
       </div>
-      <div
-        role="tablist"
-        aria-label="Settings sections"
-        className="flex gap-1 border-b border-slate-200 dark:border-slate-800"
-      >
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            type="button"
-            id={`tab-${t.id}`}
-            aria-selected={tab === t.id}
-            aria-controls={`panel-${t.id}`}
-            onClick={() => setParams(t.id === 'fields' ? {} : { tab: t.id }, { replace: true })}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm ${
-              tab === t.id
-                ? 'border-sky-700 font-medium text-sky-800 dark:border-sky-400 dark:text-sky-300'
-                : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <section role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+      <Tabs
+        label="Settings sections"
+        idBase="settings"
+        tabs={TABS.map((t) => [t.id, t.label] as const)}
+        selected={tab}
+        onSelect={(id) => setParams(id === 'fields' ? {} : { tab: id }, { replace: true })}
+      />
+      <TabPanel idBase="settings" selected={tab}>
         {tab === 'fields' && <FieldsSettings projectId={p.id} fields={fields} />}
         {tab === 'automations' && <AutomationRules project={p} fields={fields} users={users} />}
         {tab === 'recurring' && <RecurringTasks projectId={p.id} users={users} />}
         {tab === 'template' && <SaveAsTemplate projectId={p.id} projectName={p.name} />}
-      </section>
+      </TabPanel>
     </div>
   );
 }
 
 function FieldsSettings({ projectId, fields }: { projectId: string; fields: CustomField[] }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [type, setType] = useState<CustomField['type']>('text');
@@ -141,8 +138,13 @@ function FieldsSettings({ projectId, fields }: { projectId: string; fields: Cust
               </span>
               <GhostButton
                 aria-label={`Delete field ${f.name}`}
-                onClick={() =>
-                  window.confirm(`Delete "${f.name}" and its values on every task?`) && remove.mutate(f.id)
+                onClick={async () =>
+                  (await confirm({
+                    title: `Delete the field "${f.name}"?`,
+                    body: 'Its value on every task is deleted too.',
+                    confirmLabel: 'Delete',
+                    danger: true,
+                  })) && remove.mutate(f.id)
                 }
               >
                 Delete
@@ -157,7 +159,7 @@ function FieldsSettings({ projectId, fields }: { projectId: string; fields: Cust
             create.mutate();
           }}
         >
-          <Field label="Field name" id="f-name">
+          <Field label="Field name" id="f-name" error={fieldError(create.error, 'name')}>
             <Input
               id="f-name"
               required

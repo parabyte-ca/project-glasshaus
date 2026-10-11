@@ -9,7 +9,10 @@ WORKDIR /src
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY . .
-RUN npm run build
+RUN npm run build \
+ && find dist -type f \( -name '*.js' -o -name '*.css' -o -name '*.html' -o -name '*.svg' \
+      -o -name '*.json' -o -name '*.webmanifest' -o -name '*.map' \) -size +1k \
+      -exec gzip -9 -k {} +
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 ARG VERSION=0.0.0
@@ -27,7 +30,9 @@ RUN if [ "$UPGRADE_OS_PACKAGES" = "true" ]; then apk upgrade --no-cache; fi
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /src/dist /usr/share/nginx/html
-ENV GLASSHAUS_API_UPSTREAM=api:8000
+ENV GLASSHAUS_API_UPSTREAM=api:8000 \
+    GLASSHAUS_DNS_RESOLVER=127.0.0.11 \
+    GLASSHAUS_UPSTREAM_PROXY=127.0.0.1/32
 USER 101
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \

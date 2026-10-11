@@ -30,7 +30,7 @@ export function DataRetention() {
     <div className="flex flex-col gap-8">
       <Section
         title="Retention"
-        intro="Days to keep each kind of record; 0 keeps it forever. Older records are deleted nightly. Deleted tasks with logged time are kept so time reports stay correct."
+        intro="Days to keep each kind of record; 0 keeps it forever. Older records are deleted nightly. The audit log keeps at least 30 days, and its own record of each clean-up. Deleted tasks with logged time are kept so time reports stay correct. Ended sign-in sessions (with their IP address) are deleted after 90 days."
       >
         {draft && (
           <form

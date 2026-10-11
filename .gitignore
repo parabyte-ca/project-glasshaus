@@ -33,3 +33,4 @@ test-results/
 
 # Local Redis snapshots
 dump.rdb
+upgrade/

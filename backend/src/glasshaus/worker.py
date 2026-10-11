@@ -73,6 +73,69 @@ async def integrations_email(ctx: dict[str, Any]) -> dict[str, Any]:
     return await poll_all()
 
 
+async def report_emails(ctx: dict[str, Any]) -> dict[str, int]:
+    """Send scheduled report emails that are due."""
+    from glasshaus.reports.subscriptions import send_due
+
+    return await send_due()
+
+
+async def report_alerts(ctx: dict[str, Any]) -> dict[str, int]:
+    """Check report alerts that are due."""
+    from glasshaus.reports.alerts import check_due
+
+    return await check_due()
+
+
+async def backup_watch(ctx: dict[str, Any]) -> int:
+    """Tell owners and admins about backup problems (once a day per problem)."""
+    from glasshaus.backups import watch
+
+    return await watch()
+
+
+async def release_check(ctx: dict[str, Any]) -> int:
+    """Look for a new Glasshaus release once a day and tell owners and admins."""
+    from glasshaus.updates import daily_check
+
+    return await daily_check()
+
+
+async def system_watch(ctx: dict[str, Any]) -> int:
+    """Check the system (database, Redis, queue, deliveries, disk) and alert owners and admins."""
+    from glasshaus.monitoring import watch
+
+    return await watch()
+
+
+async def channel_posts(ctx: dict[str, Any]) -> int:
+    """Send scheduled report and status posts to Slack and Teams."""
+    from glasshaus.integrations.posts import send_due
+
+    return await send_due()
+
+
+async def project_assistants(ctx: dict[str, Any]) -> dict[str, int]:
+    """Write and deliver the project assistant's digests and weekly drafts that are due."""
+    from glasshaus.assistant.service import run_due
+
+    return await run_due()
+
+
+async def directory_sync(ctx: dict[str, Any]) -> dict[str, int]:
+    """Sync managers, job titles and departments from Microsoft Graph (organizations that use it)."""
+    from glasshaus.people.graph import nightly
+
+    return await nightly()
+
+
+async def push_notifications(ctx: dict[str, Any]) -> dict[str, int]:
+    """Push new in-app notifications to people's phones and desktops."""
+    from glasshaus.push import push_new_notifications
+
+    return await push_new_notifications()
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     import asyncio
 
@@ -117,6 +180,15 @@ class WorkerSettings:
         cron(oauth_housekeeping, minute={17}, second={40}, run_at_startup=False),
         cron(governance_retention, hour={3}, minute={23}, second={0}, run_at_startup=False, timeout=900),
         cron(integrations_retry, second={35}, run_at_startup=False, timeout=300),
+        cron(report_emails, second={20}, run_at_startup=False, timeout=600),
+        cron(report_alerts, second={25}, run_at_startup=False, timeout=600),
+        cron(channel_posts, second={15}, run_at_startup=False, timeout=600),
+        cron(project_assistants, second={45}, run_at_startup=False, timeout=900),
+        cron(push_notifications, second=set(range(3, 60, 10)), run_at_startup=False, timeout=120),
+        cron(backup_watch, minute={41}, second={0}, run_at_startup=False),
+        cron(system_watch, minute=set(range(2, 60, 5)), second={55}, run_at_startup=False, timeout=120),
+        cron(release_check, hour={4}, minute={19}, second={30}, run_at_startup=False, timeout=60),
+        cron(directory_sync, hour={2}, minute={37}, second={10}, run_at_startup=False, timeout=1800),
         cron(integrations_email, minute=set(range(1, 60, 2)), second={50}, run_at_startup=False, timeout=300),
     ]
     on_startup = startup

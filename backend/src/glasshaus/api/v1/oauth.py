@@ -5,7 +5,7 @@ from fastapi import APIRouter, Response, status
 
 from glasshaus.api.deps import Ctx
 from glasshaus.audit import service as audit
-from glasshaus.audit.service import AuditRead
+from glasshaus.audit.service import AuditRead, ChainCheck
 from glasshaus.oauth import service as oauth
 from glasshaus.oauth.service import ConnectedApp, ConsentDecision, ConsentRequest, ConsentResult
 
@@ -70,3 +70,13 @@ async def audit_log(
     return await audit.list_entries(
         ctx, action=action, actor_id=actor_id, outcome=outcome, before=before, limit=limit
     )
+
+
+@router.post(
+    "/audit-log/verify",
+    response_model=ChainCheck,
+    tags=["audit"],
+    summary="Check the audit log's hash chain: reports any entry changed, removed or inserted",
+)
+async def verify_audit_log(ctx: Ctx) -> ChainCheck:
+    return await audit.verify(ctx)

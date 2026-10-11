@@ -1,19 +1,34 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 
 import type { User } from '../api/client';
 import { Button } from './ui';
 
-/** Textarea with @mention suggestions; mentions are inserted as @[Name](user:<id>) tokens. */
+/**
+ * Textarea with @mention suggestions; mentions are inserted as @[Name](user:<id>) tokens. The text is
+ * cleared only once the comment is saved, so a failed send keeps it for another try.
+ */
 export function CommentComposer({
   users,
   busy,
   onSubmit,
+  onDraftChange,
 }: {
   users: User[];
   busy: boolean;
-  onSubmit: (body: string) => void;
+  onSubmit: (body: string) => Promise<unknown>;
+  onDraftChange?: (text: string) => void;
 }) {
   const [body, setBody] = useState('');
+  useEffect(() => onDraftChange?.(body), [body, onDraftChange]);
+  const send = () => {
+    const text = body;
+    if (!text.trim() || busy) return;
+    onSubmit(text).then(
+      // Keep anything typed while the comment was being sent.
+      () => setBody((current) => (current === text ? '' : current)),
+      () => undefined, // the caller shows the error; the text stays
+    );
+  };
   const [query, setQuery] = useState<string | null>(null);
   const [active, setActive] = useState(0);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -60,9 +75,9 @@ export function CommentComposer({
     } else if (e.key === 'Escape' && query !== null) {
       e.stopPropagation();
       setQuery(null);
-    } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && body.trim()) {
-      onSubmit(body);
-      setBody('');
+    } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      send();
     }
   };
 
@@ -71,10 +86,7 @@ export function CommentComposer({
       className="relative flex flex-col gap-2"
       onSubmit={(e) => {
         e.preventDefault();
-        if (body.trim()) {
-          onSubmit(body);
-          setBody('');
-        }
+        send();
       }}
     >
       <label htmlFor="comment-body" className="sr-only">

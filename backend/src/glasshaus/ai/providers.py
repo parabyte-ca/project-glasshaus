@@ -138,7 +138,9 @@ class AnthropicProvider:
 
 
 class OpenAICompatibleProvider:
-    """Any server with an OpenAI-style ``/chat/completions`` endpoint (Ollama: http://ollama:11434/v1)."""
+    """Any server with an OpenAI-style ``/chat/completions`` endpoint: Ollama
+    (http://ollama:11434/v1), LM Studio, vLLM, or Azure OpenAI (https://<resource>.openai.azure.com/openai/v1
+    with GLASSHAUS_AI_AUTH_HEADER=api-key)."""
 
     name = "openai"
 
@@ -149,10 +151,14 @@ class OpenAICompatibleProvider:
             )
         self.model = settings.ai_model or DEFAULT_MODELS["openai"]
         self.url = settings.ai_base_url.rstrip("/") + "/chat/completions"
+        self.params = {"api-version": settings.ai_api_version} if settings.ai_api_version else {}
         self.timeout = settings.ai_timeout_seconds
         self.headers = {"Content-Type": "application/json"}
-        if settings.ai_api_key and settings.ai_api_key.get_secret_value():
-            self.headers["Authorization"] = f"Bearer {settings.ai_api_key.get_secret_value()}"
+        key = settings.ai_api_key.get_secret_value() if settings.ai_api_key else ""
+        if key and settings.ai_auth_header == "api-key":
+            self.headers["api-key"] = key
+        elif key:
+            self.headers["Authorization"] = f"Bearer {key}"
 
     async def complete[T: BaseModel](
         self, *, system: str, prompt: str, output: type[T], max_tokens: int
@@ -173,7 +179,12 @@ class OpenAICompatibleProvider:
         }  # fmt: skip
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                r = await client.post(self.url, json=body, headers=self.headers)
+                r = await client.post(self.url, json=body, headers=self.headers, params=self.params)
+                if r.status_code == 400 and "max_completion_tokens" in r.text:
+                    # Newer OpenAI and Azure reasoning models reject max_tokens; retry once with
+                    # the replacement (older servers such as Ollama only know max_tokens).
+                    body["max_completion_tokens"] = body.pop("max_tokens")
+                    r = await client.post(self.url, json=body, headers=self.headers, params=self.params)
         except httpx.HTTPError:
             raise Unavailable("could not reach the AI provider; try again") from None
         if r.status_code == 429:
@@ -256,6 +267,8 @@ def get_provider() -> Provider | None:
         settings.ai_base_url,
         settings.ai_api_key,
         settings.ai_effort,
+        settings.ai_auth_header,
+        settings.ai_api_version,
     )
     if _provider is None or _provider[0] != key:
         factories: dict[str, Callable[[Settings], Provider]] = {

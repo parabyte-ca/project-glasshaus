@@ -19,6 +19,9 @@ class Settings(BaseSettings):
 
     secret_key: SecretStr = Field(default=SecretStr("change-me"), min_length=8)
     public_url: str = "http://localhost:8470"
+    # Where people using this server can get its source code (AGPL-3.0 section 13). Point it at your
+    # fork if you run a modified version.
+    source_url: str = "https://github.com/parabyte-ca/project-glasshaus"
     cors_origins: CsvList = Field(default_factory=list)
 
     database_url: str = "postgresql+asyncpg://glasshaus:glasshaus@localhost:5432/glasshaus"
@@ -37,6 +40,8 @@ class Settings(BaseSettings):
     multi_tenant: bool = False
 
     metrics_enabled: bool = True
+    # When set, /metrics needs "Authorization: Bearer <token>" (for scrapers on another host).
+    metrics_token: SecretStr | None = None
     otel_enabled: bool = False
     otel_service_name: str = "glasshaus"
 
@@ -55,6 +60,9 @@ class Settings(BaseSettings):
     mcp_token: SecretStr | None = None
 
     mcp_allowed_hosts: CsvList = Field(default_factory=lambda: ["localhost:*", "127.0.0.1:*", "mcp:*"])
+    # Proxies whose X-Forwarded-For is believed (hostnames, IPs or CIDRs). Everyone else is identified
+    # by their own connection address.
+    trusted_proxies: CsvList = Field(default_factory=lambda: ["web", "127.0.0.1", "::1"])
 
     # Optional AI assistant (off unless a provider is set here AND an org admin turns it on).
     # anthropic: Claude API (GLASSHAUS_AI_API_KEY or ANTHROPIC_API_KEY). openai: any OpenAI-compatible
@@ -65,6 +73,10 @@ class Settings(BaseSettings):
     ai_api_key: SecretStr | None = None
     ai_base_url: str = ""
     ai_timeout_seconds: float = 120.0
+    # openai provider only. Azure OpenAI with an API key: api-key. Classic Azure deployment URLs
+    # (/openai/deployments/<name>) also need an api-version; the v1 endpoint (/openai/v1) does not.
+    ai_auth_header: Literal["bearer", "api-key"] = "bearer"
+    ai_api_version: str = ""
     # Effort for Claude models that support it; empty uses the model's default.
     ai_effort: Literal["", "low", "medium", "high"] = ""
     # Claude API only: let Anthropic re-run a declined request on its recommended fallback model.
@@ -72,7 +84,27 @@ class Settings(BaseSettings):
     # AI requests per user per minute; 0 disables the limit.
     ai_rate_limit_per_minute: int = 10
 
-    @field_validator("cors_origins", "mcp_allowed_hosts", mode="before")
+    # Outgoing email (scheduled reports). Off while smtp_host is empty; "memory" keeps messages in the
+    # process for tests and demos. smtp_security: starttls (usually port 587), tls (465) or none.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_security: Literal["starttls", "tls", "none"] = "starttls"
+    smtp_username: str = ""
+    smtp_password: SecretStr | None = None
+    smtp_from: str = "Glasshaus <glasshaus@localhost>"
+    smtp_timeout_seconds: float = 30.0
+
+    # Backup folder as seen inside the app containers (read-only), for Admin > Backups and the daily
+    # backup check. Blank turns both off. The interval and drill period match the backup service.
+    backup_status_dir: str = ""
+    # New releases: a daily check of the project's GitHub releases (see source_url) and, with the
+    # upgrade folder shared with the host helper (scripts/upgrade-agent.sh), upgrades from Admin.
+    update_check: bool = True
+    upgrade_dir: str = ""
+    backup_interval_hours: int = 24
+    backup_drill_days: int = 7
+
+    @field_validator("cors_origins", "mcp_allowed_hosts", "trusted_proxies", mode="before")
     @classmethod
     def _split_csv(cls, value: object) -> object:
         if isinstance(value, str):

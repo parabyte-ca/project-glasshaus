@@ -1,5 +1,7 @@
 """FastAPI application factory."""
 
+import asyncio
+import contextlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -10,6 +12,7 @@ from fastapi.routing import APIRoute
 from glasshaus.api import health, scim, ws
 from glasshaus.api.errors import install_error_handlers
 from glasshaus.api.hardening import HardeningMiddleware
+from glasshaus.api.proxy import ProxyHeadersMiddleware
 from glasshaus.api.v1.router import api_router
 from glasshaus.config import get_settings
 from glasshaus.db import get_engine
@@ -34,7 +37,16 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         )
         if get_settings().is_production:
             raise RuntimeError("refusing to start: database role bypasses row-level security")
+    watchdog = None
+    if get_settings().env != "test":
+        from glasshaus.monitoring import watchdog_loop
+
+        watchdog = asyncio.create_task(watchdog_loop())
     yield
+    if watchdog is not None:
+        watchdog.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await watchdog
     await get_engine().dispose()
 
 
@@ -73,6 +85,8 @@ def create_app() -> FastAPI:
         install_tracing(app)
     install_error_handlers(app)
     app.add_middleware(HardeningMiddleware)
+    # Outermost: everything inside sees the real client address.
+    app.add_middleware(ProxyHeadersMiddleware)
     app.include_router(health.router)
     app.include_router(api_router)
     app.include_router(ws.router)

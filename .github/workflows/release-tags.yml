@@ -1,0 +1,22 @@
+name: Release tags
+
+# Daily reminder: a release merged to main more than a day ago still has no vX.Y.Z tag, so its images
+# and GitHub Release were never published. Fix: scripts/release-tags.sh --tag --push
+on:
+  schedule:
+    - cron: "17 13 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Every release is tagged
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - run: scripts/release-tags.sh --check --grace 24

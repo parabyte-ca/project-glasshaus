@@ -5,6 +5,7 @@ import { api, unwrap, type Priority, type ScheduleSpec, type User } from '../api
 import { triggerLabel } from '../lib/automation';
 import { ScheduleFields } from './AutomationRules';
 import { Button, ErrorText, Field, GhostButton, Input, Select } from './ui';
+import { useConfirm } from '../lib/confirm';
 
 const PRIORITIES: Priority[] = ['none', 'low', 'medium', 'high', 'urgent'];
 
@@ -17,6 +18,7 @@ const defaultSchedule = (): ScheduleSpec => ({
 });
 
 export function RecurringTasks({ projectId, users }: { projectId: string; users: User[] }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const key = ['recurring', projectId];
   const items = useQuery({
@@ -108,7 +110,14 @@ export function RecurringTasks({ projectId, users }: { projectId: string; users:
               </GhostButton>
               <GhostButton
                 aria-label={`Delete recurring ${r.template.title}`}
-                onClick={() => window.confirm(`Stop creating "${r.template.title}"?`) && remove.mutate(r.id)}
+                onClick={async () =>
+                  (await confirm({
+                    title: `Stop creating "${r.template.title}"?`,
+                    body: 'Tasks it already created stay.',
+                    confirmLabel: 'Stop',
+                    danger: true,
+                  })) && remove.mutate(r.id)
+                }
               >
                 Delete
               </GhostButton>
