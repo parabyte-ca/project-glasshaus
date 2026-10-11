@@ -26,10 +26,14 @@ test("Admin › System status shows every check, the worker and the database wor
   ).toBeVisible();
   const checks = page.getByRole("list", { name: "Checks" });
   await expect(
-    checks.getByRole("listitem").filter({ hasText: "Database" }),
+    checks
+      .getByRole("listitem")
+      .filter({ has: page.getByText("Database", { exact: true }) }),
   ).toContainText("OK");
   await expect(
-    checks.getByRole("listitem").filter({ hasText: "Background worker" }),
+    checks
+      .getByRole("listitem")
+      .filter({ has: page.getByText("Background worker", { exact: true }) }),
   ).toContainText("OK");
   await expectAccessible(page, "system status");
 });
