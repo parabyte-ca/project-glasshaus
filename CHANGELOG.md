@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.27.2] - 2026-10-11
+
+### Fixed
+- **A failed or cancelled upgrade no longer tries to restore the database when it was never touched.**
+  A build or download that stopped before migrations used to attempt a restore from the pre-update
+  backup, and stop if that couldn't be read. Now only an upgrade that got as far as migrating restores it.
+- **Admin → Updates says when a requested upgrade is waiting on a helper that isn't running**, with how
+  to check its schedule.
+
 ## [0.27.1] - 2026-10-11
 
 ### Changed
@@ -930,7 +939,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.1...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.2...HEAD
+[0.27.2]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.1...v0.27.2
 [0.27.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.25.0...v0.26.0
