@@ -4,8 +4,12 @@
 # update.sh (backup, pre-flight on a copy, migrate, health check, rollback on failure) and writes its
 # progress and log back for the Admin page.
 #
-#   scripts/upgrade-agent.sh            check for a request (what cron runs)
-#   scripts/upgrade-agent.sh --install  run it every minute from /etc/cron.d (or print how to on TrueNAS)
+#   scripts/upgrade-agent.sh              check for a request (what the schedule runs)
+#   scripts/upgrade-agent.sh --install    run it every minute: /etc/cron.d if cron is installed, else a
+#                                         systemd timer, else print what to schedule
+#   scripts/upgrade-agent.sh --print      only print what to schedule (hosts whose scheduler is managed
+#                                         elsewhere, e.g. a NAS web interface)
+#   scripts/upgrade-agent.sh --uninstall  remove the cron job or systemd timer
 #
 # Extra update.sh options for app-started upgrades: GLASSHAUS_UPGRADE_ARGS in .env (only --pull and
 # --skip-preflight are accepted).
@@ -16,20 +20,51 @@ cd "$ROOT_DIR"
 
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
-install_cron() {
-  local self line
+CRON_FILE=/etc/cron.d/glasshaus-upgrade
+UNIT_DIR=/etc/systemd/system
+UNIT=glasshaus-upgrade
+
+print_schedule() {
+  info "Schedule this command to run every minute as root:"
+  printf '    %s\n' "$1"
+  printf '  cron line:  * * * * * root %s >/dev/null 2>&1\n' "$1"
+}
+
+install_schedule() {
+  local self mode="$1"
   self="$(readlink -f "$0")"
-  line="* * * * * root $self >/dev/null 2>&1"
   ensure_upgrade_dir
-  if [[ -d /etc/cron.d && -w /etc/cron.d ]] && [[ ! -f /etc/truenas_conf ]] && ! command -v midclt >/dev/null; then
-    printf '# Glasshaus upgrade helper (see %s)\n%s\n' "$self" "$line" > /etc/cron.d/glasshaus-upgrade
-    chmod 0644 /etc/cron.d/glasshaus-upgrade
-    ok "installed /etc/cron.d/glasshaus-upgrade; Admin > Updates shows the helper within a minute"
+  if [[ "$mode" == print ]]; then
+    print_schedule "$self"
+  elif [[ -d /etc/cron.d && -w /etc/cron.d ]] && { command -v cron || command -v crond; } >/dev/null 2>&1; then
+    printf '# Glasshaus upgrade helper (see %s)\n* * * * * root %s >/dev/null 2>&1\n' "$self" "$self" > "$CRON_FILE"
+    chmod 0644 "$CRON_FILE"
+    ok "installed $CRON_FILE; Admin > Updates shows the helper within a minute"
+  elif [[ -d /run/systemd/system && -w "$UNIT_DIR" ]] && command -v systemctl >/dev/null; then
+    printf '[Unit]\nDescription=Glasshaus upgrade helper\n\n[Service]\nType=oneshot\nExecStart=%s\n' \
+      "$self" > "$UNIT_DIR/$UNIT.service"
+    printf '[Unit]\nDescription=Run the Glasshaus upgrade helper every minute\n\n[Timer]\nOnCalendar=minutely\nAccuracySec=5s\n\n[Install]\nWantedBy=timers.target\n' \
+      > "$UNIT_DIR/$UNIT.timer"
+    systemctl daemon-reload
+    systemctl enable --now "$UNIT.timer" >/dev/null
+    ok "installed the $UNIT.timer systemd timer; Admin > Updates shows the helper within a minute"
   else
-    info "Add a cron job that runs every minute as root (on TrueNAS: System > Advanced Settings > Cron Jobs):"
-    printf '    Command:  %s\n    Run as:   root\n    Schedule: every minute (* * * * *)\n' "$self"
+    warn "no cron (/etc/cron.d) or systemd found, or not running as root"
+    print_schedule "$self"
   fi
   "$self"  # check in now
+}
+
+uninstall_schedule() {
+  local removed=0
+  if [[ -f "$CRON_FILE" ]]; then rm -f "$CRON_FILE"; removed=1; fi
+  if [[ -f "$UNIT_DIR/$UNIT.timer" ]]; then
+    systemctl disable --now "$UNIT.timer" >/dev/null 2>&1 || true
+    rm -f "$UNIT_DIR/$UNIT.timer" "$UNIT_DIR/$UNIT.service"
+    systemctl daemon-reload 2>/dev/null || true
+    removed=1
+  fi
+  if [[ "$removed" == 1 ]]; then ok "removed the upgrade helper schedule"; else info "no schedule installed here"; fi
 }
 
 field() {  # field NAME FILE -> a string value from a flat JSON file, without needing jq
@@ -51,7 +86,13 @@ write_json() {  # write_json FILE key value ... (values are already safe: valida
 }
 
 main() {
-  if [[ "${1:-}" == "--install" ]]; then install_cron; return; fi
+  case "${1:-}" in
+    --install) install_schedule install; return ;;
+    --print) install_schedule print; return ;;
+    --uninstall) uninstall_schedule; return ;;
+    "") ;;
+    *) die "unknown option: $1 (use --install, --print or --uninstall)" ;;
+  esac
   [[ "$(id -u)" == 0 ]] || die "run as root (update.sh needs Docker)"
   [[ -f "$ENV_FILE" ]] || die ".env not found; run ./setup.sh first"
   local dir

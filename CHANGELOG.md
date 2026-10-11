@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- **Upgrade helper on any Linux:** `scripts/upgrade-agent.sh --install` uses cron when it is installed and
+  a systemd timer otherwise; `--print` shows what to schedule on hosts whose scheduler is managed
+  elsewhere, and `--uninstall` removes it.
+- **Installing on Linux** guide in [docs/configuration.md](docs/configuration.md#installing-on-a-linux-server).
+- **[docs/configuration.md](docs/configuration.md)**: every setting with its options, in one place: server
+  settings (`.env`), Admin and project settings, host setup, and what each secret protects and how to
+  rotate it. A test keeps it complete when settings are added.
+
 ## [0.27.0] - 2026-10-11
 
 Health and monitoring.
@@ -35,7 +44,7 @@ Upgrade Glasshaus from the app.
   release. Turn it off with `GLASSHAUS_UPDATE_CHECK=false`.
 - **Admin → Updates:** this version, the latest release with its notes, and **Check now**.
 - **Upgrade from the app (owners).** After a one-time setup on the server
-  (`sudo ./scripts/upgrade-agent.sh --install`, a cron job; on TrueNAS it prints the Cron Job to add),
+  (`sudo ./scripts/upgrade-agent.sh --install`, a scheduled job that runs every minute),
   **Upgrade** asks a helper on the server to run `update.sh`: backup, a check on a copy of the database,
   the upgrade, a health check and an automatic roll-back on failure. The page shows progress and the log.
   The app never gets Docker or root access; it can only leave a request in the upgrade folder. Each
@@ -524,7 +533,7 @@ Custom reports and dashboards.
 ### Fixed
 - **Upgrades could roll back on some hosts** with "container glasshaus-api-1 is unhealthy". Since
   0.9.2 the API looked up the `web` container's name inside every request, blocking it; during an
-  upgrade `web` is not running yet, and where DNS is slow to answer (seen on TrueNAS) each health
+  upgrade `web` is not running yet, and where DNS is slow to answer each health
   check stalled past its timeout. The lookup now runs in the background and never delays a request.
 - Command palette: the hint text on the highlighted item has enough contrast.
 

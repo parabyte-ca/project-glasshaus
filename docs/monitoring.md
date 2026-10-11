@@ -60,7 +60,7 @@ scrape_configs:
   - job_name: glasshaus
     scrape_interval: 60s
     authorization: { credentials: "<GLASSHAUS_METRICS_TOKEN>" }
-    static_configs: [{ targets: ["truenas.lan:8471"] }]
+    static_configs: [{ targets: ["glasshaus.example.lan:8471"] }]
 ```
 
 Example alert rules:
