@@ -21,6 +21,8 @@ One release per PR. Minor version for features, patch for fixes.
      `list_tools()` length).
    - `docs/coverage-matrix.md`: every new MCP tool (a test fails otherwise).
    - Feature guides in `docs/` (`reports.md`, `ai.md`, …) and `.env.example` for new settings.
+   - `docs/monitoring.md` when a release adds or changes a system check, a threshold or a
+     Prometheus gauge (the "What is checked" and metrics tables; `GAUGES` in `monitoring.py`).
 4. **Checks**: `make check` (ruff, mypy on src *and* tests, eslint, prettier, pytest, vitest,
    `scripts/check-version.sh`). Run `mypy src tests`, not only `src`; CI does.
 5. **Local stack and e2e** (when the UI or API changed): build and start the Compose stack, then
@@ -60,6 +62,10 @@ One release per PR. Minor version for features, patch for fixes.
   unbounded `IN` lists, and add a query-count case to `tests/test_performance.py` for new list pages.
   Live updates: `task.updated` is patched into open lists by `lib/realtime.ts`; new list query keys
   under `['tasks', projectId, …]` must be a view config object or they are simply refetched.
+- Health: a new background dependency or worker job that can fall behind gets a check in
+  `monitoring.collect()` (state, plain message, numbers as metrics) and a `GAUGES` entry; alerts reuse
+  `_alert()` (one per problem per six hours). Server-wide pages (status, backups, updates) are
+  single-organization only and raise `NotFound` on multi-tenant servers.
 - Personal data: new tables referencing users are picked up by the personal export automatically;
   add them to `people.privacy.erase_person` when they hold credentials, devices or personal text.
 
