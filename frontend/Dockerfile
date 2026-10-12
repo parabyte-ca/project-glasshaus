@@ -14,7 +14,7 @@ RUN npm run build \
       -o -name '*.json' -o -name '*.webmanifest' -o -name '*.map' \) -size +1k \
       -exec gzip -9 -k {} +
 
-FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
+FROM nginxinc/nginx-unprivileged:1.31-alpine AS runtime
 ARG VERSION=0.0.0
 ARG BUILD_SHA=dev
 LABEL org.opencontainers.image.title="glasshaus-web" \
