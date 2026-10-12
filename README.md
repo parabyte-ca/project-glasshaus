@@ -479,6 +479,7 @@ ago is still untagged.
 | 27 | later | Nimble REST API connector: import straight from Nimble, no export (waiting on Nimble's API reference) | ⏳ |
 | 28 | later | Smartsheet alongside Glasshaus: an import preset for Smartsheet exports, a short "using Glasshaus alongside Smartsheet" guide, then a REST API connector (waiting for a sample sheet export; the team is moving from Nimble to Smartsheet) | ⏳ |
 | 29 | later | Teams through the Microsoft 365 Copilot agent: expanded for team members (timers, time logging, standup prep), project managers (critical path, workload/capacity balancing, action items), and executives (portfolio health, OKRs, burn rates); tuned instructions, starter prompts, and guide in [docs/integrations/teams-agent-guide.md](docs/integrations/teams-agent-guide.md) | ✅ |
+| 30 | later | Teams bot with interactive Adaptive Cards: click-to-start / stop timer buttons, quick time-logging inputs, and interactive timesheet approval widgets for channel digests and 1:1 chats | ⏳ |
 
 ## Licence
 
