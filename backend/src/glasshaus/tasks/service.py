@@ -14,7 +14,7 @@ from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import InvalidInput, NotFound, PermissionDenied, PreconditionFailed, ServiceError
 from glasshaus.core.rbac import Permission, project_role_permissions
 from glasshaus.core.schemas import Page, decode_cursor, encode_cursor
-from glasshaus.identity.models import User
+from glasshaus.identity.models import User, is_assistant
 from glasshaus.projects.models import Project, ProjectStatus, StatusCategory
 from glasshaus.projects.schemas import DeletePreview, StatusRead
 from glasshaus.tasks.models import PRIORITY_RANK, Task
@@ -116,6 +116,8 @@ async def _check_assignee(ctx: ServiceContext, project: Project, user_id: uuid.U
     user = await ctx.session.get(User, user_id)
     if user is None or not user.is_active:
         raise InvalidInput("assignee not found")
+    if is_assistant(user):
+        raise InvalidInput("the project assistant cannot be assigned tasks")
     from glasshaus.core.context import Actor
     from glasshaus.core.context import ServiceContext as Ctx
 
@@ -341,7 +343,14 @@ async def create_task(ctx: ServiceContext, data: TaskCreate) -> TaskRead:
     return result
 
 
-async def update_task(ctx: ServiceContext, task_id: uuid.UUID, data: TaskUpdate) -> TaskRead:
+async def update_task(
+    ctx: ServiceContext,
+    task_id: uuid.UUID,
+    data: TaskUpdate,
+    *,
+    reschedule: dict[uuid.UUID, tuple[Project, set[uuid.UUID]]] | None = None,
+) -> TaskRead:
+    """``reschedule`` collects moved tasks per project for the caller to propagate once (bulk edits)."""
     task = await _load(ctx, task_id, Permission.TASK_UPDATE)
     if data.expected_version is not None and data.expected_version != task.version:
         raise PreconditionFailed("task was modified by someone else", extra={"current_version": task.version})
@@ -381,9 +390,12 @@ async def update_task(ctx: ServiceContext, task_id: uuid.UUID, data: TaskUpdate)
     result = (await _to_read(ctx, [task]))[0]
     diff = {k: {"from": before[k], "to": getattr(task, k)} for k in before if before[k] != getattr(task, k)}
     if diff.keys() & {"start_date", "due_date"}:
-        from glasshaus.scheduling.service import propagate_from
+        if reschedule is not None:
+            reschedule.setdefault(project.id, (project, set()))[1].add(task.id)
+        else:
+            from glasshaus.scheduling.service import propagate_from
 
-        await propagate_from(ctx, project, {task.id})
+            await propagate_from(ctx, project, {task.id})
     if diff:
         events.emit(
             ctx,
@@ -396,8 +408,23 @@ async def update_task(ctx: ServiceContext, task_id: uuid.UUID, data: TaskUpdate)
     return result
 
 
+async def set_done(ctx: ServiceContext, task_id: uuid.UUID, done: bool) -> TaskRead:
+    """Move a task to its project's first done (or first to-do) status. Repeating it changes nothing,
+    so a phone can safely replay a "done" made while offline."""
+    task = await _load(ctx, task_id, Permission.TASK_UPDATE)
+    status = await ctx.session.get(ProjectStatus, task.status_id)
+    is_done = status is not None and status.category == StatusCategory.DONE
+    if is_done == done:
+        return (await _to_read(ctx, [task]))[0]
+    target = await _status_in_category(
+        ctx, task.project_id, StatusCategory.DONE if done else StatusCategory.TODO
+    )
+    return await update_task(ctx, task_id, TaskUpdate(status_id=target.id))
+
+
 async def bulk_update(ctx: ServiceContext, data: TaskBulkUpdate) -> BulkResult:
     result = BulkResult(updated=[])
+    reschedule: dict[uuid.UUID, tuple[Project, set[uuid.UUID]]] = {}
     patch = data.patch
     if patch.status_id and patch.status_category:
         raise InvalidInput("use either status_id or status_category, not both")
@@ -415,10 +442,16 @@ async def bulk_update(ctx: ServiceContext, data: TaskBulkUpdate) -> BulkResult:
                 if patch.add_tags or patch.remove_tags:
                     tags = (set(task.tags) | set(patch.add_tags)) - set(patch.remove_tags)
                     update_data["tags"] = sorted(tags)
-                await update_task(ctx, task_id, TaskUpdate.model_validate(update_data))
+                await update_task(ctx, task_id, TaskUpdate.model_validate(update_data), reschedule=reschedule)
             result.updated.append(task_id)
         except ServiceError as exc:
             result.failed[task_id] = exc.detail
+    if reschedule:
+        from glasshaus.scheduling.service import propagate_from
+
+        # Once per project for all moved tasks, not once per task (each run loads the whole project).
+        for project, moved in reschedule.values():
+            await propagate_from(ctx, project, moved)
     return result
 
 

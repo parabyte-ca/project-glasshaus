@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from glasshaus.audit.models import AuditEntry
 from glasshaus.core.authz import require_org
@@ -14,10 +14,35 @@ from glasshaus.core.schemas import Schema
 
 MAX_DETAIL_CHARS = 2000
 SECRET_KEYS = {"password", "token", "secret", "client_secret", "authorization"}
+# Who a person is. The audit log is append-only, so it must never hold these: erasing a person could not
+# reach them. Entries name people by id; a failed sign-in keeps only a short hash of the address typed.
+PERSON_KEYS = {"email", "name", "display_name", "avatar_url", "phone", "user"}
+
+
+def email_hash(email: str) -> str:
+    """Enough to tell attempts on one address apart, not to read it back."""
+    import hashlib
+
+    return hashlib.sha256(email.strip().lower().encode()).hexdigest()[:16]
+
+
+def scrub_person(value: Any, depth: int = 0) -> Any:
+    """Replace who-a-person-is fields by a marker, keeping the names of the fields that changed."""
+    if depth > 4:
+        return value
+    if isinstance(value, dict):
+        return {
+            k: ("[not recorded]" if k in PERSON_KEYS else scrub_person(v, depth + 1))
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [scrub_person(v, depth + 1) for v in value]
+    return value
 
 
 class AuditRead(Schema):
     id: uuid.UUID
+    seq: int
     actor_id: uuid.UUID | None
     actor_method: str
     client: str | None
@@ -119,3 +144,68 @@ async def list_entries(
     if before:
         stmt = stmt.where(AuditEntry.created_at < before)
     return [AuditRead.model_validate(e) for e in (await ctx.session.scalars(stmt)).all()]
+
+
+class ChainProblem(Schema):
+    seq: int
+    id: uuid.UUID
+    created_at: datetime
+    problem: str
+
+
+class ChainCheck(Schema):
+    ok: bool
+    entries: int
+    first_seq: int | None
+    last_seq: int | None
+    head: str | None = (
+        None  # hex hash of the newest entry: note it down to prove later entries weren't rewritten
+    )
+    starts_after_purge: bool = False
+    problems: list[ChainProblem]
+
+
+VERIFY_SQL = text(
+    """
+    SELECT seq, id, created_at, action,
+           hash = glasshaus_audit_hash(prev_hash, a) AS hash_ok,
+           lag(seq) OVER w AS prev_seq,
+           prev_hash IS NOT DISTINCT FROM lag(hash) OVER w AS link_ok,
+           encode(hash, 'hex') AS hex
+    FROM audit_log a WHERE tenant_id = :t WINDOW w AS (ORDER BY seq) ORDER BY seq
+    """
+)
+
+
+async def verify(ctx: ServiceContext) -> ChainCheck:
+    """Recompute this organization's hash chain: any edited, removed or inserted entry shows up."""
+    require_org(ctx, Permission.ORG_MANAGE)
+    rows = (await ctx.session.execute(VERIFY_SQL, {"t": ctx.tenant_id})).all()
+    problems: list[ChainProblem] = []
+    for r in rows:
+        problem = None
+        if not r.hash_ok:
+            problem = "changed after it was recorded"
+        elif r.prev_seq is not None and r.seq != r.prev_seq + 1:
+            problem = f"entries {r.prev_seq + 1} to {r.seq - 1} are missing"
+        elif r.prev_seq is not None and not r.link_ok:
+            problem = "does not follow the entry before it"
+        if problem:
+            problems.append(ChainProblem(seq=r.seq, id=r.id, created_at=r.created_at, problem=problem))
+    first = rows[0] if rows else None
+    check = ChainCheck(
+        ok=not problems,
+        entries=len(rows),
+        first_seq=first.seq if first else None,
+        last_seq=rows[-1].seq if rows else None,
+        head=rows[-1].hex if rows else None,
+        starts_after_purge=bool(first and first.seq != 1),
+        problems=problems[:50],
+    )
+    await record(
+        ctx.actor,
+        "audit.verified",
+        outcome="ok" if check.ok else "error",
+        detail={"entries": check.entries, "problems": len(problems), "head": check.head},
+    )
+    return check

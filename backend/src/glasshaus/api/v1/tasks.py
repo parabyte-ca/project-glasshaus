@@ -79,6 +79,20 @@ async def delete_task(ref: str, ctx: Ctx) -> None:
     await tasks.delete_tasks(ctx, [await tasks.resolve_ref(ctx, ref)], dry_run=False)
 
 
+@router.post(
+    "/{ref}/complete",
+    response_model=TaskRead,
+    summary="Mark a task done (its project's first done status; repeating it changes nothing)",
+)
+async def complete_task(ref: str, ctx: Ctx) -> TaskRead:
+    return await tasks.set_done(ctx, await tasks.resolve_ref(ctx, ref), True)
+
+
+@router.post("/{ref}/reopen", response_model=TaskRead, summary="Reopen a done task (first to-do status)")
+async def reopen_task(ref: str, ctx: Ctx) -> TaskRead:
+    return await tasks.set_done(ctx, await tasks.resolve_ref(ctx, ref), False)
+
+
 @router.post("/{ref}/restore", response_model=TaskRead, summary="Restore a deleted task")
 async def restore_task(ref: str, ctx: Ctx) -> TaskRead:
     return await tasks.restore_task(ctx, await tasks.resolve_ref(ctx, ref))

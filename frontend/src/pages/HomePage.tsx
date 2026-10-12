@@ -1,11 +1,86 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 
-import { api, unwrap } from '../api/client';
-import { Button, ErrorText, Field, Input, Select } from '../components/ui';
+import { api, fieldError, unwrap } from '../api/client';
+import { useAuth } from '../auth/useAuth';
+import { LoadError } from '../components/PageState';
+import { Button, ErrorText, Field, GhostButton, Input, linkClass, Select } from '../components/ui';
+import { usePageTitle } from '../lib/pageTitle';
+import { toast } from '../lib/toast';
+
+function WorkspaceRow({ id, name }: { id: string; name: string }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  useEffect(() => {
+    if (editing) document.getElementById(`ws-rename-${id}`)?.focus();
+  }, [editing, id]);
+  const rename = useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.PATCH('/api/v1/workspaces/{workspace_id}', {
+          params: { path: { workspace_id: id } },
+          body: { name: draft.trim() },
+        }),
+      ),
+    onSuccess: () => {
+      setEditing(false);
+      toast('Workspace renamed.');
+      void queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+    },
+  });
+  if (!editing) {
+    return (
+      <li className="flex flex-wrap items-center gap-3">
+        <span className="font-medium">{name}</span>
+        <GhostButton
+          aria-label={`Rename workspace ${name}`}
+          onClick={() => {
+            setDraft(name);
+            rename.reset();
+            setEditing(true);
+          }}
+        >
+          Rename
+        </GhostButton>
+      </li>
+    );
+  }
+  return (
+    <li>
+      <form
+        className="flex flex-wrap items-end gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          rename.mutate();
+        }}
+      >
+        <Field label="Workspace name" id={`ws-rename-${id}`}>
+          <Input
+            id={`ws-rename-${id}`}
+            required
+            maxLength={200}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setEditing(false);
+            }}
+          />
+        </Field>
+        <Button type="submit" disabled={rename.isPending || !draft.trim() || draft.trim() === name}>
+          Save
+        </Button>
+        <GhostButton onClick={() => setEditing(false)}>Cancel</GhostButton>
+        <ErrorText error={rename.error} />
+      </form>
+    </li>
+  );
+}
 
 export function HomePage() {
+  usePageTitle('Home');
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const workspaces = useQuery({
@@ -80,6 +155,23 @@ export function HomePage() {
         <h1 id="projects-heading" className="text-2xl font-bold">
           Projects
         </h1>
+        {(user.direct_reports ?? 0) > 0 && (
+          <p className="mt-1 text-sm">
+            <Link to="/team" className={linkClass}>
+              My team
+            </Link>
+            : the work of the {user.direct_reports} {user.direct_reports === 1 ? 'person' : 'people'} who
+            report to you.
+          </p>
+        )}
+        {projects.isPending && (
+          <p role="status" className="mt-2">
+            Loading…
+          </p>
+        )}
+        {projects.error && (
+          <LoadError error={projects.error} what="your projects" onRetry={() => void projects.refetch()} />
+        )}
         {projects.data?.length === 0 && (
           <p className="mt-2 text-slate-600 dark:text-slate-400">No projects yet. Create one below.</p>
         )}
@@ -94,6 +186,19 @@ export function HomePage() {
           ))}
         </ul>
       </section>
+
+      {!!workspaces.data?.length && (
+        <section aria-labelledby="workspaces-heading" className="flex flex-col gap-3">
+          <h2 id="workspaces-heading" className="text-lg font-semibold">
+            Workspaces
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {workspaces.data.map((w) => (
+              <WorkspaceRow key={w.id} id={w.id} name={w.name} />
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section aria-labelledby="new-project" className="flex flex-col gap-3">
         <h2 id="new-project" className="text-lg font-semibold">
@@ -120,7 +225,7 @@ export function HomePage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Key" id="key">
+            <Field label="Key" id="key" error={fieldError(createProject.error, 'key')}>
               <Input
                 id="key"
                 required
@@ -130,7 +235,7 @@ export function HomePage() {
                 onChange={(e) => setKey(e.target.value)}
               />
             </Field>
-            <Field label="Name" id="name">
+            <Field label="Name" id="name" error={fieldError(createProject.error, 'name')}>
               <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
             {!!templates.data?.length && (

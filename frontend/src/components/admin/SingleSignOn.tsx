@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { api, unwrap, type Schemas } from '../../api/client';
 import { Button, ErrorText, Field, GhostButton, Input, Select } from '../ui';
 import { Copyable, Section } from './common';
+import { useConfirm } from '../../lib/confirm';
 
 type Provider = Schemas['ProviderRead'];
 
@@ -23,6 +24,7 @@ const EMPTY = {
 };
 
 function ProviderCard({ p }: { p: Provider }) {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['sso-providers'] });
   const update = useMutation({
@@ -66,7 +68,14 @@ function ProviderCard({ p }: { p: Provider }) {
           )}
           <GhostButton
             aria-label={`Remove ${p.name}`}
-            onClick={() => window.confirm(`Remove ${p.name}? People keep their accounts.`) && remove.mutate()}
+            onClick={async () =>
+              (await confirm({
+                title: `Remove ${p.name}?`,
+                body: 'People keep their accounts.',
+                confirmLabel: 'Remove',
+                danger: true,
+              })) && remove.mutate()
+            }
           >
             Remove
           </GhostButton>

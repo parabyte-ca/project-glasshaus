@@ -367,6 +367,43 @@ describe('notifications', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mark all read' }));
     await waitFor(() => expect(calls.some((c) => c.url.endsWith('/api/v1/notifications/read'))).toBe(true));
   });
+
+  it('opens in-app links from report alerts and ignores others', async () => {
+    const note = (id: string, title: string, link: string) => ({
+      id,
+      kind: 'report_alert',
+      task_id: null,
+      project_id: null,
+      actor_id: null,
+      title,
+      link,
+      created_at: '2026-01-01T00:00:00Z',
+      read_at: '2026-01-01T00:00:00Z',
+    });
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/notifications',
+        body: {
+          items: [
+            note('n1', 'Open work: Open is 3, above 2', '/reports/r1'),
+            note('n2', 'Elsewhere', '//evil.example/x'),
+          ],
+          next_cursor: null,
+        },
+      },
+      { method: 'GET', path: '/api/v1/reports/r1', status: 404, body: { detail: 'report not found' } },
+    ]);
+    renderAt('/');
+    await userEvent.click(await screen.findByRole('button', { name: /Notifications/ }));
+    await userEvent.click(await screen.findByText('Elsewhere'));
+    expect(window.location.pathname).toBe('/');
+    await userEvent.click(await screen.findByRole('button', { name: /Notifications/ }));
+    await userEvent.click(await screen.findByText('Open work: Open is 3, above 2'));
+    await waitFor(() => expect(window.location.pathname).toBe('/reports/r1'));
+  });
 });
 
 describe('account', () => {
@@ -430,6 +467,39 @@ describe('account', () => {
     await userEvent.type(screen.getByLabelText('Confirm new password'), 'new-password-456');
     await userEvent.click(screen.getByRole('button', { name: 'Change password' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('current password is incorrect');
+  });
+});
+
+describe('about and privacy', () => {
+  it('links the source code and lists third-party licences', async () => {
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/licenses',
+        body: [{ name: 'FastAPI', version: '1.0', license: 'MIT' }],
+      },
+      { method: 'GET', path: '/licenses.json', body: [{ name: 'react', version: '19.0.0', license: 'MIT' }] },
+    ]);
+    renderAt('/about');
+    expect(await screen.findByRole('heading', { name: 'About and privacy', level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Source code for this server' })).toHaveAttribute(
+      'href',
+      'https://github.com/parabyte-ca/project-glasshaus',
+    );
+    expect(await screen.findByText(/FastAPI 1.0/)).toBeInTheDocument();
+    expect(await screen.findByText(/react 19.0.0/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'About, privacy and source code' })).toBeInTheDocument();
+  });
+
+  it('lets people download their own data', async () => {
+    mockApi([...baseRoutes, signedIn]);
+    renderAt('/account');
+    expect(await screen.findByRole('link', { name: 'Download my data' })).toHaveAttribute(
+      'href',
+      '/api/v1/users/me/export',
+    );
   });
 });
 
@@ -528,12 +598,153 @@ describe('connected access', () => {
     expect(await screen.findByRole('button', { name: 'Revoke VS Code' })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Disconnect Claude' }));
+    const ask = await screen.findByRole('dialog', { name: 'Disconnect Claude?' });
+    expect(within(ask).getByText('It loses access to your account now.')).toBeInTheDocument();
+    await userEvent.click(within(ask).getByRole('button', { name: 'Disconnect' }));
     expect(await screen.findByText(/No apps are connected/)).toBeInTheDocument();
   });
 });
 
 describe('administration', () => {
   const member = { ...user, id: 'u2', email: 'lin@example.com', name: 'Lin', org_role: 'member' };
+
+  it('shows backup health and the last restore drill', async () => {
+    mockApi([
+      {
+        method: 'GET',
+        path: '/api/v1/admin/backups',
+        body: {
+          available: true,
+          folder: '/backups',
+          interval_hours: 24,
+          drill_days: 7,
+          count: 2,
+          total_bytes: 3 * 1024 * 1024,
+          latest: [
+            {
+              name: 'glasshaus-20261009T020000Z.dump',
+              bytes: 2 * 1024 * 1024,
+              created_at: '2026-10-09T02:00:00Z',
+            },
+            {
+              name: 'glasshaus-20261008T020000Z.dump',
+              bytes: 1024 * 1024,
+              created_at: '2026-10-08T02:00:00Z',
+            },
+          ],
+          drill: {
+            finished_at: '2026-10-09T02:01:00Z',
+            ok: false,
+            dump: 'glasshaus-20261009T020000Z.dump',
+            dump_bytes: 2097152,
+            seconds: 4,
+            tables: 61,
+            revision: 'a',
+            live_revision: 'a',
+            rows: { users: 3, projects: 2, tasks: 40 },
+            error: 'pg_restore failed',
+          },
+          problems: [{ code: 'drill_failed', message: 'The last restore drill failed: pg_restore failed' }],
+        },
+      },
+      ...baseRoutes,
+      signedIn,
+    ]);
+    renderAt('/admin?tab=backups');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The last restore drill failed: pg_restore failed',
+    );
+    expect(
+      screen.getByText(/^Failed .* 61 tables, 3 people, 2 projects, 40 tasks, 4 s$/),
+    ).toBeInTheDocument();
+    const files = screen.getByRole('table', { name: 'Newest backups' });
+    expect(within(files).getAllByRole('row')).toHaveLength(3);
+    expect(within(files).getByText('2.0 MB')).toBeInTheDocument();
+  });
+
+  it('connects a Slack command and schedules a channel post', async () => {
+    const integration = (over: object) => ({
+      id: 'i1',
+      kind: 'slack',
+      name: '#web',
+      enabled: true,
+      project_id: null,
+      events: [],
+      url_host: 'hooks.slack.com',
+      secret_set: true,
+      inbound_url: null,
+      email: null,
+      last_success_at: null,
+      last_error: null,
+      last_error_at: null,
+      created_at: '2026-10-09T00:00:00Z',
+      ...over,
+    });
+    const { calls } = mockApi([
+      ...baseRoutes,
+      signedIn,
+      {
+        method: 'GET',
+        path: '/api/v1/integrations',
+        body: [
+          integration({}),
+          integration({
+            id: 'i2',
+            kind: 'slack_command',
+            name: 'Slack',
+            inbound_url: 'https://pm.example.com/api/v1/integrations/i2/slack',
+          }),
+        ],
+      },
+      { method: 'GET', path: '/api/v1/integrations/event-types', body: ['task.created'] },
+      { method: 'POST', path: '/api/v1/integrations', status: 201, body: integration({ id: 'i3' }) },
+      { method: 'GET', path: '/api/v1/integrations/i1/posts', body: [] },
+      {
+        method: 'GET',
+        path: '/api/v1/reports',
+        body: [{ id: 'r1', name: 'Open work', owner_id: 'u1', description: '', shared: false }],
+      },
+      { method: 'POST', path: '/api/v1/integrations/i1/posts', status: 201, body: {} },
+    ]);
+    renderAt('/admin?tab=integrations');
+    expect(
+      await screen.findByText('https://pm.example.com/api/v1/integrations/i2/slack'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Request URL/)).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText('Type'), 'Slack command (/glasshaus)');
+    expect(screen.queryByLabelText('Project (optional)')).toBeNull(); // the whole organization
+    await userEvent.type(screen.getByLabelText('Name'), 'Slack');
+    await userEvent.type(screen.getByLabelText('Signing secret'), 'sig');
+    await userEvent.type(screen.getByLabelText('Bot token (xoxb-…)'), 'xoxb-1');
+    await userEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    await waitFor(() =>
+      expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/integrations'))).toBe(true),
+    );
+    const created = calls.find((c) => c.method === 'POST' && c.url.endsWith('/integrations'))!;
+    expect(await created.json()).toMatchObject({
+      kind: 'slack_command',
+      secret: 'sig',
+      token: 'xoxb-1',
+      project_id: null,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Scheduled posts' }));
+    const panel = (await screen.findByRole('heading', { name: 'Scheduled posts to #web' })).closest(
+      'section',
+    )!;
+    await userEvent.selectOptions(within(panel).getByLabelText('Report'), 'Open work');
+    await userEvent.click(within(panel).getByRole('button', { name: 'Add post' }));
+    await waitFor(() =>
+      expect(calls.some((c) => c.url.endsWith('/integrations/i1/posts') && c.method === 'POST')).toBe(true),
+    );
+    const post = calls.find((c) => c.url.endsWith('/integrations/i1/posts') && c.method === 'POST')!;
+    expect(await post.json()).toMatchObject({
+      kind: 'report',
+      report_id: 'r1',
+      schedule: { frequency: 'weekly', weekday: 0, hour: 9 },
+    });
+  });
 
   it('deactivates a person after confirming', async () => {
     let people = [user, member];
@@ -550,13 +761,93 @@ describe('administration', () => {
         },
       },
     ]);
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderAt('/admin');
     await userEvent.click(await screen.findByRole('button', { name: 'Deactivate Lin' }));
+    // Cancel first: nothing changes, and focus goes back to the button.
+    const ask = await screen.findByRole('dialog', { name: 'Deactivate Lin?' });
+    expect(within(ask).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Deactivate Lin' })).toHaveFocus();
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Deactivate Lin' }));
+    await userEvent.click(
+      within(await screen.findByRole('dialog', { name: 'Deactivate Lin?' })).getByRole('button', {
+        name: 'Deactivate',
+      }),
+    );
     expect(await screen.findByRole('button', { name: 'Reactivate Lin' })).toBeInTheDocument();
     const patch = calls.find((c) => c.method === 'PATCH')!;
     expect(await patch.json()).toEqual({ is_active: false });
     expect(screen.queryByRole('button', { name: `Deactivate ${user.name}` })).not.toBeInTheDocument();
+  });
+
+  it('erases a person only after their email is typed', async () => {
+    let people: object[] = [user, member];
+    const { calls } = mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/users'),
+      signedIn,
+      { method: 'GET', path: '/api/v1/users', handler: () => people },
+      {
+        method: 'POST',
+        path: '/api/v1/admin/users/u2/erase',
+        handler: () => {
+          people = [user, { ...member, name: 'Former user 0a1b2c', erased_at: '2026-10-10T00:00:00Z' }];
+          return { user_id: 'u2', name: 'Former user 0a1b2c', removed: { sessions: 1 } };
+        },
+      },
+    ]);
+    renderAt('/admin');
+    expect(await screen.findByRole('link', { name: 'Download Lin’s data' })).toHaveAttribute(
+      'href',
+      '/api/v1/admin/users/u2/export',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Erase Lin' }));
+    const confirmButton = screen.getAllByRole('button', { name: 'Erase Lin' }).at(-1)!;
+    expect(confirmButton).toBeDisabled();
+    await userEvent.type(screen.getByLabelText('Type lin@example.com to confirm'), 'LIN@example.com');
+    expect(confirmButton).toBeEnabled();
+    await userEvent.click(confirmButton);
+    expect(
+      await screen.findByText(/Lin was erased and is now shown as “Former user 0a1b2c”/),
+    ).toBeInTheDocument();
+    const post = calls.find((c) => c.method === 'POST' && c.url.endsWith('/erase'))!;
+    expect(await post.json()).toEqual({ confirm_email: 'LIN@example.com' });
+    expect(await screen.findByText('Erased')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Erase Former user 0a1b2c' })).not.toBeInTheDocument();
+  });
+
+  it('checks the audit log seal', async () => {
+    mockApi([
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/audit-log', body: [] },
+      {
+        method: 'POST',
+        path: '/api/v1/audit-log/verify',
+        body: {
+          ok: false,
+          entries: 12,
+          first_seq: 1,
+          last_seq: 13,
+          head: 'ab'.repeat(32),
+          starts_after_purge: false,
+          problems: [
+            {
+              seq: 7,
+              id: 'e7',
+              created_at: '2026-10-09T02:00:00Z',
+              problem: 'changed after it was recorded',
+            },
+          ],
+        },
+      },
+    ]);
+    renderAt('/admin?tab=audit');
+    await userEvent.click(await screen.findByRole('button', { name: 'Check integrity' }));
+    expect(await screen.findByText('1 problem found:')).toBeInTheDocument();
+    expect(screen.getByText(/Entry 7 .*: changed after it was recorded/)).toBeInTheDocument();
+    expect(screen.getByText('ab'.repeat(32))).toBeInTheDocument();
   });
 
   it('connects a signed webhook and shows the secret once', async () => {
@@ -684,7 +975,7 @@ describe('single sign-on', () => {
     ]);
     renderAt('/account?sso_linked=1');
     const link = await screen.findByRole('link', { name: 'Link Entra ID' });
-    expect(link).toHaveAttribute('href', '/api/v1/auth/sso/default/entra/start?link=true');
+    expect(link).toHaveAttribute('href', '/api/v1/auth/sso/default/entra/start?link=true&csrf=csrf-123');
     expect(screen.getByText('Single sign-on linked.')).toBeInTheDocument();
   });
 });
@@ -1057,6 +1348,27 @@ describe('keyboard and command palette', () => {
     const post = calls.find((c) => c.url.endsWith('/api/v1/ai/search'))!;
     expect(await post.json()).toEqual({ query: 'my late work', limit: 20 });
   });
+
+  it('hands a report question to the Reports page', async () => {
+    mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/ai/status'),
+      { ...aiOn, body: { ...(aiOn.body as object), features: ['reports'] } },
+      signedIn,
+      { method: 'GET', path: '/api/v1/tasks', body: { items: [], next_cursor: null } },
+      { method: 'GET', path: '/api/v1/reports', body: [] },
+      { method: 'POST', path: '/api/v1/ai/reports', status: 503, body: { detail: 'busy' } },
+    ]);
+    renderAt('/');
+    await screen.findByRole('heading', { name: 'Projects', level: 1 });
+    await userEvent.click(screen.getByRole('button', { name: /Search/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Command palette' });
+    await userEvent.type(within(dialog).getByRole('combobox'), 'who is overdue');
+    expect(within(dialog).queryByRole('option', { name: /^Ask: / })).toBeNull();
+    await userEvent.click(within(dialog).getByRole('option', { name: /Ask reports: “who is overdue”/ }));
+    await waitFor(() => expect(window.location.pathname).toBe('/reports'));
+    expect(new URLSearchParams(window.location.search).get('ask')).toBe('who is overdue');
+    expect(await screen.findByLabelText('Question')).toHaveValue('who is overdue');
+  });
 });
 
 describe('AI assistant', () => {
@@ -1068,7 +1380,7 @@ describe('AI assistant', () => {
     ]);
     renderAt('/projects/WEB');
     await screen.findByLabelText('New task title');
-    expect(screen.queryByRole('button', { name: 'Assistant' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'AI tools' })).not.toBeInTheDocument();
   });
 
   it('drafts tasks and adds the chosen ones', async () => {
@@ -1098,7 +1410,7 @@ describe('AI assistant', () => {
       { method: 'POST', path: '/api/v1/tasks', status: 201, body: task(9) },
     ]);
     renderAt('/projects/WEB');
-    await userEvent.click(await screen.findByRole('button', { name: 'Assistant' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'AI tools' }));
     await userEvent.click(await screen.findByRole('tab', { name: 'Draft tasks' }));
     await userEvent.type(screen.getByLabelText('What needs doing?'), 'Move hosting');
     await userEvent.click(screen.getByRole('button', { name: 'Draft tasks' }));
@@ -1126,6 +1438,7 @@ describe('AI assistant', () => {
       deleted_task_retention_days: 30,
       ai_enabled: false,
       ai_features: ['summaries', 'drafting', 'risks', 'search'],
+      assistant_trusted: [],
     };
     const { calls } = mockApi([
       ...baseRoutes.filter((r) => r.path !== '/api/v1/ai/status'),
@@ -1152,11 +1465,43 @@ describe('AI assistant', () => {
     await userEvent.click(await screen.findByLabelText('Turn on the AI assistant for this organization'));
     await userEvent.click(screen.getByLabelText(/Risk flags/));
     await userEvent.click(screen.getByRole('button', { name: 'Save AI settings' }));
-    expect(await screen.findByText('Saved')).toBeInTheDocument();
+    expect(await screen.findByText('AI settings saved.')).toBeInTheDocument();
     const patch = calls.find((c) => c.method === 'PATCH')!;
     expect(await patch.json()).toEqual({
       ai_enabled: true,
       ai_features: ['summaries', 'drafting', 'search'],
+      assistant_trusted: [],
     });
+  });
+
+  it('keeps the AI switch and features when saving without a provider', async () => {
+    const settings = {
+      audit_retention_days: 365,
+      activity_retention_days: 0,
+      notification_retention_days: 90,
+      deleted_task_retention_days: 30,
+      ai_enabled: true,
+      ai_features: ['summaries', 'search'],
+      assistant_trusted: [],
+      manager_visibility: 'shared',
+    };
+    const { calls } = mockApi([
+      ...baseRoutes.filter((r) => r.path !== '/api/v1/ai/status'),
+      {
+        ...aiOn,
+        body: { available: false, enabled: true, provider: null, model: null, features: [] },
+      },
+      signedIn,
+      { method: 'GET', path: '/api/v1/admin/settings', body: settings },
+      {
+        method: 'PATCH',
+        path: '/api/v1/admin/settings',
+        handler: async (req) => ({ ...settings, ...((await req.json()) as object) }),
+      },
+    ]);
+    renderAt('/admin?tab=ai');
+    await userEvent.click(await screen.findByRole('button', { name: 'Save AI settings' }));
+    const patch = calls.find((c) => c.method === 'PATCH')!;
+    expect(await patch.json()).toEqual({ assistant_trusted: [] }); // nothing else is touched
   });
 });

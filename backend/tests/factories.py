@@ -1,9 +1,14 @@
 """Test data builders that go through the real service layer."""
 
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime
 
 from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from glasshaus.core.context import Actor
 from glasshaus.core.rbac import OrgRole, Scope
@@ -119,3 +124,39 @@ async def events_for(aggregate_id: str, type_: str) -> list[dict]:  # type: igno
             .order_by(DomainEventRecord.occurred_at)
         )
         return [envelope(r) for r in rows.all()]
+
+
+@asynccontextmanager
+async def owner_session() -> AsyncIterator[AsyncSession]:
+    """A session as the database owner (what an attacker with the owner password, or a migration, has)."""
+    from glasshaus.config import get_settings
+
+    url = get_settings().migration_database_url
+    assert url, "owner_session needs GLASSHAUS_MIGRATION_DATABASE_URL"
+    engine = create_async_engine(url)
+    try:
+        async with AsyncSession(engine) as session, session.begin():
+            await session.execute(text("SELECT set_config('app.bypass_rls', 'on', true)"))
+            yield session
+    finally:
+        await engine.dispose()
+
+
+async def backdate_audit(world: World, action: str, when: datetime) -> None:
+    """Move an audit entry back in time (only the owner can: entries are append-only)."""
+    async with owner_session() as session:
+        await session.execute(
+            text("UPDATE audit_log SET created_at = :w WHERE tenant_id = :t AND action = :a"),
+            {"w": when, "t": world.tenant.id, "a": action},
+        )
+
+
+async def session_headers(client: AsyncClient, world: World) -> dict[str, str]:
+    """Sign the organization's owner in with a password, as a person in the web app (not an API token)."""
+    client.cookies.clear()
+    r = await client.post(
+        "/api/v1/auth/login",
+        json={"email": world.owner.email, "password": PASSWORD, "organization": world.tenant.slug},
+    )
+    assert r.status_code == 200, r.text
+    return {"X-CSRF-Token": client.cookies["gh_csrf"]}

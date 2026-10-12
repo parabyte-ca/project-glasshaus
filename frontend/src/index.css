@@ -2,6 +2,52 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * House style (from ghsystems.com: #000 page, #121212/#212121/#303030 panels, #1c75bc buttons (sky-700 is a touch deeper so links keep AA contrast on cards),
+ * #00aeef bright blue, #ff8900 orange, Inter): near-black surfaces, a clear blue for actions and links, orange for highlights, and
+ * Inter with heavy headings. The app's slate and sky utilities are remapped here, so every screen
+ * picks the palette up without per-component changes. Text pairs keep WCAG AA contrast:
+ * slate-600 and slate-500 on white, slate-400 on black, sky-700 under white text, sky-400 on black.
+ */
+@theme static {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+
+  --color-slate-50: #f7f7f7;
+  --color-slate-100: #efefef;
+  --color-slate-200: #e2e2e2;
+  --color-slate-300: #cdcdcd;
+  --color-slate-400: #a3a3a3;
+  --color-slate-500: #6b6b6b;
+  --color-slate-600: #525252;
+  --color-slate-700: #303030;
+  --color-slate-800: #212121;
+  --color-slate-900: #121212;
+  --color-slate-950: #000000;
+
+  --color-sky-50: #eef7fe;
+  --color-sky-100: #d8ecfc;
+  --color-sky-200: #b3dbf9;
+  --color-sky-300: #5cc8f5;
+  --color-sky-400: #00aeef;
+  --color-sky-500: #1690d6;
+  --color-sky-600: #1a82c8;
+  --color-sky-700: #1a6cae;
+  --color-sky-800: #155d96;
+  --color-sky-900: #114a78;
+  --color-sky-950: #0a2a47;
+
+  /* Highlight: section labels and the active page. Light text needs the darker shade for contrast. */
+  --color-accent-400: #ff8900;
+  --color-accent-500: #ff8900;
+  --color-accent-700: #b45309;
+
+  /* Headings and the surface of cards, so both read apart from body text and the page. */
+  --color-heading: #0f6b73;
+  --color-heading-dark: #4fd1d9;
+  --color-card: #f1f6f6;
+  --color-card-dark: #111616;
+}
+
 :root {
   color-scheme: light dark;
 }
@@ -9,7 +55,64 @@
 /* The page background follows the theme even where content is wider than the layout. */
 @layer base {
   body {
-    @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+    @apply bg-white font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  }
+
+  /* Bold, tight headings. */
+  h1 {
+    @apply font-extrabold tracking-tight;
+  }
+
+  /* Headings are blue (not the body text colour); a class that sets its own colour still wins. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--color-heading);
+  }
+  .dark h1,
+  .dark h2,
+  .dark h3,
+  .dark h4 {
+    color: var(--color-heading-dark);
+  }
+
+  /* Dark mode: a faint warm glow behind the page, as on the house site. */
+  .dark body {
+    background-image: radial-gradient(60rem 40rem at -10% 45%, rgb(255 138 0 / 0.1), transparent 70%);
+    background-attachment: fixed;
+  }
+
+  /* Headings get focus after navigation (for screen readers); no ring for something not clickable. */
+  h1[tabindex='-1']:focus {
+    outline: none;
+  }
+
+  /* People who ask for less motion get none: no spinners, pings, slides or smooth scrolling. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/*
+ * Cards: a bordered, rounded box with no background of its own is a widget, so it gets a surface a shade
+ * off the page (a quiet grey-green on white; a lifted near-black on black). Anything that sets a
+ * background itself (menus, dialogs, the sign-in card) keeps it.
+ */
+@layer components {
+  [class~='border-slate-200'][class*='rounded']:not([class*='bg-']) {
+    background-color: var(--color-card);
+  }
+  .dark [class~='border-slate-200'][class*='rounded']:not([class*='bg-']),
+  [class~='border-slate-200'][class*='rounded']:not([class*='bg-']):where(.dark *) {
+    background-color: var(--color-card-dark);
   }
 }
 
@@ -18,6 +121,10 @@
   --chart-surface: #ffffff;
   --series-1: #2a78d6;
   --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
   --chart-grid: #e1e0d9;
   --chart-axis: #c3c2b7;
   --chart-muted: #6b6a66;
@@ -31,9 +138,13 @@
   --status-critical: #d03b3b;
 }
 .dark {
-  --chart-surface: #020617;
+  --chart-surface: #000000;
   --series-1: #3987e5;
   --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
   --chart-grid: #2c2c2a;
   --chart-axis: #383835;
   --chart-muted: #a3a29c;

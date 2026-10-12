@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 import orjson
 from pydantic import Field, field_validator
-from sqlalchemy import delete, exists, select, update
+from sqlalchemy import delete, exists, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from glasshaus.core import events
@@ -19,9 +19,13 @@ from glasshaus.core.rbac import OrgRole, Permission
 from glasshaus.core.schemas import Schema
 from glasshaus.governance.models import OrgSettings
 from glasshaus.identity import security
-from glasshaus.identity.models import ApiToken, AuthSession, User
+from glasshaus.identity.models import ApiToken, AuthSession, User, is_assistant
 
-AiFeature = Literal["summaries", "drafting", "risks", "search"]
+AiFeature = Literal["summaries", "drafting", "risks", "search", "reports", "assistant"]
+TrustedKind = Literal["comment"]
+
+AUDIT_MIN_DAYS = 30  # also enforced by glasshaus_audit_purge() in the database
+SESSION_KEEP_DAYS = 90  # ended sign-in sessions (with their IP address and browser) are deleted after this
 
 # Columns never exported (credentials and secret hashes).
 EXPORT_EXCLUDED_COLUMNS = {
@@ -48,17 +52,35 @@ class OrgSettingsRead(Schema):
         description="AI assistant on for this organization (also needs a provider configured on the server)."
     )
     ai_features: list[AiFeature] = Field(description="AI features people may use when the assistant is on.")
+    assistant_trusted: list[TrustedKind] = Field(
+        description="Project-assistant suggestions projects may let it apply without approval (a ceiling)."
+    )
+    manager_visibility: Literal["all", "shared"] = Field(
+        description="My team: 'all' shows managers their reports' work in every project; 'shared' only in "
+        "projects the manager can open (elsewhere just counts)."
+    )
 
 
 class OrgSettingsUpdate(Schema):
-    audit_retention_days: int | None = Field(None, ge=0, le=3650)
+    audit_retention_days: int | None = Field(
+        None, ge=0, le=3650, description="0 keeps entries forever; otherwise at least 30 days."
+    )
     activity_retention_days: int | None = Field(None, ge=0, le=3650)
     notification_retention_days: int | None = Field(None, ge=0, le=3650)
     deleted_task_retention_days: int | None = Field(None, ge=0, le=3650)
     ai_enabled: bool | None = None
     ai_features: list[AiFeature] | None = None
+    assistant_trusted: list[TrustedKind] | None = None
+    manager_visibility: Literal["all", "shared"] | None = None
 
-    @field_validator("ai_features")
+    @field_validator("audit_retention_days")
+    @classmethod
+    def _audit_floor(cls, v: int | None) -> int | None:
+        if v is not None and 0 < v < AUDIT_MIN_DAYS:
+            raise ValueError(f"keep audit entries at least {AUDIT_MIN_DAYS} days (or 0 for forever)")
+        return v
+
+    @field_validator("ai_features", "assistant_trusted")
     @classmethod
     def _unique(cls, v: list[str] | None) -> list[str] | None:
         return None if v is None else sorted(set(v))
@@ -82,6 +104,7 @@ class RetentionResult(Schema):
     activity: int
     notifications: int
     tasks: int
+    sessions: int = 0
 
 
 async def _settings_row(ctx: ServiceContext) -> OrgSettings:
@@ -104,11 +127,28 @@ async def update_settings(ctx: ServiceContext, data: OrgSettingsUpdate) -> OrgSe
     require_org(ctx, Permission.ORG_MANAGE)
     row = await _settings_row(ctx)
     changes = data.model_dump(exclude_unset=True, exclude_none=True)
+    before = {field: getattr(row, field) for field in changes}
+    new_days = changes.get("audit_retention_days")
+    if new_days is not None and new_days != before["audit_retention_days"]:
+        old_days = before["audit_retention_days"]
+        shortened = new_days > 0 and (old_days == 0 or new_days < old_days)
+        if shortened and (ctx.actor.method != "session" or ctx.actor.org_role != OrgRole.OWNER):
+            # The next purge deletes the older entries for good: an owner, signed in, decides that. Not an
+            # admin token or an AI agent, which is who someone covering their tracks would use.
+            raise PermissionDenied("only an owner, signed in, can shorten how long audit entries are kept")
     for field, value in changes.items():
         setattr(row, field, value)
     await ctx.session.flush()
     result = OrgSettingsRead.model_validate(row)
-    events.emit(ctx, "org.settings_updated", "tenant", ctx.tenant_id, {"changes": changes})
+    changed = {k: v for k, v in changes.items() if v != before[k]}
+    # The audit entry keeps both values, so a shortened retention is visible after the purge it causes.
+    events.emit(
+        ctx,
+        "org.settings_updated",
+        "tenant",
+        ctx.tenant_id,
+        {"changes": changed, "previous": {k: before[k] for k in changed}},
+    )
     return result
 
 
@@ -118,8 +158,11 @@ async def update_settings(ctx: ServiceContext, data: OrgSettingsUpdate) -> OrgSe
 async def revoke_user_sessions(ctx: ServiceContext, user_id: uuid.UUID, *, tokens: bool = False) -> None:
     """End browser sessions (and optionally API tokens and OAuth grants) for a user."""
     from glasshaus.oauth.models import OAuthGrant
+    from glasshaus.push import PushSubscription
 
     now = datetime.now(UTC)
+    # Their devices stop getting notifications too (a deactivated or signed-out person).
+    await ctx.session.execute(delete(PushSubscription).where(PushSubscription.user_id == user_id))
     await ctx.session.execute(
         update(AuthSession)
         .where(AuthSession.user_id == user_id, AuthSession.revoked_at.is_(None))
@@ -144,7 +187,7 @@ async def reset_password(ctx: ServiceContext, user_id: uuid.UUID, data: Password
     if ctx.actor.method != "session":
         raise PermissionDenied("password resets require an interactive session")
     user = await ctx.session.get(User, user_id)
-    if user is None:
+    if user is None or is_assistant(user):
         raise NotFound("user not found")
     if user.org_role == OrgRole.OWNER and ctx.actor.org_role != OrgRole.OWNER:
         raise PermissionDenied("only owners can reset an owner's password")
@@ -172,7 +215,6 @@ async def sign_out_everywhere(ctx: ServiceContext, user_id: uuid.UUID) -> None:
 
 async def apply_retention(now: datetime | None = None) -> RetentionResult:
     """Delete data older than each organization's retention settings (worker cron, daily)."""
-    from glasshaus.audit.models import AuditEntry
     from glasshaus.collab.models import Notification
     from glasshaus.core.models import DomainEventRecord
     from glasshaus.db import system_session
@@ -181,7 +223,7 @@ async def apply_retention(now: datetime | None = None) -> RetentionResult:
     from glasshaus.timetracking.models import TimeEntry
 
     now = now or datetime.now(UTC)
-    totals = {"audit": 0, "activity": 0, "notifications": 0, "tasks": 0}
+    totals = {"audit": 0, "activity": 0, "notifications": 0, "tasks": 0, "sessions": 0}
     async with system_session() as session:
         tenants = (await session.scalars(select(Tenant.id))).all()
         rows = {r.tenant_id: r for r in (await session.scalars(select(OrgSettings))).all()}
@@ -189,18 +231,19 @@ async def apply_retention(now: datetime | None = None) -> RetentionResult:
             cfg = rows.get(tenant_id) or OrgSettings(
                 tenant_id=tenant_id,
                 audit_retention_days=365,
-                activity_retention_days=0,
+                activity_retention_days=730,
                 notification_retention_days=90,
                 deleted_task_retention_days=30,
             )
+            if cfg.audit_retention_days > 0:
+                # Only the database function may remove audit entries; it records the purge in the chain.
+                # Its own short transaction: it holds the organization's audit lock until it commits.
+                cutoff = now - timedelta(days=max(cfg.audit_retention_days, AUDIT_MIN_DAYS))
+                async with system_session() as purge:
+                    totals["audit"] += int(
+                        await purge.scalar(select(func.glasshaus_audit_purge(tenant_id, cutoff))) or 0
+                    )
             plans: list[tuple[str, int, Any]] = [
-                (
-                    "audit",
-                    cfg.audit_retention_days,
-                    lambda c, t=tenant_id: delete(AuditEntry).where(
-                        AuditEntry.tenant_id == t, AuditEntry.created_at < c
-                    ),
-                ),
                 (
                     "activity",
                     cfg.activity_retention_days,
@@ -232,6 +275,13 @@ async def apply_retention(now: datetime | None = None) -> RetentionResult:
                 if days > 0:
                     result = await session.execute(stmt(now - timedelta(days=days)))
                     totals[key] += int(result.rowcount or 0)  # type: ignore[attr-defined]
+        # Sign-in sessions keep an IP address and browser name; forget them once the session has ended.
+        # (Sign-in throttling trusts addresses seen in the last 90 days: identity.service._known_address.)
+        ended = now - timedelta(days=SESSION_KEEP_DAYS)
+        result = await session.execute(
+            delete(AuthSession).where(or_(AuthSession.revoked_at < ended, AuthSession.expires_at < ended))
+        )
+        totals["sessions"] += int(result.rowcount or 0)  # type: ignore[attr-defined]
     return RetentionResult(**totals)
 
 

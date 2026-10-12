@@ -126,3 +126,28 @@ def register(server: MCPServer) -> None:
             "ai_search_tasks", Scope.READ, {"query": query, "project": project}, run
         )
         return result
+
+    @server.tool(
+        name="ai_ask_reports",
+        title="Answer a question from reports (AI)",
+        annotations=AI_READ,
+        description=(
+            "Have the in-app AI answer a question with a report: it picks a saved report or builds one, "
+            "runs it with your access, and writes a short answer with the numbers and the report used. "
+            "Prefer `run_report` if you can choose the report yourself. " + UNTRUSTED
+        ),
+    )
+    async def ai_ask_reports(
+        question: Annotated[str, Field(min_length=2, max_length=500)],
+        report_id: Annotated[uuid.UUID | None, Field(description="Answer from this saved report.")] = None,
+    ) -> dict[str, Any]:
+        from glasshaus.ai import service as ai
+        from glasshaus.ai.service import AiReportQuestion
+
+        async def run(actor: Actor) -> Any:
+            return await ai.ask_reports(actor, AiReportQuestion(question=question, report_id=report_id))
+
+        result: dict[str, Any] = await invoke_as(
+            "ai_ask_reports", Scope.READ, {"report_id": str(report_id) if report_id else None}, run
+        )
+        return result

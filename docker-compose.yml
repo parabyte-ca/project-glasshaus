@@ -78,8 +78,18 @@ services:
     <<: *backend
     environment:
       <<: *backend-env
+      GLASSHAUS_BACKUP_STATUS_DIR: /backups
+      # Shared with the host's upgrade helper (scripts/upgrade-agent.sh) for Admin > Updates.
+      GLASSHAUS_UPGRADE_DIR: /upgrade
       # API worker processes (uvicorn reads WEB_CONCURRENCY); raise on hosts with spare cores.
       WEB_CONCURRENCY: ${GLASSHAUS_API_WORKERS:-2}
+      # Shares /metrics counters between the API processes (on the /tmp tmpfs, so fresh each start).
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+      GLASSHAUS_METRICS_TOKEN: ${GLASSHAUS_METRICS_TOKEN:-}
+    # Read-only view of the backups for Admin > Backups; the upgrade folder for upgrade requests.
+    volumes:
+      - "${GLASSHAUS_BACKUP_DIR:-./backups}:/backups:ro"
+      - "${GLASSHAUS_UPGRADE_FOLDER:-./upgrade}:/upgrade"
     # Direct API access is for this host by default; browsers and API clients use the web port (/api).
     ports: ["${GLASSHAUS_API_BIND_ADDRESS:-127.0.0.1}:${GLASSHAUS_API_PORT:-8471}:8000"]
     depends_on:
@@ -89,11 +99,16 @@ services:
   worker:
     <<: *backend
     command: [arq, glasshaus.worker.WorkerSettings]
+    environment:
+      <<: *backend-env
+      GLASSHAUS_BACKUP_STATUS_DIR: /backups
+    # Read-only view of the backups for the daily backup check.
+    volumes: ["${GLASSHAUS_BACKUP_DIR:-./backups}:/backups:ro"]
     healthcheck:
       test: [CMD, arq, --check, glasshaus.worker.WorkerSettings]
       interval: 30s
       timeout: 5s
-      start_period: 20s
+      start_period: 60s
       retries: 3
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -129,7 +144,13 @@ services:
     networks: [frontend]
 
   backup:
-    image: postgres:16-alpine
+    # postgres:16-alpine plus age, to encrypt dumps (./backup/Dockerfile).
+    image: ${GLASSHAUS_REGISTRY:-ghcr.io/parabyte-ca}/glasshaus-backup:${GLASSHAUS_VERSION:-latest}
+    build:
+      context: ./backup
+      args:
+        VERSION: ${GLASSHAUS_VERSION:-0.0.0}
+        BUILD_SHA: ${GLASSHAUS_BUILD_SHA:-dev}
     entrypoint: [/bin/sh, /scripts/backup-loop.sh]
     user: "${GLASSHAUS_BACKUP_UID:-1000}:${GLASSHAUS_BACKUP_GID:-1000}"
     environment:
@@ -139,8 +160,13 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       BACKUP_INTERVAL_HOURS: ${GLASSHAUS_BACKUP_INTERVAL_HOURS:-24}
       BACKUP_RETENTION_DAYS: ${GLASSHAUS_BACKUP_RETENTION_DAYS:-14}
+      BACKUP_DRILL_DAYS: ${GLASSHAUS_BACKUP_DRILL_DAYS:-7}
+      # age secret key: dumps are encrypted to it (setup.sh/update.sh generate it). Keep a copy off this
+      # host; encrypted backups cannot be restored without it.
+      BACKUP_KEY: ${GLASSHAUS_BACKUP_KEY:-}
     volumes:
       - ./scripts/backup-loop.sh:/scripts/backup-loop.sh:ro
+      - ./scripts/restore-drill.sh:/scripts/restore-drill.sh:ro
       - ${GLASSHAUS_BACKUP_DIR:-./backups}:/backups
     depends_on:
       postgres: { condition: service_healthy }

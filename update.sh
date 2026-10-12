@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Safe upgrade: fetch -> backup -> build/pull -> migrate -> restart -> health check -> rollback on failure.
-#   ./update.sh [--pull] [--no-git] [--version X.Y.Z] [--rollback-rev REV]
+# Safe upgrade: fetch -> backup -> build/pull -> pre-flight on a copy -> migrate -> restart -> health
+# check -> rollback on failure.
+#   ./update.sh [--pull] [--no-git] [--version X.Y.Z] [--rollback-rev REV] [--skip-preflight]
 # --rollback-rev: git revision whose docker-compose.yml to roll back with (default: HEAD before pulling).
+# Pre-flight: the new release migrates a copy of the database and its API must become ready, all
+# before the running release is touched; if it fails, nothing changes.
 set -euo pipefail
 
 main() {
@@ -9,14 +12,15 @@ main() {
   source "$(dirname "$0")/scripts/lib.sh"
   cd "$ROOT_DIR"
 
-  local args=("$@") pull=0 use_git=1 target="" rollback_rev=""
+  local args=("$@") pull=0 use_git=1 target="" rollback_rev="" preflight=1
   while (( $# )); do
     case "$1" in
       --pull) pull=1 ;;
       --no-git) use_git=0 ;;
       --version) target="${2:?--version needs a value}"; shift ;;
       --rollback-rev) rollback_rev="${2:?--rollback-rev needs a value}"; shift ;;
-      -h|--help) sed -n '2,4p' "$0"; exit 0 ;;
+      --skip-preflight) preflight=0 ;;
+      -h|--help) sed -n '2,7p' "$0"; exit 0 ;;
       *) die "unknown option: $1" ;;
     esac
     shift
@@ -63,12 +67,17 @@ main() {
   backup="$(backup_now "pre-update-${prev_version}")" || die "backup failed; aborting before any change"
   ok "backup: $backup"
 
+  db_touched=0  # set once the new release may have migrated the database
   rollback() {
     warn "update failed; rolling back to ${prev_version}"
     set_env GLASSHAUS_VERSION "$prev_version"
     set_env GLASSHAUS_BUILD_SHA "$prev_sha"
     export GLASSHAUS_COMPOSE_FILE="$GLASSHAUS_ROLLBACK_COMPOSE"
-    restore_dump "$backup" && ok "database restored from $backup"
+    if [[ "$db_touched" == 1 ]]; then
+      restore_dump "$backup" && ok "database restored from $backup"
+    else
+      info "the database was not changed; no restore needed"
+    fi
     compose up -d --remove-orphans
     if wait_healthy 180 api worker mcp web; then
       warn "rolled back to ${prev_version}. The source checkout is at the new revision; see the logs above."
@@ -82,10 +91,22 @@ main() {
   info "Upgrading ${prev_version} -> ${new_version}"
   set_env GLASSHAUS_VERSION "$new_version"
   set_env GLASSHAUS_BUILD_SHA "$(git rev-parse --short HEAD 2>/dev/null || echo dev)"
-  if [[ "$pull" == 1 ]]; then compose pull api web || rollback
+  if [[ "$pull" == 1 ]]; then compose pull api web backup || rollback
   else compose build || rollback; fi
+  ensure_backup_key  # 0.22: backups are encrypted from now on
+  ensure_upgrade_dir  # 0.26: upgrades from Admin > Updates
+
+  if [[ "$preflight" == 1 ]]; then
+    if ! preflight_check "$backup"; then
+      set_env GLASSHAUS_VERSION "$prev_version"
+      set_env GLASSHAUS_BUILD_SHA "$prev_sha"
+      die "pre-flight failed: ${new_version} did not start on a copy of your data. Nothing was changed; ${prev_version} is still running. See the output above."
+    fi
+    ok "pre-flight: ${new_version} migrated a copy of the database and started cleanly"
+  fi
 
   info "Applying migrations and restarting"
+  db_touched=1
   compose up -d --remove-orphans || { compose logs --tail 50 migrate; rollback; }
   wait_healthy 180 api worker mcp web || { compose logs --tail 50 migrate api; rollback; }
   rm -f "$GLASSHAUS_ROLLBACK_COMPOSE"

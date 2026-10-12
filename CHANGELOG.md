@@ -6,6 +6,674 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-10-12
+
+### Changed
+- **Headings are teal** (a deep teal on light pages, a bright teal on dark) so they read apart from body
+  text, and **cards and widgets sit on their own surface**: a quiet grey-green on light pages, a lifted
+  near-black on dark ones. The secondary grey text and the link blue are a touch darker so they stay readable
+  on the cards.
+
+### Security
+- **The audit log no longer stores who a person is.** User events keep the names of the fields that changed,
+  not the name or email; sign-in entries keep a short hash of the address typed (not the address) next to
+  the network address and browser. Entries written before this release keep what they had until they expire.
+- **Only an owner, signed in, can shorten audit retention.** An admin token or an AI agent can no longer
+  trigger the permanent deletion of older entries.
+- **The upgrade helper (which runs as root) no longer follows links in the upgrade folder**, which the app
+  can write to: the lock is taken on the folder, the log is created exclusively and written through the
+  open file, and a request that is a link is dropped.
+- **The list of installed software (`/api/v1/licenses`) needs a sign-in.**
+- **A personal data export no longer includes notifications sent to colleagues** about the person's actions.
+- **OAuth redirect addresses** with a backslash or user info in the host are refused, and a used code
+  presented by another client no longer revokes the owner's tokens.
+
+### Fixed
+- **Import**: an estimate such as `inf` or `1e999`, or a number field of `nan`, is a row problem instead of an
+  error for the whole file; `12 Oct 26` is 2026, not the year 12.
+- **A stuck upgrade no longer blocks the next one**: a request nobody picked up for an hour, or a run that
+  stopped reporting for three, is shown as failed. A heartbeat dated in the future no longer counts as a live
+  helper, and odd values in the helper's files can no longer break the Updates page.
+- A flaky end-to-end test of the `c` shortcut now waits for the New task field.
+
+## [0.27.3] - 2026-10-11
+
+### Added
+- **Rename a workspace** from the Home page (Workspaces → Rename). Owners, admins and workspace managers
+  can do it; anyone else sees the permission error.
+
+## [0.27.2] - 2026-10-11
+
+### Fixed
+- **A failed or cancelled upgrade no longer tries to restore the database when it was never touched.**
+  A build or download that stopped before migrations used to attempt a restore from the pre-update
+  backup, and stop if that couldn't be read. Now only an upgrade that got as far as migrating restores it.
+- **Admin → Updates says when a requested upgrade is waiting on a helper that isn't running**, with how
+  to check its schedule.
+
+## [0.27.1] - 2026-10-11
+
+### Changed
+- **The upgrade helper runs every 15 minutes, not every minute.** It only looks for an upgrade you started
+  in the app, so one begins within that time. `--install --every N` picks another interval; the helper
+  reports it and Admin → Updates tolerates a missed run. Existing installs keep their schedule until you
+  run `sudo ./scripts/upgrade-agent.sh --install` again.
+
+### Added
+- **Upgrade helper on any Linux:** `scripts/upgrade-agent.sh --install` uses cron when it is installed and
+  a systemd timer otherwise; `--print` shows what to schedule on hosts whose scheduler is managed
+  elsewhere, and `--uninstall` removes it.
+- **Installing on Linux** guide in [docs/configuration.md](docs/configuration.md#installing-on-a-linux-server).
+- **[docs/configuration.md](docs/configuration.md)**: every setting with its options, in one place: server
+  settings (`.env`), Admin and project settings, host setup, and what each secret protects and how to
+  rotate it. A test keeps it complete when settings are added.
+
+## [0.27.0] - 2026-10-11
+
+Health and monitoring.
+
+### Added
+- **Admin → System status** (owners and admins): the database, Redis, the background worker, the job
+  queue, live updates, Slack/Teams/webhook deliveries, backups, backup disk space and the version, each
+  marked OK, needs attention or problem, with the numbers behind it.
+- **Alerts.** The worker checks every five minutes and notifies owners and admins (in the app, and by
+  email when it is set up) when something needs attention, at most once every six hours per problem. The
+  API watches the worker, so a stopped worker is reported too.
+- **Prometheus gauges** on `/metrics` for every check (`glasshaus_check_state`, queue length, worker
+  heartbeat age, undelivered changes, backup age, free disk and more). `GLASSHAUS_METRICS_TOKEN` protects
+  `/metrics` for scraping from another host. See [docs/monitoring.md](docs/monitoring.md) for a scrape
+  config and example alert rules.
+
+### Fixed
+- `/metrics` request counters now cover all API processes, not just whichever one answered the scrape.
+
+## [0.26.0] - 2026-10-10
+
+Upgrade Glasshaus from the app.
+
+### Added
+- **New release notices.** Glasshaus checks GitHub once a day for a new release (only the version and
+  notes come back; nothing about your server is sent). Owners and admins get one notification per
+  release. Turn it off with `GLASSHAUS_UPDATE_CHECK=false`.
+- **Admin → Updates:** this version, the latest release with its notes, and **Check now**.
+- **Upgrade from the app (owners).** After a one-time setup on the server
+  (`sudo ./scripts/upgrade-agent.sh --install`, a scheduled job that runs every minute),
+  **Upgrade** asks a helper on the server to run `update.sh`: backup, a check on a copy of the database,
+  the upgrade, a health check and an automatic roll-back on failure. The page shows progress and the log.
+  The app never gets Docker or root access; it can only leave a request in the upgrade folder. Each
+  request is in the audit log. See [docs/upgrades.md](docs/upgrades.md).
+
+## [0.25.0] - 2026-10-10
+
+Import tasks from a CSV or Excel file, including exports from Nimble and other tools.
+
+### Added
+- **Import** on a project (editors and admins; also "import" in the command palette):
+  - reads CSV and Excel (.xlsx) files in the browser; pick the sheet if there are several;
+  - guesses what each column is from its name, with a *Nimble* choice for Nimble's export columns;
+    change any column, or leave it out;
+  - imports titles, descriptions, statuses, priorities, owners, start and due dates, estimates, tags,
+    parent items (as subtasks), comments, links and custom fields;
+  - matches each status and priority in the file to the project's, and asks whether dates like
+    03/04/2026 are day/month or month/day;
+  - **Check** shows what would happen first: new, updated and unchanged tasks, rows with problems, and
+    people who couldn't be matched;
+  - owners are matched by email (or exact name); people not found are listed and their tasks left
+    unassigned;
+  - with an ID column, importing again updates the same tasks (only the fields in the file), adds each
+    comment once and skips tasks deleted since;
+  - imported tasks don't notify anyone or run automations; one *project imported* entry records the
+    import, and Slack, Teams and webhooks can subscribe to it.
+  - See [docs/import.md](docs/import.md). API: `POST /api/v1/projects/{id}/import`.
+- **Releases tag themselves.** When a release merges to `main`, the *Tag release* workflow tags it
+  `vX.Y.Z` and publishes its images and GitHub Release. No more manual tagging; just run `update.sh`.
+- `scripts/release-tags.sh` lists every release and whether it has its `vX.Y.Z` tag; `--tag --push`
+  adds the missing ones. CI fails, and a daily check reports, when a release merged over a day ago is
+  still untagged.
+
+### Changed
+- Pushing a tag for an older release no longer publishes it: only the newest version's tag builds
+  images and a GitHub Release, so catching up on tags can't move `latest` back.
+
+### Fixed
+- **Upgrade pre-flight on slower servers.** The check could stop an upgrade while the new version was
+  still starting on the copy of the database ("did not become ready (state: unhealthy)"). It now asks
+  the new version directly for up to 4 minutes (`GLASSHAUS_PREFLIGHT_TIMEOUT` to change it), and the
+  containers allow a minute to start before Docker calls them unhealthy.
+
+## [0.24.0] - 2026-10-10
+
+Easier to use: plain error messages, undo, no lost work, consistent names, and better on phones and
+with a keyboard or screen reader.
+
+### Added
+- **Undo on My tasks.** A ticked task disappears at once, and the "Done" message has an **Undo** button
+  for 10 seconds.
+- **Unsaved changes are kept.** Leaving the report builder, a project assistant's settings or the
+  directory sync form with unsaved changes asks first, and so does closing the tab.
+- **Easier to find:**
+  - **My team** is on the home page for managers and in the command palette (`g y`);
+  - each project's **Project assistant** is in the command palette (type "assistant" or the project's
+    name);
+  - **About, privacy and source code** is in the command palette.
+- Confirmations before removing a dependency, a report alert, report emails or a scheduled channel post.
+
+### Changed
+- **Plain error messages.** When the server can't be reached, is updating or is busy, Glasshaus says so
+  in words instead of showing a status code or a server message. Messages about your input are
+  unchanged.
+- **Error messages stay until you close them**; other messages close by themselves.
+- **One name for each AI feature:**
+  - **AI tools**: the panel on a project (summaries, task drafts, search);
+  - **Project assistant**: the digests and suggestions page of a project;
+  - **Admin → AI**: the organization's AI settings.
+- **Phones:** buttons and menu links are at least 44 px tall on small screens. Wide tables on
+  portfolios, automation run history and provisioning tokens scroll sideways instead of overflowing.
+- **Keyboard and screen readers:**
+  - focus stays nearby when the control you used goes away (for example after approving a
+    suggestion or closing a dialog), instead of jumping back to the top of the page;
+  - the notifications button says how many are unread;
+  - "Write a digest now" says "Writing…" while it works;
+  - the command palette says when it is still searching tasks;
+  - saving AI settings or changing what managers see confirms it with a message;
+  - the meeting-notes box explains its task markers as help text, not only as a placeholder.
+- **Clearer labels:**
+  - priorities read "Urgent" and "High" instead of `urgent` and `high`;
+  - on My team, a project with no health set says "Health not set" instead of "On track";
+  - the "At risk" icon is dark on amber, so it is readable.
+- Goals, Workload and Time show a **Try again** button when they can't load. The task list on My team
+  shows its error inside the dialog.
+- The footer says "Glasshaus is unavailable right now" instead of "API unavailable".
+
+## [0.23.0] - 2026-10-10
+
+Faster with large organizations: fewer database round-trips, lighter live updates and indexed search.
+
+### Changed
+- **Project list:** the sidebar, command palette and admin pages load your projects with the same few
+  queries whether you see 3 projects or 300. Before, each project cost its own permission lookups.
+- **Portfolios and OKRs:**
+  - portfolio health now comes from a few totals across all its projects, instead of loading every
+    task and baseline of each project;
+  - OKR progress from linked projects takes one query instead of several per key result.
+
+  The project status summary and the assistant's briefs use the same faster health check.
+- **Workload:**
+  - reads only the fields it needs, with logged time in the same query;
+  - no longer fails when an organization has more than about 32,000 open assigned tasks.
+- **Bulk edits:** shifting dates on many tasks in an auto-scheduled project reschedules the project once,
+  not once per task.
+- **Live updates:**
+  - when someone edits a task, open lists fetch just that task and swap it in, instead of reloading
+    up to 500 tasks;
+  - lists that are filtered, and lists a task may have joined or left, still reload;
+  - comments no longer reload task lists;
+  - each open tab receives only identifiers over the live connection, not the whole task.
+- **Search:** task title search (command palette, `search_tasks`) uses a trigram index instead of
+  scanning every task. The upgrade enables PostgreSQL's built-in `pg_trgm` extension.
+- **Activity feed:**
+  - has an index;
+  - pages with a position cursor, so later pages are as fast as the first. Older page cursors still
+    work.
+- **Smaller fixes:**
+  - push-notification bookkeeping no longer grows with every notification;
+  - dragging a timeline bar redraws only when it crosses a day;
+  - each release now replaces the previous one's offline cache;
+  - the web image no longer ships public source maps;
+  - a new index on task reporters speeds up erasing or removing a person.
+- Tests now count database queries on list pages, so these slowdowns can't quietly come back.
+
+## [0.22.0] - 2026-10-10
+
+Privacy and compliance: people can get their data, admins can erase a person, the audit log is sealed,
+backups are encrypted, and less personal data is kept.
+
+### Added
+- **Download my data.** Everyone can download everything Glasshaus holds about them from **Account**:
+  their profile, work assigned to or created by them, comments, time, sign-ins, notifications, and the
+  activity and audit entries they caused. Admins can do the same for anyone in **Admin → People**
+  (a subject access request).
+- **Erase a person.** **Admin → People → Erase…** keeps their tasks, time and history but removes who
+  they were. Their name and email become "Former user". Their sign-ins, tokens, devices and
+  notifications are deleted, and so is the text of their comments. You type their email to confirm.
+  Erased people can't sign in or be brought back by SCIM.
+- **Sealed audit log.** Each organization's audit entries are numbered and chained by hash in the
+  database. **Admin → Audit log → Check integrity** shows any entry that was changed, removed or
+  inserted, even by someone with database access. Keep the "latest seal" it shows to prove that later.
+- **Encrypted backups.** Backups are encrypted with age and checksummed. Restores and the restore
+  drill check the checksum and decrypt automatically. The key is generated into `.env`
+  (`GLASSHAUS_BACKUP_KEY`); keep a copy off the server.
+- **About, privacy and source code** (footer on every page):
+  - the version and the AGPL licence;
+  - a link to this server's source code (`GLASSHAUS_SOURCE_URL`);
+  - what personal data is kept;
+  - the third-party packages and their licences.
+- `docs/privacy.md`: what is stored and for how long, where data can go (subprocessors), people's
+  rights, and audit and backup integrity.
+
+### Changed
+- **Activity history is kept 2 years by default** (it was forever). Organizations still on "forever"
+  move to 2 years; admins can change it in **Data & retention**.
+- **Audit entries are kept at least 30 days.** Changing a retention setting is audited with the old and
+  new values. The database refuses changes to audit entries from the application.
+- **Comment text is no longer copied into the activity history, the audit log or webhooks.** The
+  0.22 upgrade also removes it from past entries. Deleting a comment now removes its text everywhere.
+  Slack and Teams posts still quote new comments.
+- Ended sign-in sessions, with their IP address and browser, are deleted after 90 days.
+- Only admins see when someone last signed in.
+- Signing out and approving or denying an app's access (OAuth) are now audited.
+- The backup service has its own small image, `glasshaus-backup`: PostgreSQL tools plus `age` (a
+  pinned release, built with the current Go so it carries Go's security fixes).
+
+## [0.21.1] - 2026-10-10
+
+Security fixes from a full review, and a more private default for My team.
+
+### Security
+- **Sign-in lockout can no longer be used against you.** Wrong passwords from many addresses still
+  lock an account for 15 minutes, but the person can still sign in with the right password from an
+  address they've used before.
+- **Copied sign-ins end.** Reusing an old refresh token (a stolen cookie) signs out every session from
+  that sign-in. An OAuth code used twice also cancels the tokens issued from it.
+- **Single sign-on is tied to the browser that started it.** This stops someone signing you in to
+  their own account with a link. Linking a provider from Account now needs the page's CSRF token.
+- **Read-only API tokens change nothing.** Before, they could edit or delete time entries and saved
+  views.
+- **OAuth apps (MCP) can only register safe return addresses:**
+  - https;
+  - http on this computer;
+  - an app's own scheme.
+
+  `javascript:` and `data:` addresses are refused, and the consent page checks too.
+- **Making someone an admin or owner** needs a signed-in person in Admin. API tokens and AI agents
+  can't do it.
+- **A Slack command must have its signing secret.** An empty one is refused.
+- **Spreadsheet exports neutralise formulas in every cell and heading.** This covers tags, statuses,
+  names and report labels.
+- **Backups are readable only by the backup service** (mode 600).
+
+### Changed
+- **My team is private by default.** Managers see their reports' work only in projects they can open
+  (counts elsewhere); an admin can widen it, with a confirmation. Guests who manage someone always get
+  the private view. **Existing organizations move to the private setting**: re-choose "every project"
+  in Admin → Provisioning if you want it.
+
+### Fixed
+- Saving **Admin → AI assistant** when no AI provider is set up no longer clears the organization's
+  AI switch and features.
+
+## [0.21.0] - 2026-10-10
+
+Reporting lines from your identity provider, and **My team** for managers.
+
+### Added
+- **My team** (`/team`, in the menu for anyone with direct reports). For each person who reports to you:
+  - open, overdue, due this week and in-progress work;
+  - hours logged this week (against their weekly capacity) and last week;
+  - their projects, with each project's health;
+  - what they finished in the last 7 days, and stale in-progress work.
+
+  **See tasks** opens a person's open or recently finished work. **Include everyone below me** adds
+  their reports' reports.
+- **What managers see** (Admin → Provisioning). Choose between:
+  - their reports' work in every project (the default);
+  - only work in projects the manager can open, with counts elsewhere.
+
+  Opening someone's task list is always audited (`team.tasks_viewed`).
+- **Managers from SCIM.** Entra ID's default mapping (the SCIM enterprise extension's `manager` and
+  `department`, and `title`) is stored. Loops are refused.
+- **Managers from Microsoft Graph.** A nightly sync (or **Sync now**) for people SCIM doesn't cover.
+  - Register an app with `User.Read.All`, then enter its details in Admin → Provisioning.
+  - People are matched by email, and SCIM wins where it sends a manager.
+  - The secret is encrypted at rest.
+- **API:**
+  - `GET /api/v1/team`, `GET /api/v1/team/{id}/tasks`;
+  - `GET/PUT /api/v1/admin/directory-sync`, `POST /api/v1/admin/directory-sync/run`;
+  - `manager_visibility` in org settings;
+  - `manager_id`, `job_title`, `department` on users, and `direct_reports` on `/users/me`.
+- **MCP:** `my_team`.
+
+### Fixed
+- Signing in now loads your full profile, so menu items that depend on it (such as **My team**) show
+  straight away instead of after a reload.
+
+## [0.20.1] - 2026-10-09
+
+A review and hardening pass over 0.17–0.20 (phone notifications, My tasks and the project assistant).
+
+### Security
+- **Phone notifications:**
+  - device keys and push addresses are checked more strictly, so one broken device cannot stop
+    everyone else's notifications;
+  - a device can only move to another account with its own keys, not just its address;
+  - at most 10 devices per person (the oldest go), and **Send a test** is limited to 3 a minute;
+  - deactivating someone, resetting their password or signing them out everywhere also turns off
+    their devices, and inactive people get no pushes;
+  - the service worker only opens pages of this site from a notification.
+- **Project assistant:**
+  - text the AI writes (follow-ups, digests, weekly drafts) is plain: links and images are removed,
+    so text slipped into a task title cannot make the assistant post a link;
+  - its email address is reserved, and its account is refused by every kind of sign-in token;
+  - at most 50 tasks from notes wait for approval at once.
+- **Signing out:** the offline copy of My tasks is removed even when you sign out offline or your
+  session has expired.
+
+### Fixed
+- **Project assistant:**
+  - digests are written a few at a time in small batches, so a busy morning no longer cuts some
+    projects' digests;
+  - unexpected errors now show on the Digests page instead of the last success;
+  - two runs at once (scheduled and **Write a digest now**) no longer exceed the daily limit or fail
+    on a duplicate suggestion;
+  - only today's follow-ups post on their own; older ones wait for a person;
+  - an expired suggestion is not proposed again straight away;
+  - a digest no longer loads every finished task in the project.
+- **Phone notifications:** sent in parallel, and results are kept even when a run is cut short, so
+  dead devices are still removed.
+- **My tasks:**
+  - updates live when tasks change elsewhere;
+  - a task ticked while earlier ticks are being sent is no longer lost;
+  - shows "as of" whenever it is showing the saved copy;
+  - keeps keyboard focus in the list after ticking a task.
+- **Digests page:**
+  - clearing a time no longer saves midnight;
+  - the **New owner** list shows the suggested person instead of the first name in the list;
+  - approving or undoing refreshes the task and its comments.
+
+## [0.20.0] - 2026-10-09
+
+The project assistant, phase 3: trusted follow-ups.
+
+### Added
+- **Follow-ups without approval, if you choose.** The assistant can post its follow-up comments on its
+  own, but only when both of these are on:
+  - the organization allows it (**Admin → AI assistant → What the project assistant may do without
+    approval**);
+  - the project turns it on (**Post follow-up comments without approval**).
+- **Safeguards:**
+  - a daily limit per project (**At most per day**, default 10), counted in the project's time zone;
+  - the task's owner is mentioned, so they're notified, and the comment says it was automatic and how to
+    undo it;
+  - each automatic action is audited (`assistant.action_automatic`).
+- **Undo for 7 days.** **Done on its own** on the Digests page lists automatic follow-ups. Project editors
+  and admins can undo them, and approved follow-ups too; undoing deletes the comment and is audited.
+- Due dates, owners and tasks from notes always wait for approval.
+- API:
+  - `POST …/assistant/suggestions/{sid}/undo`;
+  - `assistant_trusted` in org settings;
+  - `trusted` and `auto_daily_cap` in project assistant settings;
+  - suggestions show `automatic` and `can_undo`.
+
+### Changed
+- An undone suggestion counts as a decision: the same follow-up isn't suggested again for 7 days.
+- AI settings can be saved without an AI provider configured, so admins can set the assistant's limits
+  either way. The digest rules work without AI.
+
+## [0.19.0] - 2026-10-09
+
+The project assistant, phase 2: an approval queue.
+
+### Added
+- **Suggestions** on the project's Digests page, refreshed with each digest:
+  - follow-up comments on overdue work and on in-progress work with no recent update;
+  - new due dates for long-overdue work that hasn't started;
+  - owners for unassigned work due soon, preferring the editor with the fewest open tasks.
+
+  Simple rules make them without AI. With the **Project assistant** AI feature on, the model proposes
+  better ones, checked against the project's tasks and people. The model can't mention anyone itself.
+- **Turn meeting notes or an email into tasks.** With AI, it finds the action items. Without AI, it
+  takes lines starting with `- [ ]`, `TODO:`, `Action:` or `AI:`.
+- **Approve, edit or dismiss.** Project editors and admins decide; viewers can see the queue.
+  - Approved changes are made by the *Project assistant (AI)* account and signed "approved by <name>".
+  - Each approval is audited under the approver's name.
+  - A suggestion whose task has changed since it was made is set aside, not applied.
+  - The same suggestion isn't repeated while one is waiting or within 7 days of a decision.
+  - Unapproved suggestions expire after 7 days.
+- The digest (in the app, email and Slack/Teams) says how many suggestions are waiting.
+- New project setting: **Suggest follow-ups, new dates and owners** (on by default).
+- API:
+  - `GET /api/v1/projects/{id}/assistant/suggestions`
+  - `POST …/suggestions/{sid}/approve` and `…/dismiss`
+  - `POST /api/v1/projects/{id}/assistant/notes`
+
+## [0.18.0] - 2026-10-09
+
+The project assistant, phase 1.
+
+### Added
+- **Project assistant** (project → **Digests**). Project admins turn it on per project. It writes a
+  **daily stand-up digest** for everyone on the project (overdue with days late, due today and soon,
+  in-progress work with no update for a set number of days, unassigned work due soon, what was done,
+  schedule warnings) and a **weekly status draft** for project admins, delivered by notification (and
+  phone push), email and, for the digest, a Slack or Teams channel. **Write a digest now** and **Write a
+  weekly draft now** store one on the page without notifying anyone. Details in
+  [docs/assistant.md](docs/assistant.md).
+- **AI write-ups** for the assistant (new AI feature **Project assistant**, off until an organization
+  admin ticks it): a short summary and focus list for the digest, and a headline, write-up, highlights
+  and concerns for the weekly draft. Without it, or if the model fails, briefs still go out with the
+  facts.
+- **The assistant's account:** one *Project assistant (AI)* account per organization, added to a project
+  as a Viewer while the assistant is on. It cannot sign in, is not listed or provisioned as a person,
+  cannot be promoted or assigned tasks, and its AI requests are audited under its name.
+- API: `GET/PUT/DELETE /api/v1/projects/{id}/assistant`, `POST /api/v1/projects/{id}/assistant/run`,
+  `GET /api/v1/projects/{id}/assistant/briefs`, `GET /api/v1/assistant/briefs/{id}`; project members
+  now say which one is the assistant (`assistant`).
+
+### Changed
+- The project's **Assistant** button only appears for the features it holds (status updates, drafting,
+  risks).
+
+## [0.17.0] - 2026-10-09
+
+Glasshaus on your phone.
+
+### Added
+- **My tasks** (`/my`, shortcut **G** then **M**): your open tasks in every project, grouped Overdue, Today,
+  Next 7 days, Later and No due date, with a tick box to mark each done.
+- **Works offline.** My tasks keeps a copy on the device and opens without a connection; tasks ticked
+  offline are marked done when the app can reach the server again. The rest of the app opens with
+  your last-known profile and points you to My tasks while offline. Signing out removes the copy.
+- **Notifications on this device** (Account): Web Push to phones and desktops for your notifications,
+  with a test button; tapping one opens the right page. Needs HTTPS; on iPhone and iPad, add the app
+  to the Home Screen first. Details in [docs/mobile.md](docs/mobile.md).
+- API: `POST /api/v1/tasks/{ref}/complete` and `/reopen` (safe to repeat); `GET /api/v1/push`,
+  `POST /api/v1/push/subscriptions`, `POST /api/v1/push/subscriptions/remove`, `POST /api/v1/push/test`.
+
+### Changed
+- ESLint 10 for the frontend.
+- Signing out also turns off notifications on that device.
+
+## [0.16.0] - 2026-10-09
+
+Slack and Microsoft Teams.
+
+### Added
+- **Scheduled channel posts.** On a Slack or Teams integration, **Scheduled posts** sends a saved
+  report (its table with totals) or a project's status (health, numbers, overdue, due-soon and
+  recently completed tasks) daily, weekly or monthly; **Post now** sends one straight away. Posts run
+  with the access of the person who set them up, a project's channel only gets that project, and
+  they go through the usual delivery log and retries.
+- **`/glasshaus` in Slack.** Your open tasks (`my`), a task (`WEB-12`), a saved report
+  (`report <name>`), or a question answered by the AI assistant when it is on. Answers are private
+  to the person asking and use their access (read-only); people are matched by their Slack email.
+  Requests are checked against the Slack app's signing secret. Set-up in
+  [docs/connectors.md](docs/connectors.md#slack-command-glasshaus).
+- API: `/api/v1/integrations/{id}/posts` (list, create, delete, send now) and
+  `POST /api/v1/integrations/{id}/slack`; new integration kind `slack_command`.
+
+## [0.15.0] - 2026-10-09
+
+Report alerts, backup health and safer upgrades.
+
+### Added
+- **Report alerts.** **Alert me** on a saved report: "tell me when Overdue goes above 5", checked
+  daily, weekly or monthly with your access. You get a notification (and optionally an email) when
+  it goes off and when it is back, never on every check. **Check now** checks straight away.
+- **Restore drill.** Every 7 days (`GLASSHAUS_BACKUP_DRILL_DAYS`) the backup service restores the
+  newest backup into a scratch database, checks it and drops it, so you know your backups work.
+- **Admin → Backups**: newest backups, sizes and the last restore drill. Owners and admins get a
+  notification (and an email, if set up) once a day while backups are late or a drill failed.
+- **Upgrade pre-flight check.** `update.sh` now tries the new release on a copy of your database
+  (migrations, then the new API must become ready) before touching the running stack. If it fails,
+  nothing changes. `--skip-preflight` skips it.
+- Notifications can open a page (report alerts open the report; backup notices open Admin → Backups).
+- API: `GET/PUT/DELETE /api/v1/reports/{id}/alert`, `POST /api/v1/reports/{id}/alert/check`,
+  `GET /api/v1/reports/alerts`, `GET /api/v1/admin/backups`.
+
+### Changed
+- The API and worker containers mount the backup folder read-only.
+- CI's stack smoke test runs a restore drill and an upgrade with the pre-flight check.
+
+## [0.14.0] - 2026-10-09
+
+Report emails and release housekeeping.
+
+### Added
+- **Report emails.** On a saved report, **Email me this report** sends it daily, weekly or monthly
+  at your chosen time and time zone, with the table in the email and an optional CSV of the full
+  report. **Email me now** sends one straight away. Each email is run with your access at the time
+  it is sent; emails stop on their own if you are deactivated or lose access to the report, and a
+  failed send shows its reason on the report.
+- **Outgoing email** settings (`GLASSHAUS_SMTP_HOST`, `_PORT`, `_SECURITY`, `_USERNAME`,
+  `_PASSWORD`, `_FROM`). Email stays off until a host is set. See [docs/reports.md](docs/reports.md).
+- API: `GET/PUT/DELETE /api/v1/reports/{id}/email`, `POST /api/v1/reports/{id}/email/send`,
+  `GET /api/v1/reports/subscriptions`.
+
+### Changed
+- `scripts/bump-version.sh` now updates the README status line, and `scripts/release_docs.py`
+  rebuilds the changelog's compare links; `scripts/check-version.sh` fails when either is stale.
+- README roadmap brought up to date, with the planned phases.
+- A `release` skill (`.claude/skills/release`) records the release steps for AI assistants.
+
+## [0.13.0] - 2026-10-09
+
+The AI assistant can answer questions from reports.
+
+### Added
+- **Questions about reports** (a new AI feature, off until an admin ticks it in **Admin → AI
+  assistant**). Ask on the Reports page, on a saved report (**Ask about this report**) or from
+  **Ctrl K** (*Ask reports: …*). The assistant picks a saved report or fills in a report definition,
+  Glasshaus runs it with your access, and the answer is written from that table and shown beside it.
+  **Open in the report builder** takes the definition to the builder to adjust or save. Only the
+  question, project keys and names, people's names, saved report names and the report table are sent;
+  never task titles or descriptions. Audited as `ai.reports`. `POST /api/v1/ai/reports`.
+- MCP tools for reports: `list_reports`, `run_report` (a saved report with date and project filters,
+  or a definition), `manage_reports` (create, update, delete with a preview) and `ai_ask_reports`.
+
+## [0.12.0] - 2026-10-09
+
+Custom reports and dashboards.
+
+### Added
+- **Report builder** (Reports in the navigation, `g` then `r`): build reports from tasks or logged
+  time. Group by up to two fields (project, status, priority, people, tags, weeks or months, and a
+  project's single-select custom fields), pick up to six measures (counts, overdue, estimate, average
+  age, average time to complete, % on time, hours, billable hours, people), filter by project,
+  people, dates, status, priority, tags or billable, and show it as a table, bar chart, line chart
+  or a single number. Live preview, CSV download, four templates.
+- **Saved and shared reports.** Each run uses the viewer's own access, so a shared report shows
+  everyone only the projects they can see. Guests can keep private reports.
+- **Report tiles on dashboards**, including single numbers with a target ("On target" / "Off
+  target", shown with an icon and words). **Dashboard filters** (date range, project) apply to all
+  report tiles at once and stay in the address.
+- Dashboard editing: drag tiles to reorder, set each tile's width, and give tiles their own titles.
+- API: `POST /api/v1/reports/run`, `/api/v1/reports` (CRUD), `POST /api/v1/reports/{id}/run` (with
+  dashboard filters), `GET /api/v1/reports/{id}/export` (CSV). See [docs/reports.md](docs/reports.md).
+
+
+## [0.11.1] - 2026-10-09
+
+### Fixed
+- **Upgrades could roll back on some hosts** with "container glasshaus-api-1 is unhealthy". Since
+  0.9.2 the API looked up the `web` container's name inside every request, blocking it; during an
+  upgrade `web` is not running yet, and where DNS is slow to answer each health
+  check stalled past its timeout. The lookup now runs in the background and never delays a request.
+- Command palette: the hint text on the highlighted item has enough contrast.
+
+### Changed
+- Colours now match ghsystems.com exactly: `#1c75bc` buttons and links, `#00aeef` bright blue in dark
+  mode, `#ff8900` orange, `#121212` / `#212121` / `#303030` panels; buttons and fields have 8 px
+  corners.
+
+
+## [0.11.0] - 2026-10-09
+
+New look, and the remaining usability and accessibility fixes from the code review (U8–U25).
+
+### Changed
+- **New visual style**: black surfaces in dark mode with a faint warm glow, a clearer blue for actions
+  and links, orange for section labels and the current page, and the Inter typeface (served by
+  Glasshaus itself, no outside requests) with heavy headings. New app icon and browser theme colour.
+- Confirmations are an in-app dialog instead of the browser's prompt, and now also guard revoking API
+  and SCIM tokens, disconnecting apps, changing or turning off the calendar link, changing someone's
+  role, removing someone from a project and deleting logged time.
+- Search, priority, grouping, sort and *Show completed* are kept in the address, so links, reloads and
+  Back keep them.
+- Board cards have a **Move** menu, and move with Alt+arrow keys.
+- On phones the calendar is an agenda list, the timeline's label column is narrower, and the dark mode
+  switch is a symbol.
+
+### Fixed
+- Pages name the browser tab, and navigating moves focus to the new page's heading.
+- Unknown addresses show **Not found**; a project, dashboard, portfolio or report that can't be loaded
+  says so (with **Try again**) instead of showing "Loading…" forever.
+- The task list says "Loading tasks…" instead of briefly showing "No tasks match".
+- One Escape closes one thing: popovers and tips no longer close together with the dialog below them.
+- Closing a task goes back in history, so Back no longer reopens it.
+- Timeline bars can be dragged on touch screens; moves of bars and cards are announced to screen
+  readers.
+- Notifications: focus moves into the list, Up/Down move between items, Escape returns focus to the
+  button; links are readable in dark mode (also in comments and descriptions).
+- Tabs (administration, project settings, time, assistant) work with arrow keys.
+- Validation errors name the field, and forms mark the field the server rejected.
+- Copy buttons on shown-once secrets (API, SCIM and webhook secrets, calendar link) and setup URLs.
+- Small controls are at least 24 px; *Reduce motion* is respected everywhere; no 9 px text.
+
+
+## [0.10.0] - 2026-10-09
+
+First-run onboarding.
+
+### Added
+- **Product tour** of the project page (driver.js, MIT, loaded on demand). It covers creating a task, the
+  task views, the timeline switch, and the new People panel. It starts by itself the first time someone
+  opens a project. It has Next, Back, Skip tour and Done; arrow keys move between steps, Escape leaves,
+  focus stays in the card, and it follows *Reduce motion*. Restart it from **Product tour** in the
+  footer or the command palette.
+- **Getting-started checklist** docked bottom-right: create a project or task, assign a teammate or add
+  a collaborator, set a due date, take the tour. Items tick from real work; there is a progress bar; it
+  can be minimized or dismissed (restore it from the command palette).
+- **Feature tips**: pulsing dots next to Timeline and Project settings for people who skipped the tour;
+  each can be hidden for good.
+- **People panel** on every project: see members and their roles; project admins add or remove people.
+- `GET/PATCH /api/v1/users/me/onboarding`: tour, checklist and tip state stored on the account, with
+  derived milestones. See [docs/onboarding.md](docs/onboarding.md).
+
+### Changed
+- Accounts that existed before this release are treated as having skipped the tour (no automatic tour;
+  tips and the checklist appear).
+
+## [0.9.3] - 2026-10-09
+
+Patch release: editing fixes from the code review (UX batch).
+
+### Fixed
+- **Switching projects** starts with a clean page: search, filters and a half-typed task no longer
+  carry over, so Enter can't create a task in the wrong project.
+- **Edits show at once** (board drops, status and priority selects, timeline moves) and are put back if
+  the server refuses them. Quick successive edits to one task are sent in order with the latest
+  version, so they no longer fail with "the task changed".
+- **Date fields** save when you leave them or press Enter, not on every keystroke (typing a year used to
+  save 0002, 0020, 0202…). Years outside 1900–2200 are refused and the saved date comes back.
+- **Task drawer:** Escape, Close or a click outside save the field being edited instead of discarding
+  it, and ask before dropping an unsent comment. Enter in the title saves it. Focus stays inside the
+  drawer, and Escape in a palette or menu opened over it closes only that.
+- **Comments** stay in the box until the server has saved them; a failed send keeps the text.
+- **Automation editor:** removing a condition or action no longer shows the removed row's values in
+  the next one (what you see is what is saved).
+- **Phones:** the navigation is a **Menu** button instead of a list above every page, and the header
+  fits at 375 px (Account and Sign out move into the menu).
+
 ## [0.9.2] - 2026-10-09
 
 Patch release: performance fixes from the code review.
@@ -307,7 +975,33 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.2...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.3...v0.28.0
+[0.27.3]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.2...v0.27.3
+[0.27.2]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.1...v0.27.2
+[0.27.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.0...v0.27.1
+[0.27.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.26.0...v0.27.0
+[0.26.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.25.0...v0.26.0
+[0.25.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.24.0...v0.25.0
+[0.24.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.23.0...v0.24.0
+[0.23.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.22.0...v0.23.0
+[0.22.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.1...v0.22.0
+[0.21.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.21.0...v0.21.1
+[0.21.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.1...v0.21.0
+[0.20.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.20.0...v0.20.1
+[0.20.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.19.0...v0.20.0
+[0.19.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.18.0...v0.19.0
+[0.18.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.17.0...v0.18.0
+[0.17.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.16.0...v0.17.0
+[0.16.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.15.0...v0.16.0
+[0.15.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.14.0...v0.15.0
+[0.14.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.13.0...v0.14.0
+[0.13.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.12.0...v0.13.0
+[0.12.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.11.1...v0.12.0
+[0.11.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.11.0...v0.11.1
+[0.11.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.3...v0.10.0
+[0.9.3]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.8.0...v0.9.0

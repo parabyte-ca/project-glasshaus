@@ -19,6 +19,9 @@ class Settings(BaseSettings):
 
     secret_key: SecretStr = Field(default=SecretStr("change-me"), min_length=8)
     public_url: str = "http://localhost:8470"
+    # Where people using this server can get its source code (AGPL-3.0 section 13). Point it at your
+    # fork if you run a modified version.
+    source_url: str = "https://github.com/parabyte-ca/project-glasshaus"
     cors_origins: CsvList = Field(default_factory=list)
 
     database_url: str = "postgresql+asyncpg://glasshaus:glasshaus@localhost:5432/glasshaus"
@@ -37,6 +40,8 @@ class Settings(BaseSettings):
     multi_tenant: bool = False
 
     metrics_enabled: bool = True
+    # When set, /metrics needs "Authorization: Bearer <token>" (for scrapers on another host).
+    metrics_token: SecretStr | None = None
     otel_enabled: bool = False
     otel_service_name: str = "glasshaus"
 
@@ -78,6 +83,26 @@ class Settings(BaseSettings):
     ai_fallbacks: bool = True
     # AI requests per user per minute; 0 disables the limit.
     ai_rate_limit_per_minute: int = 10
+
+    # Outgoing email (scheduled reports). Off while smtp_host is empty; "memory" keeps messages in the
+    # process for tests and demos. smtp_security: starttls (usually port 587), tls (465) or none.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_security: Literal["starttls", "tls", "none"] = "starttls"
+    smtp_username: str = ""
+    smtp_password: SecretStr | None = None
+    smtp_from: str = "Glasshaus <glasshaus@localhost>"
+    smtp_timeout_seconds: float = 30.0
+
+    # Backup folder as seen inside the app containers (read-only), for Admin > Backups and the daily
+    # backup check. Blank turns both off. The interval and drill period match the backup service.
+    backup_status_dir: str = ""
+    # New releases: a daily check of the project's GitHub releases (see source_url) and, with the
+    # upgrade folder shared with the host helper (scripts/upgrade-agent.sh), upgrades from Admin.
+    update_check: bool = True
+    upgrade_dir: str = ""
+    backup_interval_hours: int = 24
+    backup_drill_days: int = 7
 
     @field_validator("cors_origins", "mcp_allowed_hosts", "trusted_proxies", mode="before")
     @classmethod

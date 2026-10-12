@@ -114,7 +114,13 @@ export const baseRoutes: Route[] = [
   {
     method: 'GET',
     path: '/api/v1/version',
-    body: { name: 'Project Glasshaus', version: '9.9.9', build: 'abc' },
+    body: {
+      name: 'Project Glasshaus',
+      version: '9.9.9',
+      build: 'abc',
+      license: 'AGPL-3.0-only',
+      source: 'https://github.com/parabyte-ca/project-glasshaus',
+    },
   },
   { method: 'GET', path: '/api/v1/projects', body: [project] },
   {
@@ -132,6 +138,29 @@ export const baseRoutes: Route[] = [
   { method: 'GET', path: '/api/v1/calendar-feed', body: { url: null, created_at: null, last_used_at: null } },
   { method: 'GET', path: '/api/v1/auth/sso/providers', body: [] },
   { method: 'GET', path: '/api/v1/auth/sso/identities', body: [] },
+  { method: 'GET', path: /^\/api\/v1\/projects\/[^/]+\/members$/, body: [] },
+  { method: 'GET', path: '/api/v1/users/me/onboarding', body: onboardingDone() },
+  {
+    method: 'GET',
+    path: /^\/api\/v1\/reports\/[^/]+\/email$/,
+    body: { available: false, subscription: null },
+  },
+  { method: 'GET', path: /^\/api\/v1\/reports\/[^/]+\/alert$/, body: null },
+  {
+    method: 'GET',
+    path: '/api/v1/admin/backups',
+    body: {
+      available: false,
+      folder: '',
+      interval_hours: 24,
+      drill_days: 7,
+      count: 0,
+      total_bytes: 0,
+      latest: [],
+      drill: null,
+      problems: [],
+    },
+  },
   {
     method: 'GET',
     path: '/api/v1/ai/status',
@@ -150,3 +179,14 @@ export const aiOn: Route = {
     features: ['summaries', 'drafting', 'risks', 'search'],
   },
 };
+
+/** Onboarding state: by default finished and out of the way, so other tests see the plain app. */
+export function onboardingDone() {
+  return {
+    tour: 'completed',
+    tour_finished_at: '2026-01-01T00:00:00Z',
+    checklist: 'dismissed',
+    dismissed_tips: [],
+    milestones: { created_work: true, added_collaborator: true, set_due_date: true, toured: true },
+  };
+}

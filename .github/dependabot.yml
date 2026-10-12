@@ -1,8 +1,9 @@
 version: 2
+# Monthly keeps the pull-request noise down. Security updates are separate and arrive immediately.
 updates:
   - package-ecosystem: uv
     directory: /backend
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
     groups: { python: { patterns: ["*"] } }
     ignore:
       # arq requires redis>=4.2,<6; newer majors make the lockfile unsolvable.
@@ -10,11 +11,19 @@ updates:
         versions: [">=6"]
   - package-ecosystem: npm
     directories: [/frontend, /e2e]
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
     groups: { npm: { patterns: ["*"] } }
+    ignore:
+      # typescript-eslint supports TypeScript <6.1 only, so 7 makes `npm ci` fail. Drop this once
+      # typescript-eslint supports 7.
+      - dependency-name: typescript
+        versions: [">=7"]
   - package-ecosystem: docker
     directories: [/backend, /frontend]
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
+    # One pull request for all workflow updates. They are checked together by CI; the publish steps in
+    # release.yml only run for a version tag, so look at those changes before merging.
+    groups: { actions: { patterns: ["*"] } }

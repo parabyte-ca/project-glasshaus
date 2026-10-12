@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from glasshaus.automation.webhooks import Delivery
+from glasshaus.collab.models import Comment
 from glasshaus.config import get_settings
 from glasshaus.core.consumers import handles
 from glasshaus.integrations.models import Integration, IntegrationDelivery
@@ -101,7 +102,12 @@ async def describe(session: AsyncSession, event: dict[str, Any]) -> dict[str, An
         )
     elif t == "comment.created":
         out["text"] = f"{who} commented on {subject}"
-        out["quote"] = (data.get("comment") or {}).get("body")
+        comment_id = (data.get("comment") or {}).get("id")
+        if comment_id:  # read now: event payloads don't keep comment text
+            body = await session.scalar(
+                select(Comment.body).where(Comment.id == uuid.UUID(comment_id), Comment.deleted_at.is_(None))
+            )
+            out["quote"] = body
     elif t == "task.deleted":
         out["text"] = f"{who} deleted {subject or data.get('title', 'a task')}"
     elif t == "task.restored":
@@ -111,6 +117,9 @@ async def describe(session: AsyncSession, event: dict[str, Any]) -> dict[str, An
     elif t == "time.logged":
         mins = (data.get("entry") or data).get("minutes")
         out["text"] = f"{who} logged {mins} min on {subject}" if mins else f"{who} logged time on {subject}"
+    elif t == "project.imported":
+        counts = f"{data.get('created', 0)} new and {data.get('updated', 0)} updated tasks"
+        out["text"] = f"{who} imported {counts} into {out['project'] or 'a project'}"
     elif t.startswith("project."):
         out["text"] = f"{who} {t.split('.', 1)[1].replace('_', ' ')} project {out['project'] or ''}"
     elif t == "integration.test":

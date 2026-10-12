@@ -10,7 +10,7 @@ from collections import defaultdict
 
 from sqlalchemy import delete, func, select
 
-from glasshaus.core.authz import project_role, require_scope, visible_projects_clause
+from glasshaus.core.authz import prime_project_roles, project_role, require_scope, visible_projects_clause
 from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import InvalidInput, NotFound, PermissionDenied
 from glasshaus.core.rbac import OrgRole, Permission
@@ -106,10 +106,10 @@ async def _portfolio(ctx: ServiceContext, portfolio_id: uuid.UUID) -> Portfolio:
 
 
 async def get_portfolio(ctx: ServiceContext, portfolio_id: uuid.UUID) -> PortfolioDetail:
-    from glasshaus.insights.service import project_health
+    from glasshaus.insights.service import projects_health
 
     portfolio = await _portfolio(ctx, portfolio_id)
-    projects = [await project_health(ctx, p) for p in await _portfolio_projects(ctx, portfolio_id)]
+    projects = await projects_health(ctx, list(await _portfolio_projects(ctx, portfolio_id)))
     total = sum(p.total for p in projects)
     done = sum(p.done for p in projects)
     worst = max((p.health for p in projects), key=HEALTH_ORDER.__getitem__, default="on_track")
@@ -200,10 +200,40 @@ async def delete_portfolio(ctx: ServiceContext, portfolio_id: uuid.UUID) -> None
 # --------------------------------------------------------------------------- OKRs
 
 
+async def _prime_progress(ctx: ServiceContext, krs: list[KeyResult]) -> None:
+    """Load the linked projects, the actor's roles in them and untagged task counts in three queries."""
+    ids = {kr.project_id for kr in krs if kr.kind == KeyResultKind.TASKS and kr.project_id}
+    if not ids:
+        return
+    projects = list((await ctx.session.scalars(select(Project).where(Project.id.in_(ids)))).all())
+    await prime_project_roles(ctx, projects)
+    visible = [p.id for p in projects if await project_role(ctx, p) is not None]
+    counts: dict[uuid.UUID, dict[StatusCategory, int]] = {pid: {} for pid in visible}
+    if visible:
+        for pid, category, n in (
+            await ctx.session.execute(
+                select(Task.project_id, ProjectStatus.category, func.count())
+                .join(ProjectStatus, ProjectStatus.id == Task.status_id)
+                .where(
+                    Task.project_id.in_(visible),
+                    Task.deleted_at.is_(None),
+                    ProjectStatus.category != StatusCategory.CANCELLED,
+                )
+                .group_by(Task.project_id, ProjectStatus.category)
+            )
+        ).all():
+            counts[pid][category] = n
+    for pid, by_category in counts.items():
+        ctx.cache[("kr_counts", pid)] = by_category
+
+
 async def _task_progress(ctx: ServiceContext, kr: KeyResult) -> tuple[int, int] | None:
     """(done, total) of the linked project's live, non-cancelled tasks; None if not visible."""
     if kr.project_id is None:
         return None
+    if not kr.tag and ("kr_counts", kr.project_id) in ctx.cache:
+        primed: dict[StatusCategory, int] = ctx.cache[("kr_counts", kr.project_id)]
+        return primed.get(StatusCategory.DONE, 0), sum(primed.values())
     project = await ctx.session.get(Project, kr.project_id)
     if project is None or await project_role(ctx, project) is None:
         return None
@@ -298,6 +328,7 @@ async def list_objectives(ctx: ServiceContext, *, period: str | None = None) -> 
         stmt = stmt.where(Objective.period == period)
     objectives = list((await ctx.session.scalars(stmt)).all())
     krs = await _krs_for(ctx, [o.id for o in objectives])
+    await _prime_progress(ctx, [kr for group in krs.values() for kr in group])
     return [await _objective_read(ctx, o, krs.get(o.id, [])) for o in objectives]
 
 

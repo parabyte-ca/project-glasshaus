@@ -9,6 +9,8 @@ from glasshaus.ai import service as ai
 from glasshaus.ai.service import (
     AiDraftRequest,
     AiDrafts,
+    AiReportAnswer,
+    AiReportQuestion,
     AiRisks,
     AiSearchRequest,
     AiSearchResult,
@@ -66,3 +68,13 @@ async def ai_risks(project_id: uuid.UUID, actor: CurrentActor) -> AiRisks:
 )
 async def ai_search(data: AiSearchRequest, actor: CurrentActor) -> AiSearchResult:
     return await ai.search(actor, data)
+
+
+@router.post(
+    "/reports",
+    response_model=AiReportAnswer,
+    responses=UNAVAILABLE,
+    summary="Answer a question from a report (saved or built from the question), run with your access",
+)
+async def ai_reports(data: AiReportQuestion, actor: CurrentActor) -> AiReportAnswer:
+    return await ai.ask_reports(actor, data)

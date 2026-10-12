@@ -84,3 +84,25 @@ class CalendarFeed(UUIDPk, TenantScoped, Base):
         DateTime(timezone=True), default=utcnow, server_default=func.now(), nullable=False
     )
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ChannelPost(UUIDPk, TenantScoped, TimestampMixin, Base):
+    """A scheduled post to a Slack or Teams channel: a saved report or a project's status.
+
+    It runs with the access of the person who set it up (an integration manager), and a channel
+    that belongs to one project only ever gets that project's numbers.
+    """
+
+    __tablename__ = "channel_posts"
+
+    integration_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("integrations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(10), nullable=False)  # report | status
+    report_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("saved_reports.id", ondelete="CASCADE"))
+    project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    schedule: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(300))

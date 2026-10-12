@@ -25,7 +25,7 @@ from glasshaus.core.context import ServiceContext
 from glasshaus.core.errors import Conflict, InvalidInput, NotFound, Unauthenticated
 from glasshaus.core.rbac import OrgRole, Permission
 from glasshaus.core.schemas import Schema
-from glasshaus.identity.models import User
+from glasshaus.identity.models import User, is_assistant, reserved_email
 from glasshaus.sso.models import IdentityProvider, UserIdentity
 
 STATE_TTL_SECONDS = 600
@@ -397,7 +397,7 @@ async def resolve_user(
     link from Account settings), admins only when the IdP asserts the email is verified, members and
     guests when it is verified or the provider is set to trust its addresses (`link_existing_accounts`).
     """
-    from glasshaus.audit.service import record_raw
+    from glasshaus.audit.service import email_hash, record_raw
 
     now = datetime.now(UTC)
     link = await session.scalar(
@@ -411,7 +411,7 @@ async def resolve_user(
             raise Unauthenticated("the identity provider did not send an email address")
         # The IdP is trusted to assert addresses; homelab domains (.lan, .local, .home.arpa) are fine.
         email = email.strip()
-        if not EMAIL.match(email):
+        if not EMAIL.match(email) or reserved_email(email):
             raise Unauthenticated("the identity provider sent an invalid email address")
         local, _, host = email.rpartition("@")
         email = f"{local}@{host.lower()}"
@@ -423,7 +423,7 @@ async def resolve_user(
                 outcome="denied",
                 method="sso",
                 client=f"sso:{provider.slug}",
-                detail={"email": email, "reason": "domain not allowed"},
+                detail={"email_hash": email_hash(email), "reason": "domain not allowed"},
             )
             raise Unauthenticated("your email domain is not allowed to sign in with this provider")
         user = await session.scalar(select(User).where(func.lower(User.email) == email.lower()))
@@ -437,7 +437,7 @@ async def resolve_user(
                     actor_id=user.id,
                     method="sso",
                     client=f"sso:{provider.slug}",
-                    detail={"email": email, "reason": reason},
+                    detail={"email_hash": email_hash(email), "reason": reason},
                 )
                 raise Unauthenticated(
                     "an account with this email already exists; sign in with your password and link "
@@ -464,7 +464,7 @@ async def resolve_user(
                 method="sso",
                 client=f"sso:{provider.slug}",
                 target=f"user:{user.id}",
-                detail={"email": email},
+                detail={},
             )
         link = UserIdentity(
             tenant_id=provider.tenant_id, user_id=user.id, provider_id=provider.id, subject=subject
@@ -481,13 +481,15 @@ async def resolve_user(
         actor_id=user.id,
         method="sso",
         client=f"sso:{provider.slug}",
-        detail={"email": user.email},
+        detail={},
     )
     return user
 
 
 def _link_refusal(provider: IdentityProvider, user: User, *, email_verified: bool) -> str | None:
     """Why a first sign-in may not be linked to this existing account (None: it may)."""
+    if is_assistant(user):
+        return "the project assistant cannot sign in"
     if user.org_role == OrgRole.OWNER:
         return "owner accounts link single sign-on from Account settings"
     if user.org_role == OrgRole.ADMIN:
