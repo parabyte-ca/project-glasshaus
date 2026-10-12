@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-10-12
+
+The Microsoft 365 Copilot agent for Teams, expanded.
+
 ### Added
 - **Expanded Microsoft Teams & M365 Copilot agent personas**: declarative agent instructions and conversation starters now guide Copilot across three personas: Team Members (active timers, time logging, weekly timesheets, daily priorities), Project Managers (critical path, schedule slip impact, workload/capacity balance, meeting action items), and Executives (portfolio health, strategic OKRs, budget and hours burn rate). Supported by the comprehensive guide in [`docs/integrations/teams-agent-guide.md`](docs/integrations/teams-agent-guide.md).
 
@@ -987,7 +991,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.28.1...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.28.1...v0.29.0
 [0.28.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.28.0...v0.28.1
 [0.28.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.3...v0.28.0
 [0.27.3]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.2...v0.27.3
