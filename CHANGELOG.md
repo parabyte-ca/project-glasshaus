@@ -6,6 +6,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added
+- **Expanded Microsoft Teams & M365 Copilot agent personas**: declarative agent instructions and conversation starters now guide Copilot across three personas: Team Members (active timers, time logging, weekly timesheets, daily priorities), Project Managers (critical path, schedule slip impact, workload/capacity balance, meeting action items), and Executives (portfolio health, strategic OKRs, budget and hours burn rate). Supported by the comprehensive guide in [`docs/integrations/teams-agent-guide.md`](docs/integrations/teams-agent-guide.md).
+
 ## [0.28.1] - 2026-10-12
 
 ### Fixed
