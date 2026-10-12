@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.28.1. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
+> **Status:** v0.29.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -474,12 +474,12 @@ ago is still untagged.
 | 22 | 0.25.x | Nimble: recognise the exact columns of a real Nimble export (waiting on a sample header row) | ⏳ |
 | 23 | 0.26.0 | Upgrade from the app: "update available" notice with release notes, one-click upgrade with pre-flight and rollback | ✅ |
 | 24 | 0.27.0 | Health and monitoring: Prometheus `/metrics`, Admin status page, alerts when the worker, backups or disk fall behind | ✅ |
-| 25 | 0.28.0 | Code review of everything since 0.21 (security, correctness, speed) and fixes; teal headings and card surfaces | Planned |
-| 26 | 0.29.0 | Personal appearance: each person picks colours for individual elements (headings, tiles, and so on) from a set of choices that fit the Glasshaus brand and keep text readable, in light and dark | Planned |
+| 25 | 0.28.0 | Code review of everything since 0.21 (security, correctness, speed) and fixes; teal headings and card surfaces | ✅ |
+| 26 | 0.29.0 | Teams through the Microsoft 365 Copilot agent: expanded for team members (timers, time logging, standup prep), project managers (critical path, workload/capacity balancing, action items), and executives (portfolio health, OKRs, burn rates); tuned instructions, starter prompts, and guide in [docs/integrations/teams-agent-guide.md](docs/integrations/teams-agent-guide.md) | ✅ || ✅ |
 | 27 | later | Nimble REST API connector: import straight from Nimble, no export (waiting on Nimble's API reference) | ⏳ |
 | 28 | later | Smartsheet alongside Glasshaus: an import preset for Smartsheet exports, a short "using Glasshaus alongside Smartsheet" guide, then a REST API connector (waiting for a sample sheet export; the team is moving from Nimble to Smartsheet) | ⏳ |
-| 29 | later | Teams through the Microsoft 365 Copilot agent: expanded for team members (timers, time logging, standup prep), project managers (critical path, workload/capacity balancing, action items), and executives (portfolio health, OKRs, burn rates); tuned instructions, starter prompts, and guide in [docs/integrations/teams-agent-guide.md](docs/integrations/teams-agent-guide.md) | ✅ |
-| 30 | later | Teams bot with interactive Adaptive Cards: click-to-start / stop timer buttons, quick time-logging inputs, and interactive timesheet approval widgets for channel digests and 1:1 chats | ⏳ |
+| 29 | later | Teams bot with interactive Adaptive Cards: click-to-start / stop timer buttons, quick time-logging inputs, and interactive timesheet approval widgets for channel digests and 1:1 chats | ⏳ |
+| 30 | later | Personal appearance: each person picks colours for individual elements (headings, tiles, and so on) from a set of choices that fit the Glasshaus brand and keep text readable, in light and dark | ⏳ |
 
 ## Licence
 
