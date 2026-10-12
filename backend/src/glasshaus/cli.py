@@ -44,6 +44,73 @@ def cmd_seed(args: argparse.Namespace) -> None:
     asyncio.run(run_seed(demo=args.demo, seed=args.seed))
 
 
+def cmd_reset_password(args: argparse.Namespace) -> None:
+    """Set a person's password from the server, for when nobody can sign in to reset it in the app."""
+    import getpass
+
+    from glasshaus.identity.passwords import password_problem
+
+    if args.password_stdin:
+        password = sys.stdin.readline().rstrip("\n")
+    else:
+        password = getpass.getpass("New password: ")
+        if getpass.getpass("Again: ") != password:
+            sys.exit("The two passwords differ; nothing was changed.")
+    problem = (
+        "Use at least 12 characters; nothing was changed."
+        if len(password) < 12
+        else password_problem(password)
+    )
+    if problem:
+        sys.exit(problem)
+    asyncio.run(_reset_password(args.email, password))
+
+
+async def _reset_password(email: str, password: str) -> None:
+    from datetime import UTC, datetime
+
+    from sqlalchemy import func, select, update
+
+    from glasshaus.audit.service import record_raw
+    from glasshaus.db import system_session
+    from glasshaus.identity import security
+    from glasshaus.identity.models import AuthSession, User
+    from glasshaus.redis_client import get_redis
+
+    async with system_session() as session:
+        users = (
+            await session.scalars(
+                select(User).where(func.lower(User.email) == email.lower(), User.erased_at.is_(None))
+            )
+        ).all()
+        if not users:
+            sys.exit(f"No active person has the address {email}.")
+        if len(users) > 1:
+            sys.exit(f"{len(users)} organizations have {email}; this command only handles a single match.")
+        user = users[0]
+        user.password_hash = security.hash_password(password)
+        user.is_active = True
+        await session.execute(
+            update(AuthSession)
+            .where(AuthSession.user_id == user.id, AuthSession.revoked_at.is_(None))
+            .values(revoked_at=datetime.now(UTC))
+        )
+        tenant_id, user_id = user.tenant_id, user.id
+    redis = get_redis()
+    keys = [k async for k in redis.scan_iter(match=f"glasshaus:login*{email.lower()}")]
+    if keys:
+        await redis.delete(*keys)  # an account locked by failed attempts can sign in again
+    await record_raw(
+        tenant_id,
+        "user.password_reset",
+        outcome="ok",
+        actor_id=None,
+        method="system",
+        target=f"user:{user_id}",
+    )
+    print(f"Password changed for {email}. Other sign-ins were ended.")
+
+
 def cmd_openapi(args: argparse.Namespace) -> None:
     import json
 
@@ -107,6 +174,11 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--demo", action="store_true", help="Also generate demo content")
     p.add_argument("--seed", type=int, default=42, help="Random seed for demo data")
     p.set_defaults(func=cmd_seed)
+
+    p = sub.add_parser("reset-password", help="Set a person's password (when nobody can sign in)")
+    p.add_argument("email")
+    p.add_argument("--password-stdin", action="store_true", help="Read the new password from standard input")
+    p.set_defaults(func=cmd_reset_password)
 
     p = sub.add_parser("openapi", help="Write the OpenAPI document")
     p.add_argument("output", nargs="?", default="-")

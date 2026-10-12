@@ -34,6 +34,7 @@ and out of version control. Defaults are what you get when the line is missing o
 - [Settings in the app (Admin)](#settings-in-the-app-admin)
 - [Installing on a Linux server](#installing-on-a-linux-server)
 - [Host-side setup](#host-side-setup)
+- [Forgotten password](#forgotten-password)
 - [Secrets: what they protect and how to rotate them](#secrets-what-they-protect-and-how-to-rotate-them)
 
 ## Quick start: what you must decide
@@ -86,7 +87,7 @@ created with permissions `600`. See [rotation](#secrets-what-they-protect-and-ho
 | `POSTGRES_PASSWORD` | 24 bytes | The database owner role (migrations and backups only). Blanked inside the app containers. |
 | `POSTGRES_APP_PASSWORD` | 24 bytes | The least-privilege role the app uses (row-level security enforced). Set on the role by every migrate run. |
 | `REDIS_PASSWORD` | 24 bytes | Redis (job queue, live updates, caches). |
-| `GLASSHAUS_ADMIN_PASSWORD` | 12 bytes | The first owner's initial password. **Change it after the first sign-in**; editing it later does nothing. |
+| `GLASSHAUS_ADMIN_PASSWORD` | 12 bytes | The first owner's initial password. **Change it after the first sign-in**; editing it later does nothing (see [Forgotten password](#forgotten-password)). |
 | `GLASSHAUS_BACKUP_KEY` | an `age` secret key | Encrypts backups. **Keep a copy off the server.** Empty means unencrypted backups. |
 | `GLASSHAUS_METRICS_TOKEN` | not generated | Optional bearer token for `/metrics` (see [Monitoring](#monitoring)). |
 | `GLASSHAUS_MCP_TOKEN` | not generated | Optional; see [MCP server](#mcp-server-ai-assistants). |
@@ -487,6 +488,24 @@ To upgrade later: `cd /opt/glasshaus && sudo ./update.sh` (or **Admin → Update
 | Prometheus (optional) | Scrape `http://<host>:8471/metrics` | See [monitoring.md](monitoring.md). |
 | DNS (optional) | A name for the server | Add it to `GLASSHAUS_MCP_ALLOWED_HOSTS` if assistants use it. |
 
+## Forgotten password
+
+`GLASSHAUS_ADMIN_PASSWORD` in `.env` is only used to create the first owner. After that the password lives
+(hashed) in the database, so editing `.env` changes nothing, and a restart doesn't either. Sign in with the
+password you set under **Account**, or the one `setup.sh` generated if you never changed it.
+
+If nobody can sign in, set a new one from the server:
+
+```bash
+sudo ./scripts/reset-password.sh                    # the GLASSHAUS_ADMIN_EMAIL account
+sudo ./scripts/reset-password.sh someone@example.com
+```
+
+It asks for the new password (12+ characters, typed twice and not shown), ends that person's other
+sign-ins, clears any sign-in lockout from failed attempts and records `user.password_reset` in the audit
+log. The stack must be running. Another owner or admin can also reset a password for you under
+**Admin → People** (owners only for owners).
+
 ## Secrets: what they protect and how to rotate them
 
 Keep a copy of `.env` (or at least `GLASSHAUS_BACKUP_KEY` and `GLASSHAUS_SECRET_KEY`) in a password
@@ -498,7 +517,7 @@ manager. Backups contain the database but **not** `.env`.
 | `POSTGRES_PASSWORD` | Full database access from the Docker network | `docker compose exec postgres psql -U glasshaus -c "ALTER ROLE glasshaus PASSWORD '<new>'"`, then update `.env` and `docker compose up -d` | Changing only `.env` does not change the database. |
 | `POSTGRES_APP_PASSWORD` | Database access limited by row-level security | Update `.env`, then `docker compose up -d` (the migrate job sets the new password) | None. |
 | `REDIS_PASSWORD` | Read queued jobs and live updates | Update `.env`, then `docker compose up -d` | Queued jobs survive; open browser tabs reconnect. |
-| `GLASSHAUS_ADMIN_PASSWORD` | Nothing after the first sign-in (if the password was changed) | Change the password in the app (Account) | Editing `.env` has no effect after the first start. |
+| `GLASSHAUS_ADMIN_PASSWORD` | Nothing after the first sign-in (if the password was changed) | Change the password in the app (Account) | Editing `.env` has no effect after the first start. If nobody can sign in, run `sudo ./scripts/reset-password.sh` ([Forgotten password](#forgotten-password)). |
 | `GLASSHAUS_BACKUP_KEY` | Someone with your backup files could read them | Generate a new key: `docker compose run --rm --no-deps --entrypoint age-keygen backup`, put the `AGE-SECRET-KEY-…` line in `.env`, `docker compose up -d backup` | **Keep the old key** until every backup made with it has aged out; those backups need it to restore. |
 | `GLASSHAUS_METRICS_TOKEN` | Read server metrics | Change in `.env` and in Prometheus; `docker compose up -d api` | None. |
 | `GLASSHAUS_SMTP_PASSWORD`, `GLASSHAUS_AI_API_KEY` | Misuse of your mail or AI account | Revoke at the provider, set the new value, `docker compose up -d` | None. |
