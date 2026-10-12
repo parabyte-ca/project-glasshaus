@@ -149,3 +149,14 @@ async def backdate_audit(world: World, action: str, when: datetime) -> None:
             text("UPDATE audit_log SET created_at = :w WHERE tenant_id = :t AND action = :a"),
             {"w": when, "t": world.tenant.id, "a": action},
         )
+
+
+async def session_headers(client: AsyncClient, world: World) -> dict[str, str]:
+    """Sign the organization's owner in with a password, as a person in the web app (not an API token)."""
+    client.cookies.clear()
+    r = await client.post(
+        "/api/v1/auth/login",
+        json={"email": world.owner.email, "password": PASSWORD, "organization": world.tenant.slug},
+    )
+    assert r.status_code == 200, r.text
+    return {"X-CSRF-Token": client.cookies["gh_csrf"]}

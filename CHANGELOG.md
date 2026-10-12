@@ -6,6 +6,59 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-10-12
+
+### Changed
+- **Headings are teal** (a deep teal on light pages, a bright teal on dark) so they read apart from body
+  text, and **cards and widgets sit on their own surface**: a quiet grey-green on light pages, a lifted
+  near-black on dark ones. The secondary grey text and the link blue are a touch darker so they stay readable
+  on the cards.
+
+### Security
+- **The audit log no longer stores who a person is.** User events keep the names of the fields that changed,
+  not the name or email; sign-in entries keep a short hash of the address typed (not the address) next to
+  the network address and browser. Entries written before this release keep what they had until they expire.
+- **Only an owner, signed in, can shorten audit retention.** An admin token or an AI agent can no longer
+  trigger the permanent deletion of older entries.
+- **The upgrade helper (which runs as root) no longer follows links in the upgrade folder**, which the app
+  can write to: the lock is taken on the folder, the log is created exclusively and written through the
+  open file, and a request that is a link is dropped.
+- **The list of installed software (`/api/v1/licenses`) needs a sign-in.**
+- **A personal data export no longer includes notifications sent to colleagues** about the person's actions.
+- **OAuth redirect addresses** with a backslash or user info in the host are refused, and a used code
+  presented by another client no longer revokes the owner's tokens.
+
+### Fixed
+- **Import**: an estimate such as `inf` or `1e999`, or a number field of `nan`, is a row problem instead of an
+  error for the whole file; `12 Oct 26` is 2026, not the year 12.
+- **A stuck upgrade no longer blocks the next one**: a request nobody picked up for an hour, or a run that
+  stopped reporting for three, is shown as failed. A heartbeat dated in the future no longer counts as a live
+  helper, and odd values in the helper's files can no longer break the Updates page.
+- A flaky end-to-end test of the `c` shortcut now waits for the New task field.
+
+## [0.27.3] - 2026-10-11
+
+### Added
+- **Rename a workspace** from the Home page (Workspaces → Rename). Owners, admins and workspace managers
+  can do it; anyone else sees the permission error.
+
+## [0.27.2] - 2026-10-11
+
+### Fixed
+- **A failed or cancelled upgrade no longer tries to restore the database when it was never touched.**
+  A build or download that stopped before migrations used to attempt a restore from the pre-update
+  backup, and stop if that couldn't be read. Now only an upgrade that got as far as migrating restores it.
+- **Admin → Updates says when a requested upgrade is waiting on a helper that isn't running**, with how
+  to check its schedule.
+
+## [0.27.1] - 2026-10-11
+
+### Changed
+- **The upgrade helper runs every 15 minutes, not every minute.** It only looks for an upgrade you started
+  in the app, so one begins within that time. `--install --every N` picks another interval; the helper
+  reports it and Admin → Updates tolerates a missed run. Existing installs keep their schedule until you
+  run `sudo ./scripts/upgrade-agent.sh --install` again.
+
 ### Added
 - **Upgrade helper on any Linux:** `scripts/upgrade-agent.sh --install` uses cron when it is installed and
   a systemd timer otherwise; `--print` shows what to schedule on hosts whose scheduler is managed
@@ -922,7 +975,11 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.3...v0.28.0
+[0.27.3]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.2...v0.27.3
+[0.27.2]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.1...v0.27.2
+[0.27.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.26.0...v0.27.0
 [0.26.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.25.0...v0.26.0
 [0.25.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.24.0...v0.25.0

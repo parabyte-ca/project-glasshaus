@@ -9,6 +9,7 @@ single ``project.imported`` event records the import (activity, audit log, live 
 """
 
 import hashlib
+import math
 import re
 import uuid
 from collections import Counter
@@ -36,6 +37,7 @@ from glasshaus.tasks.service import CLOSED, POSITION_STEP
 MAX_PROBLEMS = 200
 MAX_TITLE = 500
 MAX_COMMENT = 20_000
+MAX_ESTIMATE_HOURS = 100_000
 LINKS_HEADING = "**Links**"
 
 PRIORITY_WORDS = {
@@ -91,7 +93,13 @@ def parse_date(raw: str | None, fmt: str) -> date | None:
         month = next((MONTHS[w[:3].lower()] for w in words if w[:3].lower() in MONTHS), None)
         numbers = [int(w) for w in words if w.isdigit()]
         if month and len(numbers) == 2:
-            day, year = (numbers[0], numbers[1]) if numbers[1] > 31 else (numbers[1], numbers[0])
+            first, second = numbers
+            if first > 31:
+                year, day = first, second
+            elif second > 31:
+                day, year = first, second
+            else:  # '12 Oct 26': day, then a two-digit year
+                day, year = first, 2000 + second
             return date(year, month, day)
         if text.isdigit() and 20_000 <= int(text) <= 80_000:  # Excel's day count (1900 system)
             return date(1899, 12, 30) + timedelta(days=int(text))
@@ -106,9 +114,13 @@ def parse_estimate(raw: str | None) -> int | None:
     if not text:
         return None
     try:
-        return round(float(text.replace(",", ".")) * 60)
+        hours = float(text.replace(",", "."))
     except ValueError:
         pass
+    else:
+        if not math.isfinite(hours) or abs(hours) > MAX_ESTIMATE_HOURS:
+            raise RowError(f"'{text}' is not a sensible estimate")
+        return round(hours * 60)
     m = DURATION.match(text)
     if not m or not (m[1] or m[2]):
         raise RowError(f"'{text}' is not a duration")
@@ -189,6 +201,8 @@ async def _custom_value(people: _People, field: CustomField, raw: str) -> Any:
                 number = float(text.replace(",", "."))
             except ValueError as exc:
                 raise RowError(f"{field.name}: '{text}' is not a number") from exc
+            if not math.isfinite(number):
+                raise RowError(f"{field.name}: '{text}' is not a number")
             return int(number) if number.is_integer() else number
         case FieldType.DATE:
             return text  # converted by the caller with the file's date format

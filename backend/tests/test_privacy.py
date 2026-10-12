@@ -7,7 +7,7 @@ import zipfile
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from glasshaus.collab.models import Comment
 from glasshaus.core.models import DomainEventRecord
@@ -103,6 +103,14 @@ async def test_erasing_keeps_the_work_and_removes_the_person(client: AsyncClient
         # No event anywhere still carries the comment text.
         payloads = (await session.scalars(select(DomainEventRecord.payload))).all()
         assert not any("555-0100" in json.dumps(p) for p in payloads)
+    # The append-only audit log never holds who the person was: no email, no name.
+    async with system_session() as session:
+        details = (
+            await session.scalars(
+                text("SELECT detail::text FROM audit_log WHERE tenant_id = :t").bindparams(t=world.tenant.id)
+            )
+        ).all()
+        assert details and not any(person.email in d or (person.name and person.name in d) for d in details)
     # They can't sign in, can't be erased twice, and admins can't erase themselves.
     bad = await client.post(
         "/api/v1/auth/login",

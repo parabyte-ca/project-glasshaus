@@ -78,6 +78,8 @@ test('command palette and keyboard shortcuts', async ({ page }) => {
   await page.keyboard.press('Escape');
   // Single-key shortcuts are ignored while a dialog is open, so wait for the drawer to close.
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  // The shortcut is dropped while the project is still loading (the field it focuses isn't there yet).
+  await expect(page.getByLabel('New task title')).toBeVisible();
 
   await page.keyboard.press('c');
   await expect(page.getByLabel('New task title')).toBeFocused();
