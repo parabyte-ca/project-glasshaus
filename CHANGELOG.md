@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.28.1] - 2026-10-12
+
+### Fixed
+- **Board cards drag again, on any device.** Dragging used the browser's built-in drag and drop, which is
+  unreliable on touch screens and fails in some browsers when the card contains a button. Cards now drag with
+  the mouse or a pen as soon as you move, and on a touch screen with a short press and hold (a quick swipe
+  still scrolls the board). A plain click still opens the task, and the Move menu and Alt+arrow keys still work.
+  Covered by new end-to-end tests with a real mouse and a real touch screen.
+
 ## [0.28.0] - 2026-10-12
 
 ### Changed
@@ -975,7 +984,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.28.1...HEAD
+[0.28.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.28.0...v0.28.1
 [0.28.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.3...v0.28.0
 [0.27.3]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.2...v0.27.3
 [0.27.2]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.1...v0.27.2
