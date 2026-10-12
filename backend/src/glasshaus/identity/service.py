@@ -126,7 +126,7 @@ async def _issue_session(
 async def login(
     session: AsyncSession, *, email: str, password: str, organization: str | None, user_agent: str, ip: str
 ) -> LoginResult:
-    from glasshaus.audit.service import record_raw
+    from glasshaus.audit.service import email_hash, record_raw
     from glasshaus.redis_client import get_redis
 
     await _check_login_rate(f"glasshaus:login:{ip}:{email.lower()}")
@@ -138,7 +138,7 @@ async def login(
     tenant = await _tenant_by_slug(session, organization)
     await apply_tenant(session, tenant.id)
     user = await session.scalar(select(User).where(func.lower(User.email) == email.lower()))
-    detail = {"email": email.lower(), "ip": ip, "user_agent": user_agent[:200]}
+    detail = {"email_hash": email_hash(email), "ip": ip, "user_agent": user_agent[:200]}
     if not security.verify_password(user.password_hash if user else None, password) or user is None:
         failures = await get_redis().incr(account_key)
         if failures == 1:

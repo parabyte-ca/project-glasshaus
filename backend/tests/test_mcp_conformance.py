@@ -416,5 +416,7 @@ def test_only_safe_redirect_addresses_can_be_registered() -> None:
         "vbscript:x",
         "file:///etc/passwd",
         "noscheme",
+        "http://evil.example\\@127.0.0.1/cb",
+        "https://user@evil.example/cb",
     ):
         assert not safe_redirect_uri(bad), bad

@@ -22,6 +22,7 @@ from tests.factories import (
     make_user,
     make_world,
     owner_session,
+    session_headers,
     token_for,
 )
 
@@ -98,7 +99,10 @@ async def test_tampering_by_the_database_owner_is_detected(client: AsyncClient) 
 
 async def test_retention_purges_old_entries_and_records_it(client: AsyncClient) -> None:
     world = await make_world()
-    await client.patch("/api/v1/admin/settings", json={"audit_retention_days": 30}, headers=world.headers)
+    signed_in = await session_headers(client, world)  # shortening retention is for a signed-in owner
+    r = await client.patch("/api/v1/admin/settings", json={"audit_retention_days": 30}, headers=signed_in)
+    assert r.status_code == 200, r.text
+    client.cookies.clear()
     await write(world, "ancient")
     await backdate_audit(world, "ancient", datetime.now(UTC) - timedelta(days=45))
     # Everything older than "ancient" too (the organization's setup), so the purge is a clean prefix.

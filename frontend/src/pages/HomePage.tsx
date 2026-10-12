@@ -1,12 +1,82 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 
 import { api, fieldError, unwrap } from '../api/client';
 import { useAuth } from '../auth/useAuth';
 import { LoadError } from '../components/PageState';
-import { Button, ErrorText, Field, Input, linkClass, Select } from '../components/ui';
+import { Button, ErrorText, Field, GhostButton, Input, linkClass, Select } from '../components/ui';
 import { usePageTitle } from '../lib/pageTitle';
+import { toast } from '../lib/toast';
+
+function WorkspaceRow({ id, name }: { id: string; name: string }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  useEffect(() => {
+    if (editing) document.getElementById(`ws-rename-${id}`)?.focus();
+  }, [editing, id]);
+  const rename = useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.PATCH('/api/v1/workspaces/{workspace_id}', {
+          params: { path: { workspace_id: id } },
+          body: { name: draft.trim() },
+        }),
+      ),
+    onSuccess: () => {
+      setEditing(false);
+      toast('Workspace renamed.');
+      void queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+    },
+  });
+  if (!editing) {
+    return (
+      <li className="flex flex-wrap items-center gap-3">
+        <span className="font-medium">{name}</span>
+        <GhostButton
+          aria-label={`Rename workspace ${name}`}
+          onClick={() => {
+            setDraft(name);
+            rename.reset();
+            setEditing(true);
+          }}
+        >
+          Rename
+        </GhostButton>
+      </li>
+    );
+  }
+  return (
+    <li>
+      <form
+        className="flex flex-wrap items-end gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          rename.mutate();
+        }}
+      >
+        <Field label="Workspace name" id={`ws-rename-${id}`}>
+          <Input
+            id={`ws-rename-${id}`}
+            required
+            maxLength={200}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setEditing(false);
+            }}
+          />
+        </Field>
+        <Button type="submit" disabled={rename.isPending || !draft.trim() || draft.trim() === name}>
+          Save
+        </Button>
+        <GhostButton onClick={() => setEditing(false)}>Cancel</GhostButton>
+        <ErrorText error={rename.error} />
+      </form>
+    </li>
+  );
+}
 
 export function HomePage() {
   usePageTitle('Home');
@@ -116,6 +186,19 @@ export function HomePage() {
           ))}
         </ul>
       </section>
+
+      {!!workspaces.data?.length && (
+        <section aria-labelledby="workspaces-heading" className="flex flex-col gap-3">
+          <h2 id="workspaces-heading" className="text-lg font-semibold">
+            Workspaces
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {workspaces.data.map((w) => (
+              <WorkspaceRow key={w.id} id={w.id} name={w.name} />
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section aria-labelledby="new-project" className="flex flex-col gap-3">
         <h2 id="new-project" className="text-lg font-semibold">

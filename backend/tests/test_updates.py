@@ -28,9 +28,12 @@ def _release(version: str) -> Release:
     )
 
 
-def _helper(folder: Path, seen: datetime | None = None) -> None:
+def _helper(folder: Path, seen: datetime | None = None, every: int | None = None) -> None:
     seen = seen or datetime.now(UTC)
-    (folder / "agent.json").write_text(json.dumps({"last_seen": seen.isoformat().replace("+00:00", "Z")}))
+    body: dict[str, str] = {"last_seen": seen.isoformat().replace("+00:00", "Z")}
+    if every:
+        body["every_minutes"] = str(every)
+    (folder / "agent.json").write_text(json.dumps(body))
 
 
 @pytest.fixture
@@ -67,7 +70,12 @@ async def test_daily_check_notifies_admins_once(
     r = await client.get("/api/v1/admin/updates", headers=world.headers)
     body = r.json()
     assert r.status_code == 200 and body["update_available"] is True and body["latest"]["version"] == "99.0.0"
-    assert body["helper"] == {"configured": False, "connected": False, "last_seen": None}
+    assert body["helper"] == {
+        "configured": False,
+        "connected": False,
+        "last_seen": None,
+        "every_minutes": 1,
+    }
     assert body["can_upgrade"] is False  # no helper
     assert (
         await client.get("/api/v1/admin/updates", headers=auth(await token_for(member)))
@@ -111,6 +119,14 @@ async def test_owner_requests_an_upgrade_for_the_host_helper(
     async with unit_of_work(actor_for(world.owner)) as ctx:
         status = await updates.get_status(ctx)
         assert status.helper.configured and not status.helper.connected and not status.can_upgrade
+    # A helper that runs every 15 minutes is still connected 20 minutes after its last run, but not 40.
+    _helper(tmp_path, datetime.now(UTC) - timedelta(minutes=20), every=15)
+    async with unit_of_work(actor_for(world.owner)) as ctx:
+        helper = (await updates.get_status(ctx)).helper
+        assert helper.connected and helper.every_minutes == 15
+    _helper(tmp_path, datetime.now(UTC) - timedelta(minutes=40), every=15)
+    async with unit_of_work(actor_for(world.owner)) as ctx:
+        assert not (await updates.get_status(ctx)).helper.connected
     _helper(tmp_path)
     async with unit_of_work(actor_for(admin)) as ctx:
         assert (await updates.get_status(ctx)).can_upgrade is False  # admins see it, owners act
@@ -147,3 +163,32 @@ async def test_owner_requests_an_upgrade_for_the_host_helper(
     async with unit_of_work(token) as ctx:
         with pytest.raises(PermissionDenied, match="web app"):
             await updates.request_upgrade(ctx, want)
+
+
+def test_stale_requests_and_runs_stop_blocking_upgrades(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(get_settings(), "upgrade_dir", str(tmp_path))
+    now = datetime.now(UTC)
+    old = (now - timedelta(hours=5)).isoformat()
+    (tmp_path / "request.json").write_text(
+        json.dumps({"id": "r1", "version": "99.0.0", "requested_at": old, "requested_by": 7})
+    )
+    state = updates._upgrade(now)
+    assert state is not None and state.state == "failed" and "never picked" in (state.message or "")
+    assert state.requested_by is None  # not a string: ignored rather than a 500
+
+    (tmp_path / "request.json").unlink()
+    (tmp_path / "status.json").write_text(json.dumps({"id": "r1", "state": "running", "started_at": old}))
+    state = updates._upgrade(now)
+    assert state is not None and state.state == "failed" and "stopped reporting" in (state.message or "")
+
+    (tmp_path / "status.json").write_text(
+        json.dumps({"id": "r1", "state": "running", "started_at": (now - timedelta(minutes=5)).isoformat()})
+    )
+    running = updates._upgrade(now)
+    assert running is not None and running.state == "running"
+
+    # A heartbeat from the future is not a live helper.
+    (tmp_path / "agent.json").write_text(json.dumps({"last_seen": (now + timedelta(hours=2)).isoformat()}))
+    assert not updates._helper(now).connected

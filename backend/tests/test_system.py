@@ -3,6 +3,7 @@ from httpx import AsyncClient
 
 from glasshaus import __version__
 from glasshaus.api import health
+from tests.factories import make_world
 
 
 async def test_healthz(client: AsyncClient) -> None:
@@ -19,8 +20,12 @@ async def test_version(client: AsyncClient) -> None:
     assert r.json()["license"] == "AGPL-3.0-only" and r.json()["source"].startswith("https://")
 
 
-async def test_third_party_licences_are_listed_without_signing_in(client: AsyncClient) -> None:
-    r = await client.get("/api/v1/licenses")
+@pytest.mark.integration
+@pytest.mark.usefixtures("migrated")
+async def test_third_party_licences_are_listed_for_signed_in_people(client: AsyncClient) -> None:
+    assert (await client.get("/api/v1/licenses")).status_code == 401
+    world = await make_world()
+    r = await client.get("/api/v1/licenses", headers=world.headers)
     assert r.status_code == 200
     names = {p["name"].lower(): p for p in r.json()}
     assert "fastapi" in names and names["fastapi"]["license"]

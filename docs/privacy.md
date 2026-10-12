@@ -56,7 +56,10 @@ Keep a list of the ones you use as your subprocessor register.
   details. An erased person cannot sign in, be reactivated or be changed by SCIM; if they come back, add
   them as a new person. Audited as `user.erased`.
 - **What erasure keeps.** The audit log is the record of what happened and cannot be changed; its entries
-  name the person only by an id (now "Former user") and expire with the audit retention. Text other
+  name the person only by an id (now "Former user"): it never stores a name or an email address (a
+  failed sign-in keeps a short hash of the address typed). Sign-in entries do keep the network address
+  and browser of the attempt, which go when the entries expire with the audit retention. Entries written
+  before 0.28 may still hold names and emails until they expire. Text other
   people wrote about the person (for example "@Pat" in someone else's comment) is not rewritten. Backups
   taken before the erasure still hold the old data until they expire (`GLASSHAUS_BACKUP_RETENTION_DAYS`).
 
@@ -71,7 +74,8 @@ up to when) in the chain.
 **Admin → Audit log → Check integrity** recomputes the chain and reports any entry that was changed,
 removed or inserted, even by someone with direct database access. It shows the latest seal (the newest
 entry's hash): keep a copy elsewhere (a ticket, an email) and later checks prove that nothing before it
-changed. Changing a retention setting is audited with the old and new values.
+changed. Changing a retention setting is audited with the old and new values, and only an owner, signed in, can
+shorten audit retention (not an admin token or an AI agent).
 
 ## Backups
 
@@ -85,5 +89,5 @@ be restored without it.
 Glasshaus is licensed under the AGPL-3.0. People using a server can find its source from the footer
 (**About, privacy and source code**), `GET /api/v1/version` (`source`) and the MCP `server_info` tool. If
 you run a modified version, set `GLASSHAUS_SOURCE_URL` to where your changes are published. The same page
-lists the third-party packages in the server (`GET /api/v1/licenses`) and the web app (`/licenses.json`)
+lists the third-party packages in the server (`GET /api/v1/licenses`, signed in) and the web app (`/licenses.json`)
 with their licences.

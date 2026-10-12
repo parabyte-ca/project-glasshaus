@@ -94,10 +94,12 @@ def safe_redirect_uri(uri: str) -> bool:
     Script-capable schemes (javascript:, data:) are refused: the consent page navigates to the result."""
     from urllib.parse import urlsplit
 
-    if any(c.isspace() or ord(c) < 32 for c in uri):
-        return False
+    if any(c.isspace() or ord(c) < 32 for c in uri) or "\\" in uri:
+        return False  # a backslash: browsers read 'http://evil.test\\@127.0.0.1' as a path on evil.test
     parts = urlsplit(uri)
     scheme = parts.scheme.lower()
+    if scheme in ("http", "https") and "@" in parts.netloc:
+        return False
     if scheme == "https":
         return bool(parts.hostname)
     if scheme == "http":
@@ -163,7 +165,9 @@ class GlasshausOAuthProvider(OAuthAuthorizationServerProvider[AuthorizationCode,
     ) -> AuthorizationCode | None:
         async with system_session() as session:
             grant = await session.get(OAuthGrant, sha256(authorization_code))
-            if grant is not None and grant.kind == "code" and grant.revoked_at is not None:
+            if grant is None or grant.client_id != client.client_id:
+                return None  # another client presenting a code is not the owner of it: revoke nothing
+            if grant.kind == "code" and grant.revoked_at is not None:
                 # A code used twice was intercepted: end the tokens issued from it (RFC 6749 §4.1.2).
                 await session.execute(
                     update(OAuthGrant)

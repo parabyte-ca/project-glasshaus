@@ -67,12 +67,17 @@ main() {
   backup="$(backup_now "pre-update-${prev_version}")" || die "backup failed; aborting before any change"
   ok "backup: $backup"
 
+  db_touched=0  # set once the new release may have migrated the database
   rollback() {
     warn "update failed; rolling back to ${prev_version}"
     set_env GLASSHAUS_VERSION "$prev_version"
     set_env GLASSHAUS_BUILD_SHA "$prev_sha"
     export GLASSHAUS_COMPOSE_FILE="$GLASSHAUS_ROLLBACK_COMPOSE"
-    restore_dump "$backup" && ok "database restored from $backup"
+    if [[ "$db_touched" == 1 ]]; then
+      restore_dump "$backup" && ok "database restored from $backup"
+    else
+      info "the database was not changed; no restore needed"
+    fi
     compose up -d --remove-orphans
     if wait_healthy 180 api worker mcp web; then
       warn "rolled back to ${prev_version}. The source checkout is at the new revision; see the logs above."
@@ -101,6 +106,7 @@ main() {
   fi
 
   info "Applying migrations and restarting"
+  db_touched=1
   compose up -d --remove-orphans || { compose logs --tail 50 migrate; rollback; }
   wait_healthy 180 api worker mcp web || { compose logs --tail 50 migrate api; rollback; }
   rm -f "$GLASSHAUS_ROLLBACK_COMPOSE"

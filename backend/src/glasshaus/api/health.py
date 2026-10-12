@@ -8,6 +8,7 @@ from typing import Literal
 from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 
+from glasshaus.api.deps import Ctx
 from glasshaus.config import get_settings
 from glasshaus.db import ping_database
 from glasshaus.redis_client import ping_redis
@@ -85,5 +86,7 @@ def _packages() -> list[Package]:
     summary="Third-party software in this server and its licences",
     response_model=list[Package],
 )
-async def licenses() -> list[Package]:
+async def licenses(
+    ctx: Ctx,
+) -> list[Package]:  # signed in: the package list helps anyone targeting a known flaw
     return _packages()
