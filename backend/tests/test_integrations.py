@@ -44,8 +44,12 @@ def test_copilot_studio_connector() -> None:
 def test_m365_manifests_reference_real_operations() -> None:
     agent = load("m365/declarativeAgent.json")
     assert agent["version"] == "v1.6" and len(agent["instructions"]) <= 8000
+    assert 1 <= len(agent.get("conversation_starters", [])) <= 6
+    for starter in agent.get("conversation_starters", []):
+        assert starter.get("title") and starter.get("text")
     for action in agent["actions"]:
         assert (DOCS / "m365" / action["file"]).is_file()
+    assert (DOCS / "teams-agent-guide.md").is_file()
 
     mcp = load("m365/glasshaus-mcp-plugin.json")
     runtime = mcp["runtimes"][0]

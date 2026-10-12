@@ -82,9 +82,16 @@ If your tenant requires a custom connector, import
 Apps (it marks `POST /mcp` with `x-ms-agentic-protocol: mcp-streamable-1.0`). Set the host, and enter
 `Bearer ghp_…` as the API key when creating the connection.
 
-## Microsoft 365 Copilot (declarative agent)
+## Microsoft 365 Copilot & Teams (declarative agent)
 
-[`m365/`](m365) holds a declarative agent with two interchangeable actions:
+[`m365/`](m365) holds a declarative agent optimized for Microsoft Teams and M365 Copilot across three key personas:
+- **Team Members**: Start/stop timers, log time entries, check timesheets, and review daily priorities.
+- **Project Managers**: Critical path analysis, schedule slip impact, team workload balancing, and meeting action items.
+- **Executives & Leadership**: Multi-project portfolio rollups, strategic OKR tracking, and budget/hours burn rate analysis.
+
+See the complete [Teams Agent Guide](teams-agent-guide.md) for persona prompts, guardrails, and deployment instructions.
+
+The agent includes two interchangeable actions:
 
 - [`glasshaus-mcp-plugin.json`](m365/glasshaus-mcp-plugin.json): a `RemoteMCPServer` runtime with
   dynamic tool discovery. Register an OAuth client in the Teams Developer Portal (the authorization,
