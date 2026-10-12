@@ -21,6 +21,11 @@ updates:
   - package-ecosystem: docker
     directories: [/backend, /frontend]
     schedule: { interval: monthly }
+    ignore:
+      # Odd-numbered Node majors are short-lived "current" releases, not LTS. CI and the image use an LTS line;
+      # move to the next even major (LTS) on purpose, together with the Node version in ci.yml.
+      - dependency-name: node
+        versions: ["25.x"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
