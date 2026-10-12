@@ -31,14 +31,14 @@ you:
    sudo ./scripts/upgrade-agent.sh --install
    ```
 
-   It runs the helper every minute as root: with cron installed it adds `/etc/cron.d/glasshaus-upgrade`;
+   It runs the helper every 15 minutes as root (`--install --every 5` for a shorter wait): with cron installed it adds `/etc/cron.d/glasshaus-upgrade`;
    otherwise, on systemd, it adds and starts a `glasshaus-upgrade.timer`. With neither it prints the
    command to schedule. On a host whose scheduler is managed elsewhere (for example a NAS web
    interface, where `/etc` is replaced on system updates), run `sudo ./scripts/upgrade-agent.sh --print`
-   and add the command it shows as a job that runs every minute as root.
+   and add the command it shows as a job that runs every 15 minutes as root (`--every N` is part of the command it shows).
    To remove it: `sudo ./scripts/upgrade-agent.sh --uninstall`.
-2. **Admin → Updates** shows "helper connected" within a minute.
-3. When a new release is out, an owner presses **Upgrade to x.y.z** and confirms. Within a minute the
+2. **Admin → Updates** shows "helper connected" after its first check-in (the install runs one straight away).
+3. When a new release is out, an owner presses **Upgrade to x.y.z** and confirms. At its next check (up to 15 minutes) the
    helper runs `update.sh` (backup, check on a copy, upgrade, health check, roll back on failure). The page
    shows progress and the log; Glasshaus is unavailable for about a minute while it restarts. Reload the
    page when it says the upgrade is done.
@@ -51,7 +51,7 @@ you:
   default; owned by uid 10001, mode 770). It never gets Docker or root access. The helper reads only a
   request id and a version number from it, checks both, and runs `update.sh`, which always takes the
   release from your git checkout.
-- One upgrade runs at a time. The helper checks in every minute; if it stops, the page says so and the
+- One upgrade runs at a time. The helper checks in every 15 minutes (it is shown as connected for a little over two intervals); if it stops, the page says so and the
   button is hidden.
 - Extra `update.sh` options for app-started upgrades go in `.env` as `GLASSHAUS_UPGRADE_ARGS` (only
   `--pull` and `--skip-preflight` are accepted).

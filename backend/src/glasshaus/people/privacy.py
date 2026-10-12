@@ -3,8 +3,10 @@
 Erasing keeps the organization's work intact (tasks, time, history) but removes who the person was:
 their name and email become "Former user", their sign-ins, tokens, devices, links to identity providers
 and personal notifications are deleted, and the text of their comments is removed. Audit entries are
-kept for the audit retention period (they are the record of what happened) and name the person only by
-an id that now resolves to "Former user".
+kept for the audit retention period (they are the record of what happened). They name the person only by
+an id that now resolves to "Former user": the log never stores a name or an email address. A sign-in entry
+does keep the network address and browser of the attempt, so it can show where an attack came from; those
+go when the entry is purged at the end of the retention period.
 """
 
 import io
@@ -101,6 +103,9 @@ async def export_person(ctx: ServiceContext, user_id: uuid.UUID) -> bytes:
                 where = table.c.id == user.id
             else:
                 refs = [c for c in table.c if any(fk.column.table.name == "users" for fk in c.foreign_keys)]
+                if table.name == "notifications":
+                    # Only what was sent to the person, not what colleagues were told about their actions.
+                    refs = [c for c in refs if c.name == "user_id"]
                 if not refs:
                     continue
                 where = or_(*(c == user.id for c in refs))

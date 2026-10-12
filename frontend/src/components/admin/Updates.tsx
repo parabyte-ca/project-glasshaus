@@ -44,7 +44,7 @@ export function Updates() {
     mutationFn: (version: string) => unwrap(api.POST('/api/v1/admin/updates/upgrade', { body: { version } })),
     onSuccess: (data) => {
       queryClient.setQueryData(['admin-updates'], data);
-      toast('Upgrade requested. The server starts it within a minute.');
+      toast('Upgrade requested. The server starts it at its next check.');
     },
   });
   const s = status.data;
@@ -109,11 +109,19 @@ export function Updates() {
             >
               <p className="font-semibold">
                 {s.upgrade!.state === 'requested'
-                  ? `Upgrade to ${s.upgrade!.to_version} requested; the server starts it within a minute.`
+                  ? `Upgrade to ${s.upgrade!.to_version} requested; the server starts it at its next check.`
                   : restarting
                     ? 'Glasshaus is restarting with the new version…'
                     : `Upgrading to ${s.upgrade!.to_version}… This takes a few minutes; you can leave this page.`}
               </p>
+              {s.upgrade!.state === 'requested' && !s.helper.connected && (
+                <p className="mt-1 font-normal">
+                  The upgrade helper hasn’t checked in lately, so nothing will start until it runs again. On
+                  the server, check that its schedule is installed (
+                  <code>sudo ./scripts/upgrade-agent.sh --print</code>
+                  shows the command), or run <code>sudo ./scripts/upgrade-agent.sh</code> once by hand.
+                </p>
+              )}
             </div>
           )}
           {s.upgrade?.state === 'succeeded' && (
@@ -168,8 +176,9 @@ export function Updates() {
                 ) : (
                   <div className="text-sm">
                     <p>
-                      To upgrade from here, set up the upgrade helper on the server once (it runs every minute
-                      and only acts when you press Upgrade). In the Glasshaus folder on the server, run:
+                      To upgrade from here, set up the upgrade helper on the server once (it runs every 15
+                      minutes and only acts when you press Upgrade). In the Glasshaus folder on the server,
+                      run:
                     </p>
                     <p className="mt-1">
                       <Copyable value={AGENT} />
@@ -177,7 +186,7 @@ export function Updates() {
                     <p className="mt-1 text-slate-600 dark:text-slate-400">
                       {s.helper.configured
                         ? s.helper.last_seen
-                          ? `The helper last checked in ${dateTime(s.helper.last_seen)}; it should run every minute.`
+                          ? `The helper last checked in ${dateTime(s.helper.last_seen)}; it should run every ${s.helper.every_minutes} minute(s).`
                           : 'The helper hasn’t checked in yet.'
                         : 'This server has no upgrade folder yet; the command creates it.'}{' '}
                       Or upgrade from a terminal with <code>sudo ./update.sh</code>.
