@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 
 import type { Task } from '../api/client';
 import { Assignee, PriorityBadge } from '../components/TaskBits';
@@ -7,11 +7,24 @@ import { groupTasks, patchForGroup, positionBetween, type Group } from '../lib/g
 import { toast } from '../lib/toast';
 import type { ViewProps } from './types';
 
-const MIME = 'application/x-glasshaus-task';
+const HOLD_MS = 300; // touch: press and hold this long to pick a card up (a quick swipe still scrolls)
+const SLOP = 6; // mouse and pen: move this far before it counts as a drag rather than a click
+
+interface Held {
+  task: Task;
+  pointerId: number;
+  type: string;
+  x: number;
+  y: number;
+  active: boolean;
+  timer: number | null;
+  width: number;
+}
 
 /**
- * Columns of cards. Cards move by drag and drop, with Alt+arrow keys (Left/Right: column, Up/Down:
- * order), or with each card's Move menu, which also works on touch screens.
+ * Columns of cards. Cards move by dragging (mouse, pen or touch: press and hold, then drag), with
+ * Alt+arrow keys (Left/Right: column, Up/Down: order), or with each card's Move menu. Dragging uses
+ * pointer events, not the browser's drag and drop, which is unreliable on touch and in some browsers.
  */
 export function BoardView({ tasks, project, fields, users, config, onOpen, onUpdate }: ViewProps) {
   const groupBy = config.group_by ?? 'status';
@@ -44,13 +57,98 @@ export function BoardView({ tasks, project, fields, users, config, onOpen, onUpd
     return { at, count: siblings.length + 1 };
   };
 
-  const drop = (e: DragEvent, column: Group, before?: Task) => {
-    e.preventDefault();
+  const [ghost, setGhost] = useState<{ task: Task; x: number; y: number; width: number } | null>(null);
+  const held = useRef<Held | null>(null);
+  const justDragged = useRef(false);
+  const blockScroll = (e: globalThis.TouchEvent) => {
+    if (e.cancelable) e.preventDefault(); // a picked-up card must not scroll the page under the finger
+  };
+  const columnAt = (x: number, y: number) => {
+    const el = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-column]');
+    return el ? columns.find((c) => c.key === el.dataset.column) : undefined;
+  };
+  const release = () => {
+    const h = held.current;
+    if (h?.timer) window.clearTimeout(h.timer);
+    held.current = null;
+    document.removeEventListener('touchmove', blockScroll);
+    setGhost(null);
     setOver(null);
-    const task = byId.get(e.dataTransfer.getData(MIME));
-    if (!task || task.id === before?.id) return;
-    const siblings = column.tasks.filter((t) => t.id !== task.id);
-    place(task, column, before ? siblings.findIndex((t) => t.id === before.id) : siblings.length);
+  };
+  const pickUp = (target: Element) => {
+    const h = held.current;
+    if (!h) return;
+    h.active = true;
+    try {
+      target.setPointerCapture(h.pointerId);
+    } catch {
+      /* the pointer may already be gone */
+    }
+    if (h.type === 'touch') document.addEventListener('touchmove', blockScroll, { passive: false });
+    setGhost({ task: h.task, x: h.x, y: h.y, width: h.width });
+  };
+  const onCardDown = (e: PointerEvent<HTMLElement>, task: Task) => {
+    if (held.current || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if ((e.target as Element).closest('select, a, input, textarea')) return;
+    const card = e.currentTarget;
+    const h: Held = {
+      task,
+      pointerId: e.pointerId,
+      type: e.pointerType,
+      x: e.clientX,
+      y: e.clientY,
+      active: false,
+      timer: null,
+      width: card.getBoundingClientRect().width,
+    };
+    held.current = h;
+    if (e.pointerType === 'touch') h.timer = window.setTimeout(() => pickUp(card), HOLD_MS);
+  };
+  const onCardMove = (e: PointerEvent<HTMLElement>) => {
+    const h = held.current;
+    if (!h || e.pointerId !== h.pointerId) return;
+    if (!h.active) {
+      const moved = Math.hypot(e.clientX - h.x, e.clientY - h.y);
+      if (h.type === 'touch') {
+        if (moved > 8) release(); // the finger is scrolling, not holding
+      } else if (moved > SLOP) {
+        pickUp(e.currentTarget);
+        h.x = e.clientX;
+        h.y = e.clientY;
+      }
+      if (!held.current?.active) return;
+    }
+    h.x = e.clientX;
+    h.y = e.clientY;
+    setGhost((g) => (g ? { ...g, x: e.clientX, y: e.clientY } : g));
+    setOver(columnAt(e.clientX, e.clientY)?.key ?? null);
+  };
+  const onCardUp = (e: PointerEvent<HTMLElement>) => {
+    const h = held.current;
+    if (!h || e.pointerId !== h.pointerId) return;
+    if (h.active) {
+      justDragged.current = true; // the click that follows a drag must not open the task
+      window.setTimeout(() => (justDragged.current = false), 0);
+      const column = columnAt(e.clientX, e.clientY);
+      if (column) {
+        const siblings = column.tasks.filter((t) => t.id !== h.task.id);
+        const wraps = document.querySelectorAll<HTMLElement>(
+          `[data-column="${column.key}"] [data-card-wrap]`,
+        );
+        let index = siblings.length;
+        for (const wrap of wraps) {
+          const t = byId.get(wrap.dataset.cardWrap ?? '');
+          const box = wrap.getBoundingClientRect();
+          if (t && t.id !== h.task.id && e.clientY < box.top + box.height / 2) {
+            index = siblings.findIndex((s) => s.id === t.id);
+            break;
+          }
+        }
+        const { at, count } = place(h.task, column, index);
+        toast(`${h.task.key} moved to ${column.label}, ${at + 1} of ${count}`);
+      }
+    }
+    release();
   };
 
   /** Move one step: dx changes the column, dy the order within it. */
@@ -83,12 +181,6 @@ export function BoardView({ tasks, project, fields, users, config, onOpen, onUpd
             key={column.key}
             role="listitem"
             aria-label={`${column.label}, ${column.tasks.length} tasks`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setOver(column.key);
-            }}
-            onDragLeave={() => setOver((k) => (k === column.key ? null : k))}
-            onDrop={(e) => drop(e, column)}
             data-testid={`column-${column.label}`}
             data-column={column.key}
             className={`flex w-64 shrink-0 flex-col gap-2 rounded-lg bg-slate-50 p-2 sm:w-72 dark:bg-slate-900 ${over === column.key ? 'ring-2 ring-sky-600' : ''}`}
@@ -100,23 +192,24 @@ export function BoardView({ tasks, project, fields, users, config, onOpen, onUpd
             {column.tasks.map((task, ti) => (
               <div
                 key={task.id}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData(MIME, task.id);
-                  e.dataTransfer.effectAllowed = 'move';
+                data-card-wrap={task.id}
+                onPointerDown={(e) => onCardDown(e, task)}
+                onPointerMove={onCardMove}
+                onPointerUp={onCardUp}
+                onPointerCancel={release}
+                onContextMenu={(e) => {
+                  if (held.current?.active) e.preventDefault(); // a long press must not open the browser menu
                 }}
-                onDrop={(e) => {
-                  e.stopPropagation();
-                  drop(e, column, task);
-                }}
-                className="flex flex-col gap-1 rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm hover:border-sky-500 dark:border-slate-700 dark:bg-slate-950"
+                className={`flex touch-manipulation flex-col gap-1 rounded-md border border-slate-200 bg-white p-2 text-sm shadow-sm select-none hover:border-sky-500 dark:border-slate-700 dark:bg-slate-950 ${ghost?.task.id === task.id ? 'opacity-40' : ''}`}
               >
                 <button
                   type="button"
                   data-card={task.id}
                   aria-describedby="board-help"
                   aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight Alt+ArrowUp Alt+ArrowDown"
-                  onClick={() => onOpen(task)}
+                  onClick={() => {
+                    if (!justDragged.current) onOpen(task);
+                  }}
                   onKeyDown={(e) => onKeyDown(e, task, ci, ti)}
                   className="flex flex-col gap-1 rounded text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
                 >
@@ -156,6 +249,16 @@ export function BoardView({ tasks, project, fields, users, config, onOpen, onUpd
           </section>
         ))}
       </div>
+      {ghost && (
+        <div
+          aria-hidden="true"
+          style={{ left: ghost.x, top: ghost.y, width: ghost.width }}
+          className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-1/2 rotate-1 rounded-md border border-sky-500 bg-white p-2 text-sm shadow-lg dark:bg-slate-950"
+        >
+          <span className="block font-mono text-xs text-slate-600 dark:text-slate-400">{ghost.task.key}</span>
+          {ghost.task.title}
+        </div>
+      )}
     </ScrollArea>
   );
 }

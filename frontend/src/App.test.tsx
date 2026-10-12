@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -130,7 +130,7 @@ describe('project views', () => {
     });
   });
 
-  it('board view moves a card to another column by drag and drop', async () => {
+  it('board view moves a card to another column by dragging it', async () => {
     const { calls } = mockApi([
       ...baseRoutes,
       signedIn,
@@ -138,23 +138,52 @@ describe('project views', () => {
       { method: 'PATCH', path: '/api/v1/tasks/t1', body: task(1) },
     ]);
     renderAt('/projects/WEB?kind=board');
-    const card = (await screen.findByText('Task 1')).closest('button')!;
-    const store = new Map<string, string>();
-    const dataTransfer = {
-      setData: (k: string, v: string) => store.set(k, v),
-      getData: (k: string) => store.get(k) ?? '',
-      effectAllowed: '',
-    };
+    const card = (await screen.findByText('Task 1')).closest('button')!.parentElement!;
     const list = calls.find((c) => c.method === 'GET' && c.url.includes('/api/v1/tasks?'))!;
     expect(new URL(list.url).searchParams.getAll('status_categories')).toEqual([]); // boards show every status
-    fireEvent.dragStart(card, { dataTransfer });
-    fireEvent.drop(screen.getByTestId('column-Done'), { dataTransfer });
+    // jsdom has no layout: say which column is under the pointer.
+    const done = screen.getByTestId('column-Done');
+    document.elementFromPoint = () => done;
+    card.setPointerCapture = () => undefined;
+    const pointer = { pointerId: 1, pointerType: 'mouse', button: 0 };
+    fireEvent.pointerDown(card, { ...pointer, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(card, { ...pointer, clientX: 40, clientY: 40 });
+    fireEvent.pointerMove(card, { ...pointer, clientX: 300, clientY: 80 });
+    fireEvent.pointerUp(card, { ...pointer, clientX: 300, clientY: 80 });
     await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
     expect(await calls.find((c) => c.method === 'PATCH')!.json()).toEqual({
       status_id: 's-done',
       position: 1024,
       expected_version: 1,
     });
+  });
+
+  it('board view: a click without dragging still opens the task, and a long press picks a card up on touch', async () => {
+    const { calls } = mockApi([
+      ...baseRoutes,
+      signedIn,
+      { method: 'GET', path: '/api/v1/tasks', body: { items: [task(1)], next_cursor: null } },
+      { method: 'GET', path: '/api/v1/tasks/WEB-1', body: task(1) },
+      { method: 'PATCH', path: '/api/v1/tasks/t1', body: task(1) },
+    ]);
+    renderAt('/projects/WEB?kind=board');
+    const button = (await screen.findByText('Task 1')).closest('button')!;
+    const card = button.parentElement!;
+    await userEvent.click(button);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+
+    const done = screen.getByTestId('column-Done');
+    document.elementFromPoint = () => done;
+    card.setPointerCapture = () => undefined;
+    vi.useFakeTimers();
+    const touch = { pointerId: 2, pointerType: 'touch' };
+    fireEvent.pointerDown(card, { ...touch, clientX: 10, clientY: 10 });
+    act(() => void vi.advanceTimersByTime(350)); // held long enough
+    fireEvent.pointerMove(card, { ...touch, clientX: 300, clientY: 90 });
+    fireEvent.pointerUp(card, { ...touch, clientX: 300, clientY: 90 });
+    vi.useRealTimers();
+    await waitFor(() => expect(calls.some((c) => c.method === 'PATCH')).toBe(true));
   });
 });
 
