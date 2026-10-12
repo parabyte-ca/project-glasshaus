@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-10-12
+
+### Added
+- **`sudo ./scripts/reset-password.sh [email]`** sets a person's password from the server, for when nobody can
+  sign in. It asks for the new password, ends their other sign-ins, clears any lockout from failed attempts
+  and records `user.password_reset` in the audit log. Editing `GLASSHAUS_ADMIN_PASSWORD` in `.env` only ever
+  applied to the first start, which is now spelled out in [docs/configuration.md](docs/configuration.md#forgotten-password).
+
 ## [0.29.0] - 2026-10-12
 
 The Microsoft 365 Copilot agent for Teams, expanded.
@@ -991,7 +999,8 @@ Phase 0 — scaffold.
   smoke test, dependency/filesystem/image scanning and multi-arch image publishing on tags.
 - Dark mode, skip link and version display in the web shell.
 
-[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.29.1...HEAD
+[0.29.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.28.1...v0.29.0
 [0.28.1]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.28.0...v0.28.1
 [0.28.0]: https://github.com/parabyte-ca/project-glasshaus/compare/v0.27.3...v0.28.0

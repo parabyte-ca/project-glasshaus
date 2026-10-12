@@ -4,7 +4,7 @@ Self-hosted, web-based project management with first-class AI and MCP extensibil
 Every capability is delivered through one service layer and exposed identically via REST (OpenAPI 3.1),
 webhooks and an MCP server.
 
-> **Status:** v0.29.0. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
+> **Status:** v0.29.1. See [CHANGELOG.md](CHANGELOG.md) for what each release added and the [roadmap](#roadmap) for what is next.
 
 ## Contents
 
@@ -95,7 +95,8 @@ runs migrations and starts the stack, then waits for every service to report hea
 
 Sign in as `GLASSHAUS_ADMIN_EMAIL` (default `admin@example.com`) with the `GLASSHAUS_ADMIN_PASSWORD` that
 `setup.sh` generated in `.env` (`grep ^GLASSHAUS_ADMIN_PASSWORD= .env`), then change it under **Account**
-(click your name in the header).
+(click your name in the header). Editing `GLASSHAUS_ADMIN_PASSWORD` in `.env` afterwards does nothing; if you
+lose the password, run `sudo ./scripts/reset-password.sh`.
 
 ## Configuration
 
