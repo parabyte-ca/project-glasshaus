@@ -477,6 +477,7 @@ ago is still untagged.
 | 25 | 0.28.0 | Code review of everything since 0.21 (security, correctness, speed) and fixes; teal headings and card surfaces | Planned |
 | 26 | 0.29.0 | Personal appearance: each person picks colours for individual elements (headings, tiles, and so on) from a set of choices that fit the Glasshaus brand and keep text readable, in light and dark | Planned |
 | 27 | later | Nimble REST API connector: import straight from Nimble, no export (waiting on Nimble's API reference) | ⏳ |
+| 28 | later | Smartsheet alongside Glasshaus: an import preset for Smartsheet exports, a short "using Glasshaus alongside Smartsheet" guide, then a REST API connector (waiting for a sample sheet export; the team is moving from Nimble to Smartsheet) | ⏳ |
 
 ## Licence
 
