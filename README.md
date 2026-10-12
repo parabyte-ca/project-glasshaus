@@ -478,6 +478,7 @@ ago is still untagged.
 | 26 | 0.29.0 | Personal appearance: each person picks colours for individual elements (headings, tiles, and so on) from a set of choices that fit the Glasshaus brand and keep text readable, in light and dark | Planned |
 | 27 | later | Nimble REST API connector: import straight from Nimble, no export (waiting on Nimble's API reference) | ⏳ |
 | 28 | later | Smartsheet alongside Glasshaus: an import preset for Smartsheet exports, a short "using Glasshaus alongside Smartsheet" guide, then a REST API connector (waiting for a sample sheet export; the team is moving from Nimble to Smartsheet) | ⏳ |
+| 29 | later | Teams through the Microsoft 365 Copilot agent: people start and stop timers, log time and update tasks by chat (`start_timer`, `stop_timer`, `log_time`). Try it in a real tenant, write a short "time tracking from Teams" guide, and tune the agent's instructions and starter prompts (needs Microsoft 365 Copilot licences; a Teams bot with buttons is a possible follow-up) | ⏳ |
 
 ## Licence
 
