@@ -100,3 +100,12 @@ The declarative agent is defined in [`docs/integrations/m365/`](m365/):
    * `outline.png` (32x32 px outline icon)
 4. **Tenant Sideloading**:
    Upload the package in the Microsoft Teams Developer Portal or deploy via the Microsoft 365 Admin Center for organizational distribution.
+
+---
+
+## Roadmap: Teams Bot with Interactive Adaptive Cards (Phase 30)
+
+As a planned follow-up (Roadmap Phase 30), Project Glasshaus will complement conversational Copilot interactions with a native Teams Bot powered by interactive Adaptive Cards:
+* **One-Click Timers**: Interactive cards in 1:1 chats with direct *Start Timer* / *Stop Timer* action buttons.
+* **Quick Log Inputs**: In-line text & dropdown inputs to log time against recent tasks without typing prompts.
+* **Timesheet Approval Cards**: Channel cards summarizing weekly hours with one-click *Approve* or *Flag* actions for managers.
