@@ -481,6 +481,7 @@ ago is still untagged.
 | 28 | later | Smartsheet alongside Glasshaus: an import preset for Smartsheet exports, a short "using Glasshaus alongside Smartsheet" guide, then a REST API connector (waiting for a sample sheet export; the team is moving from Nimble to Smartsheet) | ⏳ |
 | 29 | later | Teams bot with interactive Adaptive Cards: click-to-start / stop timer buttons, quick time-logging inputs, and interactive timesheet approval widgets for channel digests and 1:1 chats | ⏳ |
 | 30 | later | Personal appearance: each person picks colours for individual elements (headings, tiles, and so on) from a set of choices that fit the Glasshaus brand and keep text readable, in light and dark | ⏳ |
+| 31 | later | Plan to project: upload a project plan as Word, Excel or plain text and have it turned into a Glasshaus project. Glasshaus reads the plan, matches what it finds (tasks and subtasks, owners, dates and durations, dependencies, milestones, estimates, status, priorities) to the fields Glasshaus uses, shows what it understood for review, then asks you for whatever is missing or unclear (a start date, an owner, a duration) before anything is created | ⏳ |
 
 ## Licence
 
