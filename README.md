@@ -482,6 +482,7 @@ ago is still untagged.
 | 29 | later | Teams bot with interactive Adaptive Cards: click-to-start / stop timer buttons, quick time-logging inputs, and interactive timesheet approval widgets for channel digests and 1:1 chats | ⏳ |
 | 30 | later | Personal appearance: each person picks colours for individual elements (headings, tiles, and so on) from a set of choices that fit the Glasshaus brand and keep text readable, in light and dark | ⏳ |
 | 31 | later | Plan to project: upload a project plan as Word, Excel or plain text and have it turned into a Glasshaus project. Glasshaus reads the plan, matches what it finds (tasks and subtasks, owners, dates and durations, dependencies, milestones, estimates, status, priorities) to the fields Glasshaus uses, shows what it understood for review, then asks you for whatever is missing or unclear (a start date, an owner, a duration) before anything is created | ⏳ |
+| 32 | later | Hourly time tracking with ADP: first follow up with HR on what they need to see for hourly employees (clock in and out, breaks, overtime, approvals, pay periods) and how it should reach ADP (API, scheduled export or file import), then add a time view that complements ADP and sends approved hours to it, without replacing it as the payroll system of record | ⏳ |
 
 ## Licence
 
