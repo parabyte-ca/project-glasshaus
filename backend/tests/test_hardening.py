@@ -1,6 +1,7 @@
 """HTTP hardening: headers, request size, rate limits, lockout and password policy."""
 
 import asyncio
+import time
 import uuid
 from collections.abc import AsyncIterator
 
@@ -64,6 +65,8 @@ async def test_api_rate_limit(client: AsyncClient, monkeypatch: pytest.MonkeyPat
 
     world = await make_world()
     monkeypatch.setattr(get_settings(), "api_rate_limit_per_minute", 5)
+    if time.time() % 60 > 55:  # the limit counts per clock minute: do not straddle a minute boundary
+        await asyncio.sleep(61 - time.time() % 60)
     codes = [(await client.get("/api/v1/users/me", headers=world.headers)).status_code for _ in range(7)]
     assert codes[:5] == [200] * 5 and codes[-1] == 429
     assert (await client.get("/healthz")).status_code == 200  # health checks are never limited

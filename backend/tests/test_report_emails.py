@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from httpx import AsyncClient
@@ -79,7 +80,8 @@ async def test_scheduled_email_runs_with_the_subscribers_access(
     assert r.status_code == 200, r.text
     sub = r.json()
     due = datetime.fromisoformat(sub["next_run_at"])
-    assert due > datetime.now(due.tzinfo) and due.weekday() == 0 and due.hour == 12  # 08:00 Toronto (EDT)
+    assert due > datetime.now(due.tzinfo) and due.weekday() == 0
+    assert due.astimezone(ZoneInfo("America/Toronto")).hour == 8  # whatever the time of year (EDT or EST)
     assert (
         (await client.get(url, headers=world.headers)).json()["subscription"]["report_name"].startswith("<b>")
     )
